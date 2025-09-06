@@ -1,0 +1,3569 @@
+import { createClient } from "./supabase";
+import {
+  Tournament,
+  User,
+  Category,
+  Pair,
+  Group,
+  Match,
+  Court,
+  UserRole,
+  UserRoleAssignment,
+  UserProfile,
+  AuditLog,
+  RolePermissions,
+} from "@/types";
+
+const supabase = createClient();
+
+// ============================================================================
+// TOURNAMENTS
+// ============================================================================
+
+export async function getTournaments(): Promise<Tournament[]> {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error fetching tournaments:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const tournaments = (data || []).map((tournamentRow) => ({
+    ...tournamentRow,
+    createdBy: tournamentRow.created_by,
+    createdAt: tournamentRow.created_at,
+    updatedAt: tournamentRow.updated_at,
+  }));
+
+  return tournaments;
+}
+
+export async function getTournament(id: string): Promise<Tournament | null> {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null; // No se encontró el torneo
+    }
+    console.error("Error fetching tournament:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  const tournament = {
+    ...data,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return tournament;
+}
+
+export async function getTournamentBySlug(
+  slug: string
+): Promise<Tournament | null> {
+  const { data, error } = await supabase
+    .from("tournaments")
+    .select(
+      `
+      *,
+      created_by_user:users!tournaments_created_by_fkey(*)
+    `
+    )
+    .eq("slug", slug)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null; // No se encontró el torneo
+    }
+    console.error("Error fetching tournament:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createTournament(
+  tournament: Omit<Tournament, "id" | "createdAt" | "updatedAt">
+): Promise<Tournament> {
+  const { data: user, error: userError } = await supabase.auth.getUser();
+
+  if (userError || !user.user) {
+    throw new Error("Usuario no autenticado");
+  }
+
+  const { data, error } = await supabase
+    .from("tournaments")
+    .insert({
+      name: tournament.name,
+      slug: tournament.slug,
+      config: tournament.config,
+      status: tournament.status,
+      created_by: user.user.id,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error creating tournament:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const tournamentData = {
+    ...data,
+    createdBy: data.created_by,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  // Asignar automáticamente el rol de "owner" al creador del torneo
+  try {
+    await assignRole(user.user.id, tournamentData.id, "owner", user.user.id);
+    console.log("Owner role assigned to tournament creator");
+  } catch (roleError) {
+    console.error("Error assigning owner role:", roleError);
+    // No lanzamos error para no interrumpir la creación del torneo
+  }
+
+  return tournamentData;
+}
+
+export async function updateTournament(
+  id: string,
+  updates: Partial<Tournament>
+): Promise<Tournament> {
+  // Convertir camelCase a snake_case para Supabase
+  const supabaseUpdates: any = {};
+
+  if (updates.name !== undefined) supabaseUpdates.name = updates.name;
+  if (updates.slug !== undefined) supabaseUpdates.slug = updates.slug;
+  if (updates.config !== undefined) supabaseUpdates.config = updates.config;
+  if (updates.status !== undefined) supabaseUpdates.status = updates.status;
+  if (updates.updatedAt !== undefined)
+    supabaseUpdates.updated_at = updates.updatedAt;
+
+  const { data, error } = await supabase
+    .from("tournaments")
+    .update(supabaseUpdates)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating tournament:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const tournament: Tournament = {
+    id: data.id,
+    name: data.name,
+    slug: data.slug,
+    config: data.config,
+    createdBy: data.created_by,
+    status: data.status,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  console.log(`✅ Torneo actualizado: ${tournament.name}`);
+  return tournament;
+}
+
+export async function deleteTournament(id: string): Promise<void> {
+  const { error } = await supabase.from("tournaments").delete().eq("id", id);
+
+  if (error) {
+    console.error("Error deleting tournament:", error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// USERS
+// ============================================================================
+
+export async function getCurrentUser(): Promise<User | null> {
+  const { data: authUser, error: authError } = await supabase.auth.getUser();
+
+  if (authError || !authUser.user) {
+    return null;
+  }
+
+  const { data, error } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", authUser.user.id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      // Usuario no existe en la tabla users, crear uno
+      return await createUserProfile(authUser.user);
+    }
+    console.error("Error fetching user:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+export async function createUserProfile(authUser: any): Promise<User> {
+  const { data, error } = await supabase
+    .from("users")
+    .insert({
+      id: authUser.id,
+      name:
+        authUser.user_metadata?.name ||
+        authUser.email?.split("@")[0] ||
+        "Usuario",
+      email: authUser.email,
+      role: "admin", // Por defecto admin para el MVP
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error creating user profile:", error);
+    throw error;
+  }
+
+  return data;
+}
+
+// ============================================================================
+// CATEGORIES
+// ============================================================================
+
+export async function getCategories(tournamentId: string): Promise<Category[]> {
+  try {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching categories:", error);
+      // Si hay error, retornar array vacío en lugar de lanzar excepción
+      return [];
+    }
+
+    // Convertir snake_case a camelCase para TypeScript
+    const categories = (data || []).map((category) => ({
+      ...category,
+      tournamentId: category.tournament_id,
+      minPairs: category.min_pairs,
+      maxPairs: category.max_pairs,
+      createdAt: category.created_at,
+      updatedAt: category.updated_at,
+    }));
+
+    return categories;
+  } catch (error) {
+    console.error("Unexpected error in getCategories:", error);
+    return [];
+  }
+}
+
+// Función para obtener todas las categorías para vista pública
+export async function getAllCategories(): Promise<Category[]> {
+  try {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("*")
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error("Error fetching all categories:", error);
+      return [];
+    }
+
+    // Convertir snake_case a camelCase para TypeScript
+    const categories = (data || []).map((category) => ({
+      ...category,
+      tournamentId: category.tournament_id,
+      minPairs: category.min_pairs,
+      maxPairs: category.max_pairs,
+      createdAt: category.created_at,
+      updatedAt: category.updated_at,
+    }));
+
+    return categories;
+  } catch (error) {
+    console.error("Unexpected error in getAllCategories:", error);
+    return [];
+  }
+}
+
+export async function getCategory(id: string): Promise<Category | null> {
+  const { data, error } = await supabase
+    .from("categories")
+    .select("*")
+    .eq("id", id)
+    .single();
+
+  if (error) {
+    if (error.code === "PGRST116") {
+      return null; // No se encontró la categoría
+    }
+    console.error("Error fetching category:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const category = {
+    ...data,
+    tournamentId: data.tournament_id,
+    minPairs: data.min_pairs,
+    maxPairs: data.max_pairs,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return category;
+}
+
+export async function createCategory(
+  category: Omit<Category, "id" | "createdAt" | "updatedAt">
+): Promise<Category> {
+  const { data, error } = await supabase
+    .from("categories")
+    .insert({
+      tournament_id: category.tournamentId,
+      name: category.name,
+      min_pairs: category.minPairs,
+      max_pairs: category.maxPairs,
+      status: category.status,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error creating category:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const categoryData = {
+    ...data,
+    tournamentId: data.tournament_id,
+    minPairs: data.min_pairs,
+    maxPairs: data.max_pairs,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return categoryData;
+}
+
+export async function updateCategory(
+  id: string,
+  updates: Partial<Pick<Category, "name" | "minPairs" | "maxPairs" | "status">>
+): Promise<Category> {
+  const { data, error } = await supabase
+    .from("categories")
+    .update({
+      name: updates.name,
+      min_pairs: updates.minPairs,
+      max_pairs: updates.maxPairs,
+      status: updates.status,
+    })
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating category:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const categoryData = {
+    ...data,
+    tournamentId: data.tournament_id,
+    minPairs: data.min_pairs,
+    maxPairs: data.max_pairs,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return categoryData;
+}
+
+export async function deleteCategory(id: string): Promise<void> {
+  const { error } = await supabase.from("categories").delete().eq("id", id);
+
+  if (error) {
+    console.error("Error deleting category:", error);
+    throw error;
+  }
+}
+
+// ============================================================================
+// PAIRS
+// ============================================================================
+
+// Función de prueba para verificar conexión a Supabase
+export async function testSupabaseConnection(): Promise<boolean> {
+  try {
+    const { data, error } = await supabase
+      .from("pairs")
+      .select("count")
+      .limit(1);
+
+    if (error) {
+      console.error("testSupabaseConnection: Error:", error);
+      return false;
+    }
+
+    console.log("testSupabaseConnection: Success, data:", data);
+    return true;
+  } catch (error) {
+    console.error("testSupabaseConnection: Unexpected error:", error);
+    return false;
+  }
+}
+
+export async function getPairs(categoryId: string): Promise<Pair[]> {
+  // Validar que categoryId no esté vacío y sea un UUID válido
+  if (!categoryId || categoryId.trim() === "") {
+    console.warn("getPairs called with empty categoryId");
+    return [];
+  }
+
+  // Validar formato UUID básico
+  const uuidRegex =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (!uuidRegex.test(categoryId)) {
+    console.warn("getPairs called with invalid UUID format:", categoryId);
+    return [];
+  }
+
+  console.log(`getPairs: Fetching pairs for category ${categoryId}`);
+
+  try {
+    const { data, error } = await supabase
+      .from("pairs")
+      .select("*")
+      .eq("category_id", categoryId)
+      .order("created_at", { ascending: true });
+
+    if (error) {
+      console.error(
+        "getPairs: Error fetching pairs for category",
+        categoryId,
+        ":",
+        error.message || error
+      );
+      // En lugar de lanzar error, retornar array vacío
+      return [];
+    }
+
+    console.log(
+      `getPairs: Found ${data?.length || 0} pairs for category ${categoryId}`
+    );
+
+    // Debug: Ver datos crudos de la base de datos
+    if (data && data.length > 0) {
+      console.log("getPairs: Raw data from DB:", data[0]);
+      console.log("getPairs: player1 structure:", data[0].player1);
+      console.log("getPairs: player2 structure:", data[0].player2);
+    }
+
+    // Convertir snake_case a camelCase para TypeScript
+    const pairs = (data || []).map((pair, index) => ({
+      id: pair.id,
+      tournamentId: pair.tournament_id,
+      categoryId: pair.category_id,
+      player1: {
+        name: pair.player1?.name || "",
+        phone: pair.player1?.phone || "",
+      },
+      player2: {
+        name: pair.player2?.name || "",
+        phone: pair.player2?.phone || "",
+      },
+      seed: index + 1, // Asignar ranking basado en el orden de creación
+      createdAt: pair.created_at,
+      updatedAt: pair.updated_at,
+    }));
+
+    return pairs;
+  } catch (error) {
+    console.error("getPairs: Unexpected error:", error);
+    return [];
+  }
+}
+
+// Función para obtener parejas por sus IDs (helper function)
+export function getPairsByIds(
+  pairIds: string[],
+  allPairs: Pair[] = []
+): Pair[] {
+  return pairIds
+    .map((id) => allPairs.find((pair) => pair.id === id))
+    .filter((pair): pair is Pair => pair !== undefined);
+}
+
+export async function createPair(
+  pair: Omit<Pair, "id" | "createdAt" | "updatedAt">
+): Promise<Pair> {
+  // Validar datos requeridos
+  if (!pair.tournamentId || !pair.categoryId) {
+    throw new Error("tournamentId y categoryId son requeridos");
+  }
+
+  if (!pair.player1?.name || !pair.player2?.name) {
+    throw new Error("Los nombres de ambos jugadores son requeridos");
+  }
+
+  // Obtener el número de parejas existentes en la categoría para asignar ranking
+  const existingPairs = await getPairs(pair.categoryId);
+  const nextRanking = existingPairs.length + 1;
+
+  // Preparar datos para insertar
+  const insertData = {
+    tournament_id: pair.tournamentId,
+    category_id: pair.categoryId,
+    player1: {
+      name: pair.player1.name.trim(),
+      phone: pair.player1.phone?.trim() || null,
+    },
+    player2: {
+      name: pair.player2.name.trim(),
+      phone: pair.player2.phone?.trim() || null,
+    },
+    // seed: pair.seed || null, // Comentado porque la columna no existe en la BD real
+  };
+
+  console.log("createPair: Inserting data:", insertData);
+
+  const { data, error } = await supabase
+    .from("pairs")
+    .insert(insertData)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error creating pair:", error);
+    console.error("Error details:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const pairData = {
+    id: data.id,
+    tournamentId: data.tournament_id || pair.tournamentId,
+    categoryId: data.category_id,
+    player1: {
+      name: data.player1?.name || "",
+      phone: data.player1?.phone || "",
+    },
+    player2: {
+      name: data.player2?.name || "",
+      phone: data.player2?.phone || "",
+    },
+    seed: nextRanking, // Usar el ranking calculado basado en el número de parejas existentes
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return pairData;
+}
+
+export async function deletePair(id: string): Promise<void> {
+  if (!id || id.trim() === "") {
+    throw new Error("ID de pareja es requerido");
+  }
+
+  console.log("deletePair: Deleting pair with ID:", id);
+
+  const { error } = await supabase.from("pairs").delete().eq("id", id);
+
+  if (error) {
+    console.error("Error deleting pair:", error);
+    console.error("Error details:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  console.log("deletePair: Successfully deleted pair with ID:", id);
+}
+
+export async function updatePair(
+  id: string,
+  pair: Omit<Pair, "id" | "createdAt" | "updatedAt">
+): Promise<Pair> {
+  if (!id || id.trim() === "") {
+    throw new Error("ID de pareja es requerido");
+  }
+
+  // Validar datos requeridos
+  if (!pair.tournamentId || !pair.categoryId) {
+    throw new Error("tournamentId y categoryId son requeridos");
+  }
+
+  if (!pair.player1?.name || !pair.player2?.name) {
+    throw new Error("Los nombres de ambos jugadores son requeridos");
+  }
+
+  // Preparar datos para actualizar
+  const updateData = {
+    tournament_id: pair.tournamentId,
+    category_id: pair.categoryId,
+    player1: {
+      name: pair.player1.name.trim(),
+      phone: pair.player1.phone?.trim() || null,
+    },
+    player2: {
+      name: pair.player2.name.trim(),
+      phone: pair.player2.phone?.trim() || null,
+    },
+    // seed: pair.seed || null, // Comentado porque la columna no existe en la BD real
+  };
+
+  console.log("updatePair: Updating pair with ID:", id, "Data:", updateData);
+
+  const { data, error } = await supabase
+    .from("pairs")
+    .update(updateData)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating pair:", error);
+    console.error("Error details:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase para TypeScript
+  const pairData = {
+    id: data.id,
+    tournamentId: data.tournament_id || pair.tournamentId,
+    categoryId: data.category_id,
+    player1: {
+      name: data.player1?.name || "",
+      phone: data.player1?.phone || "",
+    },
+    player2: {
+      name: data.player2?.name || "",
+      phone: data.player2?.phone || "",
+    },
+    seed: pair.seed || 1, // Usar el valor proporcionado o 1 por defecto
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  console.log("updatePair: Successfully updated pair:", pairData);
+  return pairData;
+}
+
+// ============================================================================
+// UTILITIES
+// ============================================================================
+
+export function generateSlug(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/[áäâà]/g, "a")
+    .replace(/[éëêè]/g, "e")
+    .replace(/[íïîì]/g, "i")
+    .replace(/[óöôò]/g, "o")
+    .replace(/[úüûù]/g, "u")
+    .replace(/[ñ]/g, "n")
+    .replace(/[^a-z0-9]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+// ============================================================================
+// GROUPS
+// ============================================================================
+
+export async function getGroups(categoryId: string): Promise<Group[]> {
+  const { data, error } = await supabase
+    .from("groups")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("name");
+
+  if (error) {
+    console.error("Error fetching groups:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return data.map((group) => ({
+    id: group.id,
+    categoryId: group.category_id,
+    name: group.name,
+    pairIds: group.pair_ids || [],
+    createdAt: group.created_at,
+    updatedAt: group.updated_at,
+  }));
+}
+
+export async function createGroups(
+  groups: Omit<Group, "id" | "createdAt" | "updatedAt">[]
+): Promise<Group[]> {
+  // Primero, limpiar grupos existentes de la categoría para evitar duplicados
+  if (groups.length > 0) {
+    await deleteGroups(groups[0].categoryId);
+  }
+
+  // Convertir camelCase a snake_case para la base de datos
+  const dbGroups = groups.map((group) => ({
+    category_id: group.categoryId,
+    name: group.name,
+    pair_ids: group.pairIds,
+  }));
+
+  const { data, error } = await supabase
+    .from("groups")
+    .insert(dbGroups)
+    .select("*");
+
+  if (error) {
+    console.error("Error creating groups:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return data.map((group) => ({
+    id: group.id,
+    categoryId: group.category_id,
+    name: group.name,
+    pairIds: group.pair_ids || [],
+    createdAt: group.created_at,
+    updatedAt: group.updated_at,
+  }));
+}
+
+export async function deleteGroups(categoryId: string): Promise<void> {
+  const { error } = await supabase
+    .from("groups")
+    .delete()
+    .eq("category_id", categoryId);
+
+  if (error) {
+    console.error("Error deleting groups:", error);
+    throw error;
+  }
+}
+
+// Algoritmo para generar grupos balanceados
+export function generateBalancedGroups(
+  pairs: Pair[],
+  maxGroupSize: number = 3
+): Omit<Group, "id" | "createdAt" | "updatedAt">[] {
+  // Filtrar parejas únicas por ID para evitar duplicados
+  const uniquePairs = pairs.filter(
+    (pair, index, self) => index === self.findIndex((p) => p.id === pair.id)
+  );
+
+  const sortedPairs = [...uniquePairs].sort(
+    (a, b) => (a.seed || 0) - (b.seed || 0)
+  );
+  const numGroups = Math.ceil(sortedPairs.length / maxGroupSize);
+  const groups: Omit<Group, "id" | "createdAt" | "updatedAt">[] = [];
+
+  console.log(
+    `Generando ${numGroups} grupos con ${sortedPairs.length} parejas únicas`
+  );
+
+  // Inicializar grupos vacíos
+  for (let i = 0; i < numGroups; i++) {
+    groups.push({
+      categoryId: pairs[0]?.categoryId || "",
+      name: `Grupo ${String.fromCharCode(65 + i)}`, // A, B, C, etc.
+      pairIds: [],
+    });
+  }
+
+  // Distribuir parejas de forma balanceada (serpiente)
+  let currentGroup = 0;
+  let direction = 1; // 1 = forward, -1 = backward
+
+  for (const pair of sortedPairs) {
+    groups[currentGroup].pairIds.push(pair.id);
+    console.log(
+      `Pareja ${pair.id} (Ranking ${pair.seed}) → ${groups[currentGroup].name}`
+    );
+
+    currentGroup += direction;
+
+    // Cambiar dirección al llegar a los extremos
+    if (currentGroup >= numGroups) {
+      currentGroup = numGroups - 1;
+      direction = -1;
+    } else if (currentGroup < 0) {
+      currentGroup = 0;
+      direction = 1;
+    }
+  }
+
+  return groups;
+}
+
+// Función para actualizar resultado de un partido
+export async function updateMatchResult(
+  matchId: string,
+  scorePairA: {
+    set1: number;
+    set2: number;
+    set3?: number;
+    superDeath?: number;
+  },
+  scorePairB: {
+    set1: number;
+    set2: number;
+    set3?: number;
+    superDeath?: number;
+  },
+  winnerPairId: string
+): Promise<Match> {
+  // Calcular sets ganados por cada pareja
+  let pairASets = 0;
+  let pairBSets = 0;
+
+  if (scorePairA.set1 > scorePairB.set1) pairASets++;
+  else pairBSets++;
+
+  if (scorePairA.set2 > scorePairB.set2) pairASets++;
+  else pairBSets++;
+
+  if (scorePairA.set3 !== undefined && scorePairB.set3 !== undefined) {
+    if (scorePairA.set3 > scorePairB.set3) pairASets++;
+    else pairBSets++;
+  }
+
+  const { data, error } = await supabase
+    .from("matches")
+    .update({
+      score_pair_a: pairASets,
+      score_pair_b: pairBSets,
+      winner_id: winnerPairId,
+      score: {
+        pairA: scorePairA,
+        pairB: scorePairB,
+        winner: winnerPairId,
+      },
+      status: "completed",
+    })
+    .eq("id", matchId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating match result:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  const updatedMatch = {
+    id: data.id,
+    tournamentId: data.tournament_id,
+    categoryId: data.category_id,
+    stage: data.stage,
+    groupId: data.group_id,
+    pairAId: data.pair_a_id,
+    pairBId: data.pair_b_id,
+    day: data.day,
+    startTime: data.start_time,
+    courtId: data.court_id,
+    status: data.status,
+    scorePairA: data.score?.pairA || null,
+    scorePairB: data.score?.pairB || null,
+    winnerPairId: data.score?.winner || data.winner_id || null,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  // Si es un partido de eliminatorias, verificar si se debe generar la siguiente ronda
+  if (
+    ["quarterfinals", "semifinals", "final", "third_place"].includes(data.stage)
+  ) {
+    console.log(
+      "🔄 Verificando si se debe generar la siguiente ronda de eliminatorias..."
+    );
+    try {
+      await checkAndGenerateNextRound(data.category_id, data.tournament_id);
+    } catch (error) {
+      console.error(
+        "⚠️ Error verificando siguiente ronda (no crítico):",
+        error
+      );
+      // No lanzamos el error porque el resultado ya se guardó correctamente
+    }
+  }
+
+  return updatedMatch;
+}
+
+// ============================================================================
+// MATCHES
+// ============================================================================
+
+export async function getMatches(groupId: string): Promise<Match[]> {
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("group_id", groupId)
+    .order("created_at");
+
+  if (error) {
+    console.error("Error fetching matches:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return data.map((match) => ({
+    id: match.id,
+    tournamentId: match.tournament_id,
+    categoryId: match.category_id,
+    stage: match.stage,
+    groupId: match.group_id,
+    pairAId: match.pair_a_id,
+    pairBId: match.pair_b_id,
+    day: match.day,
+    startTime: match.start_time,
+    courtId: match.court_id,
+    status: match.status,
+    scorePairA: match.score?.pairA || null,
+    scorePairB: match.score?.pairB || null,
+    winnerPairId: match.score?.winner || match.winner_id || null,
+    createdAt: match.created_at,
+    updatedAt: match.updated_at,
+  }));
+}
+
+// 🆕 Nueva función: Obtener TODOS los partidos de una categoría (grupos + knockout)
+export async function getAllMatchesByCategory(
+  categoryId: string
+): Promise<Match[]> {
+  const { data, error } = await supabase
+    .from("matches")
+    .select("*")
+    .eq("category_id", categoryId)
+    .order("created_at");
+
+  if (error) {
+    console.error("Error fetching all matches by category:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return (data || []).map((match) => ({
+    id: match.id,
+    tournamentId: match.tournament_id,
+    categoryId: match.category_id,
+    stage: match.stage,
+    groupId: match.group_id,
+    pairAId: match.pair_a_id,
+    pairBId: match.pair_b_id,
+    day: match.day,
+    startTime: match.start_time,
+    courtId: match.court_id,
+    status: match.status,
+    scorePairA: match.score_pair_a, // Mantener como está - puede ser número o objeto
+    scorePairB: match.score_pair_b, // Mantener como está - puede ser número o objeto
+    winnerPairId: match.winner_pair_id,
+    createdAt: match.created_at,
+    updatedAt: match.updated_at,
+  }));
+}
+
+export async function createMatches(
+  matches: Omit<Match, "id" | "createdAt" | "updatedAt">[],
+  skipDelete = false
+): Promise<Match[]> {
+  // Primero, limpiar partidos existentes del grupo para evitar duplicados
+  // Solo si no se especifica skipDelete (para evitar eliminar dos veces)
+  if (!skipDelete && matches.length > 0 && matches[0].groupId) {
+    await deleteMatches(matches[0].groupId);
+  }
+
+  // Convertir camelCase a snake_case para la base de datos
+  // Solo usar columnas que realmente existen en el esquema de Supabase
+  const dbMatches = matches.map((match) => ({
+    tournament_id: match.tournamentId,
+    category_id: match.categoryId,
+    group_id: match.groupId || null,
+    stage: match.stage,
+    pair_a_id: match.pairAId,
+    pair_b_id: match.pairBId,
+    day: match.day || null,
+    start_time: match.startTime || null,
+    court_id: match.courtId || null,
+    status: match.status || "pending",
+    score:
+      match.scorePairA && match.scorePairB
+        ? {
+            pairA: match.scorePairA,
+            pairB: match.scorePairB,
+            winner: match.winnerPairId,
+          }
+        : null,
+  }));
+
+  const { data, error } = await supabase
+    .from("matches")
+    .insert(dbMatches)
+    .select("*");
+
+  if (error) {
+    console.error("Error creating matches:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return data.map((match) => ({
+    id: match.id,
+    tournamentId: match.tournament_id,
+    categoryId: match.category_id,
+    stage: match.stage,
+    groupId: match.group_id,
+    pairAId: match.pair_a_id,
+    pairBId: match.pair_b_id,
+    day: match.day,
+    startTime: match.start_time,
+    courtId: match.court_id,
+    status: match.status,
+    scorePairA: match.score_pair_a,
+    scorePairB: match.score_pair_b,
+    winnerPairId: match.winner_pair_id,
+    createdAt: match.created_at,
+    updatedAt: match.updated_at,
+  }));
+}
+
+export async function deleteMatches(groupId: string): Promise<void> {
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("group_id", groupId);
+
+  if (error) {
+    console.error("Error deleting matches:", error);
+    throw error;
+  }
+}
+
+// Función para limpiar TODOS los partidos de fase de grupos de una categoría
+export async function deleteAllGroupMatches(categoryId: string): Promise<void> {
+  console.log(
+    "🗑️ Limpiando todos los partidos de grupos para la categoría:",
+    categoryId
+  );
+
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("category_id", categoryId)
+    .eq("stage", "groups");
+
+  if (error) {
+    console.error("Error deleting all group matches:", error);
+    throw error;
+  }
+
+  console.log("✅ Partidos de grupos eliminados correctamente");
+}
+
+// Función para limpiar TODAS las eliminatorias de una categoría
+export async function deleteAllKnockoutMatches(
+  categoryId: string
+): Promise<void> {
+  console.log(
+    "🗑️ Limpiando todas las eliminatorias para la categoría:",
+    categoryId
+  );
+
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("category_id", categoryId)
+    .in("stage", ["quarterfinals", "semifinals", "final", "third_place"]);
+
+  if (error) {
+    console.error("Error deleting all knockout matches:", error);
+    throw error;
+  }
+
+  console.log("✅ Eliminatorias eliminadas correctamente");
+}
+
+// Función para limpiar TODOS los partidos de una categoría (grupos + eliminatorias)
+export async function deleteAllCategoryMatches(
+  categoryId: string
+): Promise<void> {
+  console.log(
+    "🗑️🧹 RESET COMPLETO - Limpiando TODOS los partidos de la categoría:",
+    categoryId
+  );
+
+  const { error } = await supabase
+    .from("matches")
+    .delete()
+    .eq("category_id", categoryId);
+
+  if (error) {
+    console.error("Error deleting all category matches:", error);
+    throw error;
+  }
+
+  console.log(
+    "✅ TODOS los partidos eliminados correctamente (grupos + eliminatorias)"
+  );
+}
+
+// ============================================================================
+// DYNAMIC BRACKET SIZING
+// ============================================================================
+
+// Función para calcular cuántas parejas avanzan de la fase de grupos
+export function calculateAdvancingPairs(groups: Group[]): {
+  totalAdvancing: number;
+  bracketSize: number;
+  firstPlaces: number;
+  bestSecondPlaces: number;
+  stages: string[];
+} {
+  const totalGroups = groups.length;
+
+  if (totalGroups === 0) {
+    return {
+      totalAdvancing: 0,
+      bracketSize: 0,
+      firstPlaces: 0,
+      bestSecondPlaces: 0,
+      stages: [],
+    };
+  }
+
+  // Siempre avanzan los primeros lugares de cada grupo
+  const firstPlaces = totalGroups;
+
+  // Calcular cuántos segundos lugares necesitamos para completar un bracket válido
+  let totalAdvancing = firstPlaces;
+  let bestSecondPlaces = 0;
+
+  // Encontrar el siguiente poder de 2 mayor o igual al número de primeros lugares
+  let bracketSize = 1;
+  while (bracketSize < firstPlaces) {
+    bracketSize *= 2;
+  }
+
+  // Si el bracket size es mayor que los primeros lugares, necesitamos segundos lugares
+  if (bracketSize > firstPlaces) {
+    bestSecondPlaces = bracketSize - firstPlaces;
+    totalAdvancing = bracketSize;
+  }
+
+  // Determinar las etapas basadas en el tamaño del bracket
+  const stages = [];
+  if (bracketSize >= 32) stages.push("round_of_32");
+  if (bracketSize >= 16) stages.push("round_of_16");
+  if (bracketSize >= 8) stages.push("quarterfinals");
+  if (bracketSize >= 4) stages.push("semifinals");
+  if (bracketSize >= 2) stages.push("final");
+
+  console.log(`📊 Bracket dinámico calculado:
+    - Grupos: ${totalGroups}
+    - Primeros lugares: ${firstPlaces}
+    - Mejores segundos: ${bestSecondPlaces}
+    - Total que avanzan: ${totalAdvancing}
+    - Tamaño del bracket: ${bracketSize}
+    - Etapas: ${stages.join(", ")}`);
+
+  return {
+    totalAdvancing,
+    bracketSize,
+    firstPlaces,
+    bestSecondPlaces,
+    stages,
+  };
+}
+
+// Función para obtener las parejas que avanzan a eliminatorias
+export async function getAdvancingPairs(categoryId: string): Promise<{
+  advancingPairs: Pair[];
+  bracketInfo: ReturnType<typeof calculateAdvancingPairs>;
+}> {
+  // Obtener grupos y standings
+  const groups = await getGroups(categoryId);
+  const allPairs = await getPairs(categoryId);
+  const standings = await calculateStandings(categoryId, allPairs);
+
+  const bracketInfo = calculateAdvancingPairs(groups);
+
+  if (bracketInfo.totalAdvancing === 0) {
+    return { advancingPairs: [], bracketInfo };
+  }
+
+  // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay partidos jugados en los grupos
+  let hasPlayedMatches = false;
+  for (const group of groups) {
+    const groupMatches = await getMatches(group.id);
+    const finishedMatches = groupMatches.filter(
+      (match) => match.status === "completed"
+    );
+
+    if (finishedMatches.length > 0) {
+      hasPlayedMatches = true;
+      break;
+    }
+  }
+
+  // Si no hay partidos jugados, NO generar parejas clasificadas
+  if (!hasPlayedMatches) {
+    console.log(
+      "❌ No se pueden generar parejas clasificadas: No hay partidos jugados en la fase de grupos"
+    );
+    return { advancingPairs: [], bracketInfo };
+  }
+
+  // Separar por posición en grupo
+  const firstPlaces: Array<{ pair: Pair; points: number; position: number }> =
+    [];
+  const secondPlaces: Array<{ pair: Pair; points: number; position: number }> =
+    [];
+
+  // Obtener standings por grupo individual
+  for (const group of groups) {
+    const groupPairs = allPairs.filter((pair) =>
+      group.pairIds.includes(pair.id)
+    );
+    const groupStandings = await calculateStandings(group.id, groupPairs);
+
+    // Ordenar por puntos (ya debería estar ordenado, pero por seguridad)
+    const sorted = groupStandings.sort((a, b) => b.points - a.points);
+
+    if (sorted[0]) {
+      const firstPair = allPairs.find((p) => p.id === sorted[0].pairId);
+      if (firstPair) {
+        firstPlaces.push({
+          pair: firstPair,
+          points: sorted[0].points,
+          position: 1,
+        });
+      }
+    }
+
+    if (sorted[1]) {
+      const secondPair = allPairs.find((p) => p.id === sorted[1].pairId);
+      if (secondPair) {
+        secondPlaces.push({
+          pair: secondPair,
+          points: sorted[1].points,
+          position: 2,
+        });
+      }
+    }
+  }
+
+  // Ordenar segundos lugares por puntos (mejores primero)
+  secondPlaces.sort((a, b) => b.points - a.points);
+
+  // Seleccionar parejas que avanzan
+  const advancingPairs: Pair[] = [
+    ...firstPlaces.map((fp) => fp.pair),
+    ...secondPlaces.slice(0, bracketInfo.bestSecondPlaces).map((sp) => sp.pair),
+  ];
+
+  console.log(`✅ Parejas que avanzan calculadas:
+    - Primeros lugares: ${firstPlaces.length}
+    - Mejores segundos: ${Math.min(
+      secondPlaces.length,
+      bracketInfo.bestSecondPlaces
+    )}
+    - Total: ${advancingPairs.length}`);
+
+  return { advancingPairs, bracketInfo };
+}
+
+// ============================================================================
+// CALENDAR & SCHEDULING
+// ============================================================================
+
+// Función para actualizar la programación de un partido
+export async function updateMatchSchedule(
+  matchId: string,
+  day: string,
+  startTime: string,
+  courtId: string
+): Promise<void> {
+  // Si los valores están vacíos, limpiar la programación
+  const updateData: any = {
+    day: day || null,
+    start_time: startTime || null,
+    court_id: courtId || null,
+  };
+
+  // Determinar el status basado en si tiene programación
+  if (day && startTime && courtId) {
+    updateData.status = "scheduled";
+  } else {
+    updateData.status = "pending";
+  }
+
+  const { error } = await supabase
+    .from("matches")
+    .update(updateData)
+    .eq("id", matchId);
+
+  if (error) {
+    console.error("Error updating match schedule:", error);
+    throw error;
+  }
+
+  if (day && startTime && courtId) {
+    console.log(
+      `✅ Partido programado: ${day} ${startTime} en cancha ${courtId}`
+    );
+  } else {
+    console.log(`🗑️ Horario limpiado para partido: ${matchId}`);
+  }
+}
+
+// ============================================================================
+// NOTIFICATIONS SYSTEM
+// ============================================================================
+
+import {
+  Notification,
+  NotificationPreferences,
+  NotificationType,
+} from "@/types";
+
+// Crear notificación
+export async function createNotification(
+  userId: string,
+  tournamentId: string,
+  type: NotificationType,
+  title: string,
+  message: string,
+  data?: any,
+  scheduledFor?: string
+): Promise<Notification> {
+  const { data: notification, error } = await supabase
+    .from("notifications")
+    .insert({
+      user_id: userId,
+      tournament_id: tournamentId,
+      type,
+      title,
+      message,
+      data,
+      scheduled_for: scheduledFor,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error creating notification:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return {
+    id: notification.id,
+    userId: notification.user_id,
+    tournamentId: notification.tournament_id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    data: notification.data,
+    isRead: notification.is_read,
+    createdAt: notification.created_at,
+    scheduledFor: notification.scheduled_for,
+  };
+}
+
+// Obtener notificaciones de un usuario
+export async function getUserNotifications(
+  userId: string,
+  tournamentId?: string,
+  unreadOnly: boolean = false
+): Promise<Notification[]> {
+  let query = supabase
+    .from("notifications")
+    .select("*")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+
+  if (tournamentId) {
+    query = query.eq("tournament_id", tournamentId);
+  }
+
+  if (unreadOnly) {
+    query = query.eq("is_read", false);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error fetching notifications:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return data.map((notification) => ({
+    id: notification.id,
+    userId: notification.user_id,
+    tournamentId: notification.tournament_id,
+    type: notification.type,
+    title: notification.title,
+    message: notification.message,
+    data: notification.data,
+    isRead: notification.is_read,
+    createdAt: notification.created_at,
+    scheduledFor: notification.scheduled_for,
+  }));
+}
+
+// Marcar notificación como leída
+export async function markNotificationAsRead(
+  notificationId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("id", notificationId);
+
+  if (error) {
+    console.error("Error marking notification as read:", error);
+    throw error;
+  }
+}
+
+// Marcar todas las notificaciones como leídas
+export async function markAllNotificationsAsRead(
+  userId: string,
+  tournamentId?: string
+): Promise<void> {
+  let query = supabase
+    .from("notifications")
+    .update({ is_read: true })
+    .eq("user_id", userId);
+
+  if (tournamentId) {
+    query = query.eq("tournament_id", tournamentId);
+  }
+
+  const { error } = await query;
+
+  if (error) {
+    console.error("Error marking all notifications as read:", error);
+    throw error;
+  }
+}
+
+// Eliminar notificación
+export async function deleteNotification(
+  notificationId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("notifications")
+    .delete()
+    .eq("id", notificationId);
+
+  if (error) {
+    console.error("Error deleting notification:", error);
+    throw error;
+  }
+}
+
+// Obtener preferencias de notificaciones
+export async function getNotificationPreferences(
+  userId: string,
+  tournamentId: string
+): Promise<NotificationPreferences | null> {
+  const { data, error } = await supabase
+    .from("notification_preferences")
+    .select("*")
+    .eq("user_id", userId)
+    .eq("tournament_id", tournamentId)
+    .single();
+
+  if (error && error.code !== "PGRST116") {
+    // PGRST116 = not found
+    console.error("Error fetching notification preferences:", error);
+    throw error;
+  }
+
+  if (!data) return null;
+
+  // Convertir snake_case a camelCase
+  return {
+    userId: data.user_id,
+    tournamentId: data.tournament_id,
+    enablePush: data.enable_push,
+    enableEmail: data.enable_email,
+    matchReminders: data.match_reminders,
+    scheduleChanges: data.schedule_changes,
+    results: data.results,
+    tournamentUpdates: data.tournament_updates,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+// Crear o actualizar preferencias de notificaciones
+export async function upsertNotificationPreferences(
+  preferences: Partial<NotificationPreferences> & {
+    userId: string;
+    tournamentId: string;
+  }
+): Promise<NotificationPreferences> {
+  const { data, error } = await supabase
+    .from("notification_preferences")
+    .upsert({
+      user_id: preferences.userId,
+      tournament_id: preferences.tournamentId,
+      enable_push: preferences.enablePush ?? true,
+      enable_email: preferences.enableEmail ?? true,
+      match_reminders: preferences.matchReminders ?? true,
+      schedule_changes: preferences.scheduleChanges ?? true,
+      results: preferences.results ?? true,
+      tournament_updates: preferences.tournamentUpdates ?? true,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    console.error("Error upserting notification preferences:", error);
+    throw error;
+  }
+
+  // Convertir snake_case a camelCase
+  return {
+    userId: data.user_id,
+    tournamentId: data.tournament_id,
+    enablePush: data.enable_push,
+    enableEmail: data.enable_email,
+    matchReminders: data.match_reminders,
+    scheduleChanges: data.schedule_changes,
+    results: data.results,
+    tournamentUpdates: data.tournament_updates,
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+}
+
+// ============================================================================
+// NOTIFICATION HELPERS - Funciones específicas para crear notificaciones
+// ============================================================================
+
+// Notificar cuando se programa un partido
+export async function notifyMatchScheduled(
+  match: Match,
+  pairA: Pair,
+  pairB: Pair
+): Promise<void> {
+  const players = [pairA.player1, pairA.player2, pairB.player1, pairB.player2];
+
+  const title = "Partido Programado";
+  const message = `Tu partido está programado para ${match.day} a las ${match.startTime}`;
+  const data = {
+    matchId: match.id,
+    day: match.day,
+    startTime: match.startTime,
+    courtId: match.courtId,
+    opponents:
+      match.pairAId === pairA.id
+        ? `${pairB.player1.name} / ${pairB.player2.name}`
+        : `${pairA.player1.name} / ${pairA.player2.name}`,
+  };
+
+  // Crear notificación para cada jugador (necesitaríamos sus user IDs)
+  // Por ahora, esto es la estructura - necesitaremos mapear players a user IDs
+  console.log("📅 Notificación de partido programado:", {
+    title,
+    message,
+    data,
+  });
+}
+
+// Notificar cambio de horario/cancha
+export async function notifyMatchRescheduled(
+  match: Match,
+  oldSchedule: { day?: string; startTime?: string; courtId?: string },
+  pairA: Pair,
+  pairB: Pair
+): Promise<void> {
+  const title = "Cambio de Horario";
+  const message = `Tu partido ha sido reprogramado para ${match.day} a las ${match.startTime}`;
+  const data = {
+    matchId: match.id,
+    newDay: match.day,
+    newStartTime: match.startTime,
+    newCourtId: match.courtId,
+    oldDay: oldSchedule.day,
+    oldStartTime: oldSchedule.startTime,
+    oldCourtId: oldSchedule.courtId,
+  };
+
+  console.log("🔄 Notificación de reprogramación:", { title, message, data });
+}
+
+// Notificar resultado de partido
+export async function notifyMatchResult(
+  match: Match,
+  winnerPair: Pair,
+  loserPair: Pair
+): Promise<void> {
+  const title = "Resultado de Partido";
+  const winnerMessage = `¡Felicidades! Has ganado tu partido`;
+  const loserMessage = `Tu partido ha terminado`;
+  const data = {
+    matchId: match.id,
+    winner: `${winnerPair.player1.name} / ${winnerPair.player2.name}`,
+    loser: `${loserPair.player1.name} / ${loserPair.player2.name}`,
+  };
+
+  console.log("🏆 Notificación de resultado:", {
+    title,
+    winnerMessage,
+    loserMessage,
+    data,
+  });
+}
+
+// ============================================================================
+// COURTS MANAGEMENT
+// ============================================================================
+
+// Función para obtener todas las canchas de un torneo
+export async function getCourts(tournamentId: string): Promise<Court[]> {
+  try {
+    const { data, error } = await supabase
+      .from("courts")
+      .select("*")
+      .eq("tournament_id", tournamentId)
+      .order("name");
+
+    if (error) {
+      console.error("Error fetching courts:", error);
+      // Si hay error, retornar array vacío en lugar de lanzar excepción
+      return [];
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      name: row.name,
+      tournamentId: row.tournament_id,
+    }));
+  } catch (error) {
+    console.error("Unexpected error in getCourts:", error);
+    return [];
+  }
+}
+
+// Función para crear una nueva cancha
+export async function createCourt(
+  tournamentId: string,
+  name: string
+): Promise<Court> {
+  const { data, error } = await supabase
+    .from("courts")
+    .insert({
+      tournament_id: tournamentId,
+      name: name,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error creating court:", error);
+    throw error;
+  }
+
+  console.log(`✅ Cancha creada: ${name}`);
+
+  return {
+    id: data.id,
+    name: data.name,
+    tournamentId: data.tournament_id,
+  };
+}
+
+// Función para eliminar una cancha
+export async function deleteCourt(courtId: string): Promise<void> {
+  const { error } = await supabase.from("courts").delete().eq("id", courtId);
+
+  if (error) {
+    console.error("Error deleting court:", error);
+    throw error;
+  }
+
+  console.log(`✅ Cancha eliminada: ${courtId}`);
+}
+
+// Algoritmo Round-Robin para generar partidos
+export function generateRoundRobinMatches(
+  group: Group,
+  tournamentId: string,
+  categoryId: string
+): Omit<Match, "id" | "createdAt" | "updatedAt">[] {
+  const matches: Omit<Match, "id" | "createdAt" | "updatedAt">[] = [];
+  const pairIds = group.pairIds;
+
+  console.log(
+    `Generando partidos Round-Robin para ${group.name} con ${pairIds.length} parejas`
+  );
+
+  // Generar todos los enfrentamientos posibles (todos contra todos)
+  for (let i = 0; i < pairIds.length; i++) {
+    for (let j = i + 1; j < pairIds.length; j++) {
+      const match: Omit<Match, "id" | "createdAt" | "updatedAt"> = {
+        tournamentId,
+        categoryId,
+        groupId: group.id,
+        stage: "group",
+        pairAId: pairIds[i],
+        pairBId: pairIds[j],
+        day: undefined,
+        startTime: undefined,
+        courtId: undefined,
+        status: "pending",
+        scorePairA: undefined,
+        scorePairB: undefined,
+        winnerPairId: undefined,
+      };
+
+      matches.push(match);
+      console.log(
+        `Partido: Pareja ${i + 1} vs Pareja ${j + 1} en ${group.name}`
+      );
+    }
+  }
+
+  return matches;
+}
+
+// Interfaz para la tabla de posiciones
+export interface StandingsEntry {
+  pairId: string;
+  pairName: string;
+  matchesPlayed: number;
+  matchesWon: number;
+  matchesLost: number;
+  setsWon: number;
+  setsLost: number;
+  gamesWon: number;
+  gamesLost: number;
+  points: number; // 3 puntos por partido ganado, 0 por perdido
+  setsDifference: number;
+  gamesDifference: number;
+}
+
+// Función para calcular la tabla de posiciones de un grupo
+export async function calculateStandings(
+  groupId: string,
+  pairs: Pair[]
+): Promise<StandingsEntry[]> {
+  // Obtener todos los partidos del grupo
+  const matches = await getMatches(groupId);
+
+  // Filtrar solo partidos finalizados
+  const finishedMatches = matches.filter(
+    (match) => match.status === "completed"
+  );
+
+  // Inicializar estadísticas para cada pareja
+  const standings: { [pairId: string]: StandingsEntry } = {};
+
+  pairs.forEach((pair) => {
+    standings[pair.id] = {
+      pairId: pair.id,
+      pairName: `${pair.player1?.name || "Jugador 1"} / ${
+        pair.player2?.name || "Jugador 2"
+      }`,
+      matchesPlayed: 0,
+      matchesWon: 0,
+      matchesLost: 0,
+      setsWon: 0,
+      setsLost: 0,
+      gamesWon: 0,
+      gamesLost: 0,
+      points: 0,
+      setsDifference: 0,
+      gamesDifference: 0,
+    };
+  });
+
+  // Procesar cada partido finalizado
+  finishedMatches.forEach((match) => {
+    if (!match.scorePairA || !match.scorePairB || !match.winnerPairId) return;
+
+    const pairAId = match.pairAId;
+    const pairBId = match.pairBId;
+    const winnerId = match.winnerPairId;
+    const loserId = winnerId === pairAId ? pairBId : pairAId;
+
+    // Actualizar partidos jugados
+    standings[pairAId].matchesPlayed++;
+    standings[pairBId].matchesPlayed++;
+
+    // Actualizar partidos ganados/perdidos y puntos
+    standings[winnerId].matchesWon++;
+    standings[winnerId].points += 3; // 3 puntos por victoria
+    standings[loserId].matchesLost++;
+
+    // Calcular sets y games
+    const scoreA = match.scorePairA;
+    const scoreB = match.scorePairB;
+
+    let setsA = 0,
+      setsB = 0;
+    let gamesA = 0,
+      gamesB = 0;
+
+    // Set 1
+    if (scoreA.set1 > scoreB.set1) setsA++;
+    else setsB++;
+    gamesA += scoreA.set1;
+    gamesB += scoreB.set1;
+
+    // Set 2
+    if (scoreA.set2 > scoreB.set2) setsA++;
+    else setsB++;
+    gamesA += scoreA.set2;
+    gamesB += scoreB.set2;
+
+    // Set 3 (si existe)
+    if (scoreA.set3 !== undefined && scoreB.set3 !== undefined) {
+      if (scoreA.set3 > scoreB.set3) setsA++;
+      else setsB++;
+      gamesA += scoreA.set3;
+      gamesB += scoreB.set3;
+    }
+
+    // Super Muerte cuenta como games adicionales
+    if (scoreA.superDeath !== undefined && scoreB.superDeath !== undefined) {
+      gamesA += scoreA.superDeath;
+      gamesB += scoreB.superDeath;
+    }
+
+    // Actualizar estadísticas de sets y games
+    standings[pairAId].setsWon += setsA;
+    standings[pairAId].setsLost += setsB;
+    standings[pairAId].gamesWon += gamesA;
+    standings[pairAId].gamesLost += gamesB;
+
+    standings[pairBId].setsWon += setsB;
+    standings[pairBId].setsLost += setsA;
+    standings[pairBId].gamesWon += gamesB;
+    standings[pairBId].gamesLost += gamesA;
+  });
+
+  // Calcular diferencias
+  Object.values(standings).forEach((entry) => {
+    entry.setsDifference = entry.setsWon - entry.setsLost;
+    entry.gamesDifference = entry.gamesWon - entry.gamesLost;
+  });
+
+  // Ordenar por criterios de desempate
+  const sortedStandings = Object.values(standings).sort((a, b) => {
+    // 1. Puntos (partidos ganados)
+    if (a.points !== b.points) return b.points - a.points;
+
+    // 2. Diferencia de sets
+    if (a.setsDifference !== b.setsDifference)
+      return b.setsDifference - a.setsDifference;
+
+    // 3. Diferencia de games
+    if (a.gamesDifference !== b.gamesDifference)
+      return b.gamesDifference - a.gamesDifference;
+
+    // 4. Sets ganados
+    if (a.setsWon !== b.setsWon) return b.setsWon - a.setsWon;
+
+    // 5. Games ganados
+    return b.gamesWon - a.gamesWon;
+  });
+
+  return sortedStandings;
+}
+
+// ============================================
+// FUNCIONES PARA FASE ELIMINATORIA
+// ============================================
+
+// Función para generar la fase eliminatoria basada en los ganadores de grupos
+export async function generateKnockoutPhase(
+  categoryId: string,
+  tournamentId: string
+): Promise<Match[]> {
+  try {
+    console.log("🏆 Iniciando generación de fase eliminatoria dinámica...");
+
+    // Obtener las parejas que avanzan usando la nueva lógica dinámica
+    const { advancingPairs, bracketInfo } = await getAdvancingPairs(categoryId);
+
+    if (advancingPairs.length === 0) {
+      throw new Error("No hay parejas que avancen a eliminatorias");
+    }
+
+    if (advancingPairs.length < 2) {
+      throw new Error(
+        "Se necesitan al menos 2 parejas para generar eliminatorias"
+      );
+    }
+
+    console.log(
+      `✅ Parejas que avanzan: ${advancingPairs.length} (${bracketInfo.firstPlaces} primeros + ${bracketInfo.bestSecondPlaces} mejores segundos)`
+    );
+    console.log(
+      `📊 Bracket dinámico: ${
+        bracketInfo.bracketSize
+      } parejas, etapas: ${bracketInfo.stages.join(", ")}`
+    );
+
+    // La estructura del torneo ya está definida en bracketInfo.stages
+    console.log("🏗️ Estructura del torneo:", bracketInfo.stages);
+
+    // Generar partidos de la primera ronda con las parejas que avanzan
+    const knockoutMatches: Match[] = [];
+
+    // Generar emparejamientos de la primera ronda basado en el bracket dinámico
+    const firstRoundStage = bracketInfo.stages[0]; // Primera etapa (puede ser cuartos, semis, etc.)
+    const stageNames = {
+      quarterfinal: "Cuartos de Final",
+      semifinal: "Semifinal",
+      final: "Final",
+      round_of_16: "Octavos de Final",
+      round_of_32: "Dieciseisavos de Final",
+    };
+
+    console.log(
+      `🎯 Generando ${
+        stageNames[firstRoundStage as keyof typeof stageNames] ||
+        firstRoundStage
+      }...`
+    );
+
+    // Crear emparejamientos para la primera ronda
+    const matchesCount = Math.floor(advancingPairs.length / 2);
+
+    for (let i = 0; i < matchesCount; i++) {
+      const pairA = advancingPairs[i];
+      const pairB = advancingPairs[advancingPairs.length - 1 - i]; // Emparejamiento cruzado
+
+      if (pairA && pairB && pairA.id !== pairB.id) {
+        const match: Match = {
+          id: "", // Se generará en la BD
+          tournamentId,
+          categoryId,
+          stage: firstRoundStage as any,
+          pairAId: pairA.id,
+          pairBId: pairB.id,
+          status: "pending",
+          // roundNumber: 1, // ❌ Eliminado - no existe en la tabla
+          // matchNumber: i + 1, // ❌ Eliminado - no existe en la tabla
+          // bracketPosition: `${firstRoundStage.toUpperCase()}${i + 1}`, // ❌ Eliminado - no existe en la tabla
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        knockoutMatches.push(match);
+      }
+    }
+
+    console.log(
+      `✅ ${
+        stageNames[firstRoundStage as keyof typeof stageNames] ||
+        firstRoundStage
+      } generados: ${knockoutMatches.length} partidos`
+    );
+    console.log(
+      `📊 Bracket dinámico completado para ${bracketInfo.bracketSize} parejas`
+    );
+
+    return knockoutMatches;
+  } catch (error) {
+    console.error("Error generating knockout phase:", error);
+    throw error;
+  }
+}
+
+// Función para crear los partidos eliminatorios en la base de datos
+export async function createKnockoutMatches(matches: Match[]): Promise<void> {
+  const supabase = createClient();
+
+  try {
+    if (matches.length === 0) {
+      throw new Error("No hay partidos para crear");
+    }
+
+    // Solo eliminar partidos PENDIENTES para evitar duplicados
+    // NO eliminar partidos que ya tienen resultados (status = 'finished')
+    await supabase
+      .from("matches")
+      .delete()
+      .in("stage", ["quarterfinals", "semifinals", "final", "third_place"])
+      .eq("tournament_id", matches[0].tournamentId)
+      .eq("category_id", matches[0].categoryId)
+      .eq("status", "pending"); // ⚠️ CRÍTICO: Solo eliminar partidos pendientes
+
+    // Insertar nuevos partidos - solo campos esenciales
+    const matchesToInsert = matches.map((match) => ({
+      tournament_id: match.tournamentId,
+      category_id: match.categoryId,
+      stage: match.stage,
+      pair_a_id: match.pairAId && match.pairAId !== "" ? match.pairAId : null,
+      pair_b_id: match.pairBId && match.pairBId !== "" ? match.pairBId : null,
+      status: match.status,
+      // round_number: match.roundNumber, // ❌ Eliminado - no existe en la tabla
+      // match_number: match.matchNumber, // ❌ Eliminado - no existe en la tabla
+      // bracket_position: match.bracketPosition, // ❌ Eliminado - no existe en la tabla
+    }));
+
+    console.log("Matches to insert:", matchesToInsert);
+
+    const { data, error } = await supabase
+      .from("matches")
+      .insert(matchesToInsert);
+
+    if (error) {
+      console.error("Supabase insert error details:", {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code,
+      });
+      console.error("Data being inserted:", matchesToInsert);
+      throw new Error(
+        `Error inserting matches: ${error.message} - ${
+          error.details || error.hint || "No additional details"
+        }`
+      );
+    }
+
+    console.log("Knockout matches created successfully");
+  } catch (error) {
+    console.error("Error creating knockout matches:", error);
+    throw error;
+  }
+}
+
+// Función para obtener los partidos eliminatorios
+export async function getKnockoutMatches(categoryId: string): Promise<Match[]> {
+  const supabase = createClient();
+
+  try {
+    const { data, error } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("category_id", categoryId)
+      .in("stage", ["quarterfinals", "semifinals", "final", "third_place"])
+      .order("round_number", { ascending: true })
+      .order("match_number", { ascending: true });
+
+    if (error) {
+      throw error;
+    }
+
+    return (data || []).map((row) => ({
+      id: row.id,
+      tournamentId: row.tournament_id,
+      categoryId: row.category_id,
+      stage: row.stage,
+      groupId: row.group_id,
+      pairAId: row.pair_a_id || "",
+      pairBId: row.pair_b_id || "",
+      day: row.day,
+      startTime: row.start_time,
+      courtId: row.court_id,
+      status: row.status,
+      scorePairA: row.score_pair_a,
+      scorePairB: row.score_pair_b,
+      winnerPairId: row.winner_pair_id,
+      roundNumber: row.round_number,
+      matchNumber: row.match_number,
+      nextMatchId: row.next_match_id,
+      bracketPosition: row.bracket_position,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (error) {
+    console.error("Error fetching knockout matches:", error);
+    return [];
+  }
+}
+
+// Función para avanzar ganador a la siguiente ronda
+export async function advanceWinnerToNextRound(
+  matchId: string,
+  winnerId: string
+): Promise<void> {
+  const supabase = createClient();
+
+  try {
+    // 1. Obtener el partido actual
+    const { data: currentMatch, error: fetchError } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("id", matchId)
+      .single();
+
+    if (fetchError || !currentMatch) {
+      throw new Error("No se pudo encontrar el partido");
+    }
+
+    // 2. Determinar el siguiente partido basado en la lógica del bracket
+    let nextMatchBracketPosition = "";
+
+    if (currentMatch.stage === "quarterfinals") {
+      // Para torneos de 4 parejas: QF1 y QF2 van directo a F1 (Final)
+      // Para torneos de 8+ parejas: QF1/QF2 → SF1, QF3/QF4 → SF2
+
+      // Verificar si existe alguna semifinal para determinar el tipo de torneo
+      const { data: semifinalExists } = await supabase
+        .from("matches")
+        .select("id")
+        .eq("tournament_id", currentMatch.tournament_id)
+        .eq("category_id", currentMatch.category_id)
+        .eq("stage", "semifinal")
+        .limit(1);
+
+      if (!semifinalExists || semifinalExists.length === 0) {
+        // Torneo de 4 parejas - ir directo a final
+        nextMatchBracketPosition = "F1";
+      } else {
+        // Torneo de 8+ parejas - ir a semifinal
+        if (
+          currentMatch.bracket_position === "QF1" ||
+          currentMatch.bracket_position === "QF2"
+        ) {
+          nextMatchBracketPosition = "SF1";
+        } else {
+          nextMatchBracketPosition = "SF2";
+        }
+      }
+    } else if (currentMatch.stage === "semifinal") {
+      if (
+        currentMatch.bracket_position === "SF1" ||
+        currentMatch.bracket_position === "SF2"
+      ) {
+        nextMatchBracketPosition = "F1"; // Final
+      }
+    }
+
+    if (nextMatchBracketPosition) {
+      // 3. Buscar el siguiente partido
+      const { data: nextMatch, error: nextError } = await supabase
+        .from("matches")
+        .select("*")
+        .eq("category_id", currentMatch.category_id)
+        .eq("bracket_position", nextMatchBracketPosition)
+        .single();
+
+      if (nextError || !nextMatch) {
+        console.warn("No se encontró el siguiente partido para avanzar");
+        return;
+      }
+
+      // 4. Asignar el ganador al siguiente partido
+      let updateData: any = {};
+
+      // Para semifinales, asignar según el cuarto de final
+      if (currentMatch.stage === "quarterfinals") {
+        if (
+          currentMatch.bracket_position === "QF1" ||
+          currentMatch.bracket_position === "QF2"
+        ) {
+          // QF1 y QF2 van a SF1
+          if (!nextMatch.pair_a_id) {
+            updateData.pair_a_id = winnerId;
+          } else if (!nextMatch.pair_b_id) {
+            updateData.pair_b_id = winnerId;
+          }
+        } else {
+          // QF3 y QF4 van a SF2
+          if (!nextMatch.pair_a_id) {
+            updateData.pair_a_id = winnerId;
+          } else if (!nextMatch.pair_b_id) {
+            updateData.pair_b_id = winnerId;
+          }
+        }
+      } else {
+        // Para otros casos, asignar normalmente
+        if (!nextMatch.pair_a_id) {
+          updateData.pair_a_id = winnerId;
+        } else if (!nextMatch.pair_b_id) {
+          updateData.pair_b_id = winnerId;
+        }
+      }
+
+      if (Object.keys(updateData).length > 0) {
+        const { error: updateError } = await supabase
+          .from("matches")
+          .update(updateData)
+          .eq("id", nextMatch.id);
+
+        if (updateError) {
+          throw updateError;
+        }
+
+        console.log(
+          `Ganador ${winnerId} avanzado a ${nextMatchBracketPosition}`
+        );
+      }
+    }
+  } catch (error) {
+    console.error("Error advancing winner:", error);
+    throw error;
+  }
+}
+
+// Función para crear las siguientes rondas automáticamente
+export async function createNextRoundMatches(
+  categoryId: string,
+  tournamentId: string
+): Promise<void> {
+  console.log(
+    "⚠️ createNextRoundMatches: Esta función está deshabilitada temporalmente"
+  );
+  console.log("Las semifinales se crearán dinámicamente cuando se necesiten");
+
+  // NOTA: Esta función está deshabilitada porque causa errores 400
+  // al intentar crear matches con pair_a_id y pair_b_id como NULL
+  // cuando la base de datos tiene restricciones NOT NULL en esos campos.
+
+  // Las semifinales y finales se crearán dinámicamente cuando:
+  // 1. Se completen suficientes cuartos de final
+  // 2. Se haga clic en "Generar Semifinales" o "Generar Finales"
+
+  return Promise.resolve();
+}
+
+// =====================================================
+// SISTEMA DE ROLES Y PERMISOS
+// =====================================================
+
+// Obtener el rol de un usuario en un torneo
+export async function getUserRole(
+  userId: string,
+  tournamentId: string
+): Promise<UserRole | null> {
+  // Si no hay tournamentId, retornar null sin hacer consulta
+  if (!tournamentId) {
+    return null;
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", userId)
+      .eq("tournament_id", tournamentId)
+      .eq("is_active", true)
+      .single();
+
+    if (error) {
+      // Si no se encuentra el rol, no es un error crítico
+      if (error.code === "PGRST116") {
+        return null;
+      }
+      console.error("Error getting user role:", error);
+      return null;
+    }
+
+    return (data?.role as UserRole) || null;
+  } catch (error) {
+    console.error("Unexpected error in getUserRole:", error);
+    return null;
+  }
+}
+
+// Asignar rol a un usuario
+export async function assignRole(
+  userId: string,
+  tournamentId: string,
+  role: UserRole,
+  grantedBy: string,
+  expiresAt?: string
+): Promise<UserRoleAssignment> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .upsert({
+      user_id: userId,
+      tournament_id: tournamentId,
+      role,
+      granted_by: grantedBy,
+      expires_at: expiresAt,
+      is_active: true,
+    })
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error assigning role:", error);
+    throw error;
+  }
+
+  // Registrar la acción en audit logs
+  await logAction(
+    "role_assigned",
+    "user_role",
+    data.id,
+    {
+      targetUserId: userId,
+      role,
+      expiresAt,
+    },
+    tournamentId
+  );
+
+  return convertUserRoleFromDb(data);
+}
+
+// Revocar rol de un usuario
+export async function revokeRole(
+  userId: string,
+  tournamentId: string
+): Promise<void> {
+  const { error } = await supabase
+    .from("user_roles")
+    .update({ is_active: false })
+    .eq("user_id", userId)
+    .eq("tournament_id", tournamentId);
+
+  if (error) {
+    console.error("Error revoking role:", error);
+    throw error;
+  }
+
+  // Registrar la acción en audit logs
+  await logAction(
+    "role_revoked",
+    "user_role",
+    undefined,
+    {
+      targetUserId: userId,
+    },
+    tournamentId
+  );
+}
+
+// Obtener todos los usuarios con roles en un torneo
+export async function getTournamentUsers(
+  tournamentId: string
+): Promise<(UserRoleAssignment & { profile?: UserProfile })[]> {
+  const { data, error } = await supabase
+    .from("user_roles")
+    .select(
+      `
+      *,
+      user_profiles:user_id (
+        id,
+        full_name,
+        avatar_url,
+        organization,
+        is_verified
+      )
+    `
+    )
+    .eq("tournament_id", tournamentId)
+    .eq("is_active", true)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("Error getting tournament users:", error);
+    throw error;
+  }
+
+  return data.map((item) => ({
+    ...convertUserRoleFromDb(item),
+    profile: item.user_profiles
+      ? {
+          id: item.user_profiles.id,
+          fullName: item.user_profiles.full_name,
+          avatarUrl: item.user_profiles.avatar_url,
+          organization: item.user_profiles.organization,
+          isVerified: item.user_profiles.is_verified,
+          createdAt: "",
+          updatedAt: "",
+        }
+      : undefined,
+  }));
+}
+
+// Obtener perfil de usuario
+export async function getUserProfile(
+  userId: string
+): Promise<UserProfile | null> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("id", userId)
+    .single();
+
+  if (error) {
+    console.error("Error getting user profile:", error);
+    return null;
+  }
+
+  return convertUserProfileFromDb(data);
+}
+
+// Actualizar perfil de usuario
+export async function updateUserProfile(
+  userId: string,
+  updates: Partial<UserProfile>
+): Promise<UserProfile> {
+  const { data, error } = await supabase
+    .from("user_profiles")
+    .update({
+      full_name: updates.fullName,
+      avatar_url: updates.avatarUrl,
+      phone: updates.phone,
+      organization: updates.organization,
+      bio: updates.bio,
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating user profile:", error);
+    throw error;
+  }
+
+  return convertUserProfileFromDb(data);
+}
+
+// Registrar acción en audit logs
+export async function logAction(
+  action: string,
+  resourceType?: string,
+  resourceId?: string,
+  details?: Record<string, unknown>,
+  tournamentId?: string
+): Promise<void> {
+  const { error } = await supabase.from("audit_logs").insert({
+    action,
+    resource_type: resourceType,
+    resource_id: resourceId,
+    details,
+    tournament_id: tournamentId,
+  });
+
+  if (error) {
+    console.error("Error logging action:", error);
+    // No lanzamos error para no interrumpir el flujo principal
+  }
+}
+
+// Obtener logs de auditoría
+export async function getAuditLogs(
+  tournamentId?: string,
+  limit: number = 50
+): Promise<AuditLog[]> {
+  let query = supabase
+    .from("audit_logs")
+    .select("*")
+    .order("created_at", { ascending: false })
+    .limit(limit);
+
+  if (tournamentId) {
+    query = query.eq("tournament_id", tournamentId);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("Error getting audit logs:", error);
+    throw error;
+  }
+
+  return data.map(convertAuditLogFromDb);
+}
+
+// Obtener permisos basados en el rol
+export function getRolePermissions(role: UserRole): RolePermissions {
+  const basePermissions: RolePermissions = {
+    canCreateTournaments: false,
+    canDeleteTournaments: false,
+    canManageCategories: false,
+    canManagePairs: false,
+    canGenerateGroups: false,
+    canGenerateMatches: false,
+    canUpdateScores: false,
+    canManageSchedule: false,
+    canViewReports: false,
+    canManageUsers: false,
+    canViewAuditLogs: false,
+    canManageSettings: false,
+  };
+
+  switch (role) {
+    case "owner":
+      return {
+        ...basePermissions,
+        canCreateTournaments: true,
+        canDeleteTournaments: true,
+        canManageCategories: true,
+        canManagePairs: true,
+        canGenerateGroups: true,
+        canGenerateMatches: true,
+        canUpdateScores: true,
+        canManageSchedule: true,
+        canViewReports: true,
+        canManageUsers: true,
+        canViewAuditLogs: true,
+        canManageSettings: true,
+      };
+
+    case "admin":
+      return {
+        ...basePermissions,
+        canManageCategories: true,
+        canManagePairs: true,
+        canGenerateGroups: true,
+        canGenerateMatches: true,
+        canUpdateScores: true,
+        canManageSchedule: true,
+        canViewReports: true,
+        canViewAuditLogs: true,
+        canManageSettings: true,
+      };
+
+    case "referee":
+      return {
+        ...basePermissions,
+        canUpdateScores: true,
+        canViewReports: true,
+      };
+
+    case "viewer":
+    default:
+      return {
+        ...basePermissions,
+        canViewReports: true,
+      };
+  }
+}
+
+// Funciones de conversión de datos
+function convertUserRoleFromDb(
+  data: Record<string, unknown>
+): UserRoleAssignment {
+  return {
+    id: data.id as string,
+    userId: data.user_id as string,
+    tournamentId: data.tournament_id as string,
+    role: data.role as UserRole,
+    grantedBy: data.granted_by as string,
+    grantedAt: data.granted_at as string,
+    expiresAt: data.expires_at as string | undefined,
+    isActive: data.is_active as boolean,
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  };
+}
+
+function convertUserProfileFromDb(data: Record<string, unknown>): UserProfile {
+  return {
+    id: data.id as string,
+    fullName: data.full_name as string | undefined,
+    avatarUrl: data.avatar_url as string | undefined,
+    phone: data.phone as string | undefined,
+    organization: data.organization as string | undefined,
+    bio: data.bio as string | undefined,
+    isVerified: data.is_verified as boolean,
+    createdAt: data.created_at as string,
+    updatedAt: data.updated_at as string,
+  };
+}
+
+function convertAuditLogFromDb(data: Record<string, unknown>): AuditLog {
+  return {
+    id: data.id as string,
+    userId: data.user_id as string,
+    tournamentId: data.tournament_id as string | undefined,
+    action: data.action as string,
+    resourceType: data.resource_type as string | undefined,
+    resourceId: data.resource_id as string | undefined,
+    details: data.details as Record<string, unknown> | undefined,
+    ipAddress: data.ip_address as string | undefined,
+    userAgent: data.user_agent as string | undefined,
+    createdAt: data.created_at as string,
+  };
+}
+
+// ============================================================================
+// ELIMINATORIAS / KNOCKOUT SYSTEM
+// ============================================================================
+
+// Función para obtener las mejores parejas de cada grupo para eliminatorias
+export async function getTopPairsFromGroups(
+  categoryId: string,
+  pairsPerGroup: number = 2
+): Promise<Pair[]> {
+  try {
+    console.log(
+      `🏆 Obteniendo top ${pairsPerGroup} parejas de cada grupo para eliminatorias...`
+    );
+
+    // Obtener todos los grupos de la categoría
+    const groups = await getGroups(categoryId);
+
+    if (groups.length === 0) {
+      console.log("⚠️ No hay grupos para generar eliminatorias");
+      return [];
+    }
+
+    // Obtener todas las parejas de la categoría
+    const allPairs = await getPairs(categoryId);
+
+    if (allPairs.length === 0) {
+      console.log("⚠️ No hay parejas para generar eliminatorias");
+      return [];
+    }
+
+    const topPairs: Pair[] = [];
+
+    // Para cada grupo, obtener las mejores parejas
+    for (const group of groups) {
+      console.log(`📊 Procesando grupo: ${group.name}`);
+
+      // Obtener partidos del grupo
+      const groupMatches = await getMatches(group.id);
+
+      // Filtrar solo partidos completados
+      const completedMatches = groupMatches.filter(
+        (match) => match.status === "completed"
+      );
+
+      if (completedMatches.length === 0) {
+        console.log(
+          `❌ No hay partidos completados en ${group.name}, no se pueden seleccionar parejas para eliminatorias`
+        );
+        // Si no hay partidos completados, NO seleccionar parejas para eliminatorias
+        continue;
+      }
+
+      // Calcular tabla de posiciones del grupo
+      const groupPairs = allPairs.filter((pair) =>
+        group.pairIds.includes(pair.id)
+      );
+      const standings = await calculateStandings(group.id, groupPairs);
+
+      // Ordenar por posición y tomar las mejores
+      const sortedStandings = standings.sort((a, b) => {
+        // 1. Puntos (descendente)
+        if (b.points !== a.points) return b.points - a.points;
+        // 2. Diferencia de sets (descendente)
+        if (b.setsDifference !== a.setsDifference)
+          return b.setsDifference - a.setsDifference;
+        // 3. Diferencia de games (descendente)
+        if (b.gamesDifference !== a.gamesDifference)
+          return b.gamesDifference - a.gamesDifference;
+        // 4. Sets ganados (descendente)
+        if (b.setsWon !== a.setsWon) return b.setsWon - a.setsWon;
+        // 5. Games ganados (descendente)
+        return b.gamesWon - a.gamesWon;
+      });
+
+      // Tomar las mejores parejas del grupo
+      const topGroupPairs = sortedStandings
+        .slice(0, pairsPerGroup)
+        .map(
+          (standing) => groupPairs.find((pair) => pair.id === standing.pairId)!
+        );
+
+      console.log(
+        `✅ Top ${topGroupPairs.length} parejas de ${group.name}:`,
+        topGroupPairs.map(
+          (pair) => `${pair.player1.name} & ${pair.player2.name}`
+        )
+      );
+
+      topPairs.push(...topGroupPairs);
+    }
+
+    console.log(
+      `🎯 Total de parejas seleccionadas para eliminatorias: ${topPairs.length}`
+    );
+
+    // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay partidos jugados en al menos un grupo
+    if (topPairs.length === 0) {
+      console.log(
+        "❌ No se pueden seleccionar parejas: No hay partidos completados en ningún grupo"
+      );
+      return [];
+    }
+
+    return topPairs;
+  } catch (error) {
+    console.error("❌ Error obteniendo top pairs para eliminatorias:", error);
+    throw error;
+  }
+}
+
+// Función para generar partidos de eliminatorias (SOLO LA PRIMERA RONDA)
+export async function generateEliminationMatches(
+  categoryId: string,
+  tournamentId: string,
+  topPairs: Pair[]
+): Promise<Match[]> {
+  try {
+    console.log(
+      `🏆 Generando PRIMERA RONDA de eliminatorias para ${topPairs.length} parejas...`
+    );
+
+    // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay parejas válidas
+    if (topPairs.length < 2) {
+      console.log("❌ Se necesitan al menos 2 parejas para eliminatorias");
+      return [];
+    }
+
+    // 🔥 VALIDACIÓN CRÍTICA: Verificar que todas las parejas tienen IDs válidos
+    const validPairs = topPairs.filter(
+      (pair) => pair.id && pair.id.trim() !== ""
+    );
+    if (validPairs.length !== topPairs.length) {
+      console.log("❌ Algunas parejas no tienen IDs válidos");
+      return [];
+    }
+
+    if (validPairs.length < 2) {
+      console.log("❌ No hay suficientes parejas válidas para eliminatorias");
+      return [];
+    }
+
+    const matches: Match[] = [];
+    const { v4: uuidv4 } = await import("uuid");
+
+    // Determinar qué fase es la primera ronda
+    const firstRoundStage = getFirstRoundStage(validPairs.length);
+    console.log(`🎯 Primera ronda: ${firstRoundStage}`);
+
+    // Crear solo los partidos de la primera ronda
+    const firstRoundMatches = createFirstRoundMatches(
+      validPairs,
+      firstRoundStage
+    );
+    console.log(`🏗️ Partidos de primera ronda creados:`, firstRoundMatches);
+    console.log(`📊 Cantidad de partidos a crear:`, firstRoundMatches.length);
+
+    // Generar solo los partidos de la primera ronda
+    for (let i = 0; i < firstRoundMatches.length; i++) {
+      const matchData = firstRoundMatches[i];
+
+      const match: Match = {
+        id: uuidv4(),
+        tournamentId,
+        categoryId,
+        stage: firstRoundStage,
+        pairAId: matchData.pairAId,
+        pairBId: matchData.pairBId,
+        status: "pending",
+      };
+
+      matches.push(match);
+      console.log(
+        `⚽ Partido ${firstRoundStage} ${i + 1}: ${matchData.pairAId} vs ${
+          matchData.pairBId
+        }`
+      );
+    }
+
+    console.log(`✅ Total de partidos generados:`, matches.length);
+
+    console.log(`✅ Generados ${matches.length} partidos de la primera ronda`);
+    return matches;
+  } catch (error) {
+    console.error("❌ Error generando partidos de eliminatorias:", error);
+    throw error;
+  }
+}
+
+// Función para determinar la primera ronda según el número de parejas
+function getFirstRoundStage(
+  pairCount: number
+): "quarterfinals" | "semifinals" | "final" {
+  if (pairCount <= 2) {
+    return "final";
+  } else if (pairCount <= 4) {
+    return "semifinals";
+  } else {
+    return "quarterfinals";
+  }
+}
+
+// Función para crear solo los partidos de la primera ronda
+function createFirstRoundMatches(
+  pairs: Pair[],
+  stage: "quarterfinals" | "semifinals" | "final"
+): Array<{ pairAId: string; pairBId: string }> {
+  const matches: Array<{ pairAId: string; pairBId: string }> = [];
+
+  // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay parejas válidas
+  if (pairs.length < 2) {
+    console.log("❌ createFirstRoundMatches: No hay suficientes parejas");
+    return [];
+  }
+
+  // Mezclar las parejas para evitar sesgos
+  const shuffledPairs = [...pairs].sort(() => Math.random() - 0.5);
+
+  if (stage === "final") {
+    // Solo 2 parejas - van directo a la final
+    if (shuffledPairs[0] && shuffledPairs[1]) {
+      matches.push({
+        pairAId: shuffledPairs[0].id,
+        pairBId: shuffledPairs[1].id,
+      });
+    } else {
+      console.log("❌ createFirstRoundMatches: Parejas faltantes para final");
+    }
+  } else if (stage === "semifinals") {
+    // 3-4 parejas - van a semifinales
+    console.log("🏆 Creando semifinales para", pairs.length, "parejas");
+    console.log(
+      "🔀 Parejas mezcladas:",
+      shuffledPairs.map((p) => p.id)
+    );
+
+    if (shuffledPairs[0] && shuffledPairs[1]) {
+      matches.push({
+        pairAId: shuffledPairs[0].id,
+        pairBId: shuffledPairs[1].id,
+      });
+      console.log(
+        "⚽ Semifinal 1:",
+        shuffledPairs[0].id,
+        "vs",
+        shuffledPairs[1].id
+      );
+    } else {
+      console.log(
+        "❌ createFirstRoundMatches: Parejas faltantes para semifinal 1"
+      );
+    }
+
+    if (shuffledPairs[2] && shuffledPairs[3]) {
+      matches.push({
+        pairAId: shuffledPairs[2].id,
+        pairBId: shuffledPairs[3].id,
+      });
+      console.log(
+        "⚽ Semifinal 2:",
+        shuffledPairs[2].id,
+        "vs",
+        shuffledPairs[3].id
+      );
+    } else {
+      console.log("⚠️ No hay suficientes parejas para semifinal 2");
+    }
+
+    console.log("📊 Total de semifinales creadas:", matches.length);
+  } else if (stage === "quarterfinals") {
+    // 5+ parejas - van a cuartos de final
+    const quarterFinals = Math.ceil(pairs.length / 2);
+
+    for (let i = 0; i < quarterFinals; i++) {
+      if (shuffledPairs[i * 2 + 1]) {
+        matches.push({
+          pairAId: shuffledPairs[i * 2].id,
+          pairBId: shuffledPairs[i * 2 + 1].id,
+        });
+      } else {
+        // Si hay número impar, la última pareja pasa directo
+        matches.push({
+          pairAId: shuffledPairs[i * 2].id,
+          pairBId: shuffledPairs[i * 2].id, // Mismo ID para indicar bye
+        });
+      }
+    }
+  }
+
+  return matches;
+}
+
+// Función para crear el bracket de eliminatorias (DEPRECATED - solo para referencia)
+function createEliminationBracket(
+  pairs: Pair[]
+): Record<string, Array<{ pairAId: string; pairBId: string }>> {
+  const bracket: Record<
+    string,
+    Array<{ pairAId: string; pairBId: string }>
+  > = {};
+
+  // Mezclar las parejas para evitar sesgos
+  const shuffledPairs = [...pairs].sort(() => Math.random() - 0.5);
+
+  if (pairs.length <= 2) {
+    // Solo final
+    bracket.final = [
+      {
+        pairAId: shuffledPairs[0].id,
+        pairBId: shuffledPairs[1].id,
+      },
+    ];
+  } else if (pairs.length <= 4) {
+    // Semifinales + final + tercer lugar
+    bracket.semifinals = [
+      {
+        pairAId: shuffledPairs[0].id,
+        pairBId: shuffledPairs[1].id,
+      },
+      {
+        pairAId: shuffledPairs[2].id,
+        pairBId: shuffledPairs[3].id,
+      },
+    ];
+
+    // Para final y tercer lugar, usamos las mismas parejas pero las asignaremos después
+    // cuando se conozcan los resultados de semifinales
+    bracket.final = [
+      {
+        pairAId: shuffledPairs[0].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[2].id, // Temporal - se actualizará después
+      },
+    ];
+
+    bracket.third_place = [
+      {
+        pairAId: shuffledPairs[1].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[3].id, // Temporal - se actualizará después
+      },
+    ];
+  } else if (pairs.length <= 8) {
+    // Cuartos + semifinales + final + tercer lugar
+    bracket.quarterfinals = [
+      {
+        pairAId: shuffledPairs[0].id,
+        pairBId: shuffledPairs[1].id,
+      },
+      {
+        pairAId: shuffledPairs[2].id,
+        pairBId: shuffledPairs[3].id,
+      },
+      {
+        pairAId: shuffledPairs[4].id,
+        pairBId: shuffledPairs[5].id,
+      },
+      {
+        pairAId: shuffledPairs[6].id,
+        pairBId: shuffledPairs[7].id,
+      },
+    ];
+
+    // Para semifinales, usamos las primeras parejas temporalmente
+    bracket.semifinals = [
+      {
+        pairAId: shuffledPairs[0].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[2].id, // Temporal - se actualizará después
+      },
+      {
+        pairAId: shuffledPairs[4].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[6].id, // Temporal - se actualizará después
+      },
+    ];
+
+    // Para final y tercer lugar, usamos las primeras parejas temporalmente
+    bracket.final = [
+      {
+        pairAId: shuffledPairs[0].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[4].id, // Temporal - se actualizará después
+      },
+    ];
+
+    bracket.third_place = [
+      {
+        pairAId: shuffledPairs[2].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[6].id, // Temporal - se actualizará después
+      },
+    ];
+  } else {
+    // Para más de 8 parejas, usar cuartos de final
+    const quarterFinals = Math.ceil(pairs.length / 2);
+
+    bracket.quarterfinals = [];
+    for (let i = 0; i < quarterFinals; i++) {
+      if (shuffledPairs[i * 2 + 1]) {
+        bracket.quarterfinals.push({
+          pairAId: shuffledPairs[i * 2].id,
+          pairBId: shuffledPairs[i * 2 + 1].id,
+        });
+      } else {
+        // Si hay número impar, la última pareja pasa directo a semifinales
+        bracket.quarterfinals.push({
+          pairAId: shuffledPairs[i * 2].id,
+          pairBId: shuffledPairs[i * 2].id, // Mismo ID para indicar bye
+        });
+      }
+    }
+
+    // Para semifinales, usamos las primeras parejas temporalmente
+    const semifinals = Math.ceil(quarterFinals / 2);
+    bracket.semifinals = [];
+    for (let i = 0; i < semifinals; i++) {
+      bracket.semifinals.push({
+        pairAId: shuffledPairs[i * 4]?.id || shuffledPairs[0].id, // Temporal
+        pairBId: shuffledPairs[i * 4 + 2]?.id || shuffledPairs[2].id, // Temporal
+      });
+    }
+
+    // Para final y tercer lugar, usamos las primeras parejas temporalmente
+    bracket.final = [
+      {
+        pairAId: shuffledPairs[0].id, // Temporal - se actualizará después
+        pairBId: shuffledPairs[4]?.id || shuffledPairs[2].id, // Temporal - se actualizará después
+      },
+    ];
+
+    bracket.third_place = [
+      {
+        pairAId: shuffledPairs[2].id, // Temporal - se actualizará después
+        pairBId:
+          shuffledPairs[6]?.id || shuffledPairs[4]?.id || shuffledPairs[3].id, // Temporal - se actualizará después
+      },
+    ];
+  }
+
+  return bracket;
+}
+
+// Función para calcular las fases de eliminatorias
+function calculateEliminationPhases(pairCount: number): Array<{
+  stage: "quarterfinals" | "semifinals" | "final" | "third_place";
+  matches: number;
+}> {
+  const phases: Array<{
+    stage: "quarterfinals" | "semifinals" | "final" | "third_place";
+    matches: number;
+  }> = [];
+
+  if (pairCount <= 2) {
+    // Solo final
+    phases.push({ stage: "final", matches: 1 });
+  } else if (pairCount <= 4) {
+    // Semifinales + final + tercer lugar
+    phases.push({ stage: "semifinals", matches: 2 });
+    phases.push({ stage: "final", matches: 1 });
+    phases.push({ stage: "third_place", matches: 1 });
+  } else if (pairCount <= 8) {
+    // Cuartos + semifinales + final + tercer lugar
+    phases.push({ stage: "quarterfinals", matches: 4 });
+    phases.push({ stage: "semifinals", matches: 2 });
+    phases.push({ stage: "final", matches: 1 });
+    phases.push({ stage: "third_place", matches: 1 });
+  } else {
+    // Para más de 8 parejas, usar cuartos de final
+    const quarterFinals = Math.ceil(pairCount / 2);
+    phases.push({ stage: "quarterfinals", matches: quarterFinals });
+    phases.push({ stage: "semifinals", matches: Math.ceil(quarterFinals / 2) });
+    phases.push({ stage: "final", matches: 1 });
+    phases.push({ stage: "third_place", matches: 1 });
+  }
+
+  return phases;
+}
+
+// Función para crear partidos de eliminatorias en la base de datos
+export async function createEliminationMatches(
+  categoryId: string,
+  tournamentId: string,
+  topPairs: Pair[]
+): Promise<Match[]> {
+  try {
+    console.log(`🏆 Creando partidos de eliminatorias en la base de datos...`);
+
+    // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay parejas válidas antes de generar
+    if (topPairs.length < 2) {
+      console.log(
+        "❌ createEliminationMatches: No hay suficientes parejas para eliminatorias"
+      );
+      return [];
+    }
+
+    // Generar los partidos
+    const matches = await generateEliminationMatches(
+      categoryId,
+      tournamentId,
+      topPairs
+    );
+
+    if (matches.length === 0) {
+      console.log("⚠️ No hay partidos para crear");
+      return [];
+    }
+
+    // Crear los partidos en la base de datos
+    const createdMatches = await createMatches(matches);
+
+    console.log(
+      `✅ Creados ${createdMatches.length} partidos de eliminatorias en la base de datos`
+    );
+    return createdMatches;
+  } catch (error) {
+    console.error("❌ Error creando partidos de eliminatorias:", error);
+    throw error;
+  }
+}
+
+// Función para obtener partidos de eliminatorias de una categoría
+export async function getEliminationMatches(
+  categoryId: string
+): Promise<Match[]> {
+  try {
+    const { data, error } = await supabase
+      .from("matches")
+      .select("*")
+      .eq("category_id", categoryId)
+      .in("stage", ["quarterfinals", "semifinals", "final", "third_place"])
+      .order("created_at");
+
+    if (error) {
+      console.error("Error fetching elimination matches:", error);
+      throw error;
+    }
+
+    // Convertir snake_case a camelCase
+    return data.map((match) => ({
+      id: match.id,
+      tournamentId: match.tournament_id,
+      categoryId: match.category_id,
+      stage: match.stage,
+      groupId: match.group_id,
+      pairAId: match.pair_a_id,
+      pairBId: match.pair_b_id,
+      day: match.day,
+      startTime: match.start_time,
+      courtId: match.court_id,
+      status: match.status,
+      scorePairA: match.score?.pairA || null,
+      scorePairB: match.score?.pairB || null,
+      winnerPairId: match.score?.winner || match.winner_id || null,
+      createdAt: match.created_at,
+      updatedAt: match.updated_at,
+    }));
+  } catch (error) {
+    console.error("❌ Error obteniendo partidos de eliminatorias:", error);
+    throw error;
+  }
+}
+
+// Función para obtener standings de todos los grupos de una categoría
+export async function getAllGroupStandings(categoryId: string): Promise<{
+  [groupId: string]: {
+    groupName: string;
+    standings: any[];
+  };
+}> {
+  try {
+    console.log(
+      "📊 Obteniendo standings de todos los grupos para categoría:",
+      categoryId
+    );
+
+    const groups = await getGroups(categoryId);
+    const allPairs = await getPairs(categoryId);
+    const standings: {
+      [groupId: string]: { groupName: string; standings: any[] };
+    } = {};
+
+    for (const group of groups) {
+      const groupPairs = allPairs.filter((pair) =>
+        group.pairIds.includes(pair.id)
+      );
+      const groupStandings = await calculateStandings(group.id, groupPairs);
+
+      standings[group.id] = {
+        groupName: group.name,
+        standings: groupStandings,
+      };
+    }
+
+    console.log(
+      "✅ Standings obtenidos para",
+      Object.keys(standings).length,
+      "grupos"
+    );
+    return standings;
+  } catch (error) {
+    console.error("❌ Error obteniendo standings de grupos:", error);
+    throw error;
+  }
+}
+
+// Función para limpiar todas las eliminatorias de una categoría
+export async function clearEliminations(categoryId: string): Promise<void> {
+  try {
+    console.log("🧹 Limpiando eliminatorias para categoría:", categoryId);
+
+    // Eliminar todos los partidos de eliminatorias
+    const { error: matchesError } = await supabase
+      .from("matches")
+      .delete()
+      .eq("category_id", categoryId)
+      .in("stage", ["quarterfinals", "semifinals", "final", "third_place"]);
+
+    if (matchesError) {
+      console.error(
+        "Error eliminando partidos de eliminatorias:",
+        matchesError
+      );
+      throw matchesError;
+    }
+
+    console.log("✅ Eliminatorias limpiadas exitosamente");
+  } catch (error) {
+    console.error("❌ Error limpiando eliminatorias:", error);
+    throw error;
+  }
+}
+
+// Función para determinar el número esperado de partidos para cada stage
+function getExpectedMatchCount(stage: string, matches: any[]): number {
+  switch (stage) {
+    case "quarterfinals":
+      // Cuartos de final: 4 partidos (8 parejas)
+      return 4;
+    case "semifinals":
+      // Semifinales: 2 partidos (4 parejas)
+      return 2;
+    case "final":
+      // Final: 1 partido (2 parejas)
+      return 1;
+    case "third_place":
+      // Tercer lugar: 1 partido (2 parejas)
+      return 1;
+    default:
+      // Por defecto, no eliminar nada
+      return matches.length;
+  }
+}
+
+// Función para limpiar partidos duplicados de eliminatorias
+export async function cleanDuplicateEliminationMatches(
+  categoryId: string
+): Promise<void> {
+  try {
+    console.log("🧹 Limpiando partidos duplicados de eliminatorias...");
+
+    // Obtener todos los partidos de eliminatorias
+    const allMatches = await getEliminationMatches(categoryId);
+
+    // Agrupar por stage
+    const matchesByStage = {
+      quarterfinals: allMatches.filter((m) => m.stage === "quarterfinals"),
+      semifinals: allMatches.filter((m) => m.stage === "semifinals"),
+      final: allMatches.filter((m) => m.stage === "final"),
+      third_place: allMatches.filter((m) => m.stage === "third_place"),
+    };
+
+    // Para cada stage, verificar si hay duplicados reales
+    for (const [stage, matches] of Object.entries(matchesByStage)) {
+      // Solo eliminar duplicados si hay más partidos de los esperados para cada stage
+      const expectedCount = getExpectedMatchCount(stage, matches);
+
+      if (matches.length > expectedCount) {
+        console.log(
+          `🗑️ Eliminando ${
+            matches.length - expectedCount
+          } partidos duplicados de ${stage}`
+        );
+
+        // Mantener los primeros partidos esperados, eliminar el resto
+        const matchesToDelete = matches.slice(expectedCount);
+
+        for (const match of matchesToDelete) {
+          const { error } = await supabase
+            .from("matches")
+            .delete()
+            .eq("id", match.id);
+
+          if (error) {
+            console.error(
+              `❌ Error eliminando partido duplicado ${match.id}:`,
+              error
+            );
+          } else {
+            console.log(
+              `✅ Eliminado partido duplicado ${match.id} de ${stage}`
+            );
+          }
+        }
+      }
+    }
+
+    console.log("✅ Limpieza de partidos duplicados completada");
+  } catch (error) {
+    console.error("❌ Error limpiando partidos duplicados:", error);
+    throw error;
+  }
+}
+
+// Función para verificar si se debe generar la siguiente ronda
+export async function checkAndGenerateNextRound(
+  categoryId: string,
+  tournamentId: string
+): Promise<Match[]> {
+  try {
+    console.log("🔍 Verificando si se debe generar la siguiente ronda...");
+
+    // Primero limpiar partidos duplicados si los hay
+    await cleanDuplicateEliminationMatches(categoryId);
+
+    // Obtener todos los partidos de eliminatorias
+    const allMatches = await getEliminationMatches(categoryId);
+
+    if (allMatches.length === 0) {
+      console.log("⚠️ No hay partidos de eliminatorias");
+      return [];
+    }
+
+    // Verificar cuartos de final
+    const quarterfinals = allMatches.filter((m) => m.stage === "quarterfinals");
+    const completedQuarterfinals = quarterfinals.filter(
+      (m) => m.status === "completed"
+    );
+
+    if (
+      quarterfinals.length > 0 &&
+      completedQuarterfinals.length === quarterfinals.length
+    ) {
+      // Verificar si ya existen partidos de semifinales
+      const existingSemifinals = allMatches.filter(
+        (m) => m.stage === "semifinals"
+      );
+
+      if (existingSemifinals.length === 0) {
+        // Todos los cuartos están completados y no hay semifinales, generar
+        console.log(
+          "✅ Todos los cuartos completados, generando semifinales..."
+        );
+        return await generateSemifinals(
+          categoryId,
+          tournamentId,
+          completedQuarterfinals
+        );
+      } else {
+        console.log("⚠️ Ya existen partidos de semifinales");
+      }
+    }
+
+    // Verificar semifinales
+    const semifinals = allMatches.filter((m) => m.stage === "semifinals");
+    const completedSemifinals = semifinals.filter(
+      (m) => m.status === "completed"
+    );
+
+    if (
+      semifinals.length > 0 &&
+      completedSemifinals.length === semifinals.length
+    ) {
+      // Verificar si ya existen partidos de final y tercer lugar
+      const existingFinals = allMatches.filter((m) => m.stage === "final");
+      const existingThirdPlace = allMatches.filter(
+        (m) => m.stage === "third_place"
+      );
+
+      if (existingFinals.length === 0 && existingThirdPlace.length === 0) {
+        // Todos los semifinales están completados y no hay final/tercer lugar, generar
+        console.log(
+          "✅ Todos los semifinales completados, generando final y tercer lugar..."
+        );
+        return await generateFinalAndThirdPlace(
+          categoryId,
+          tournamentId,
+          completedSemifinals
+        );
+      } else {
+        console.log("⚠️ Ya existen partidos de final y/o tercer lugar");
+      }
+    }
+
+    console.log("⏳ No se puede generar la siguiente ronda aún");
+    return [];
+  } catch (error) {
+    console.error("❌ Error verificando siguiente ronda:", error);
+    throw error;
+  }
+}
+
+// Función para generar semifinales basado en ganadores de cuartos
+async function generateSemifinals(
+  categoryId: string,
+  tournamentId: string,
+  completedQuarterfinals: Match[]
+): Promise<Match[]> {
+  try {
+    console.log("🏆 Generando semifinales...");
+
+    // Obtener ganadores de cuartos
+    const winners = completedQuarterfinals
+      .map((match) => match.winnerPairId)
+      .filter((winnerId) => winnerId !== null) as string[];
+
+    if (winners.length < 2) {
+      console.log("⚠️ No hay suficientes ganadores para semifinales");
+      return [];
+    }
+
+    const matches: Match[] = [];
+    const { v4: uuidv4 } = await import("uuid");
+
+    // Crear semifinales
+    for (let i = 0; i < winners.length; i += 2) {
+      if (winners[i + 1]) {
+        const match: Match = {
+          id: uuidv4(),
+          tournamentId,
+          categoryId,
+          stage: "semifinals",
+          pairAId: winners[i],
+          pairBId: winners[i + 1],
+          status: "pending",
+        };
+        matches.push(match);
+        console.log(
+          `⚽ Semifinal ${Math.floor(i / 2) + 1}: ${winners[i]} vs ${
+            winners[i + 1]
+          }`
+        );
+      }
+    }
+
+    // Crear partidos en la base de datos
+    if (matches.length > 0) {
+      const createdMatches = await createMatches(matches);
+      console.log(`✅ Creados ${createdMatches.length} semifinales`);
+      return createdMatches;
+    }
+
+    return [];
+  } catch (error) {
+    console.error("❌ Error generando semifinales:", error);
+    throw error;
+  }
+}
+
+// Función para generar final y tercer lugar basado en ganadores de semifinales
+async function generateFinalAndThirdPlace(
+  categoryId: string,
+  tournamentId: string,
+  completedSemifinals: Match[]
+): Promise<Match[]> {
+  try {
+    console.log("🏆 Generando final y tercer lugar...");
+
+    // Obtener ganadores y perdedores de semifinales
+    console.log(
+      "🔍 Analizando semifinales completadas:",
+      completedSemifinals.length
+    );
+
+    const winners = completedSemifinals
+      .map((match) => match.winnerPairId)
+      .filter((winnerId) => winnerId !== null) as string[];
+
+    const losers = completedSemifinals
+      .map((match) => {
+        if (match.winnerPairId === match.pairAId) {
+          return match.pairBId;
+        } else {
+          return match.pairAId;
+        }
+      })
+      .filter((loserId) => loserId !== null) as string[];
+
+    console.log("🏆 Ganadores encontrados:", winners);
+    console.log("😞 Perdedores encontrados:", losers);
+    console.log(
+      "📊 Cantidad - Ganadores:",
+      winners.length,
+      "Perdedores:",
+      losers.length
+    );
+
+    if (winners.length < 2 || losers.length < 2) {
+      console.log(
+        "⚠️ No hay suficientes ganadores/perdedores para final y tercer lugar"
+      );
+      console.log(
+        "🔍 Detalles de semifinales:",
+        completedSemifinals.map((m) => ({
+          id: m.id,
+          pairA: m.pairAId,
+          pairB: m.pairBId,
+          winner: m.winnerPairId,
+          status: m.status,
+        }))
+      );
+      return [];
+    }
+
+    const matches: Match[] = [];
+    const { v4: uuidv4 } = await import("uuid");
+
+    // Crear final
+    const finalMatch: Match = {
+      id: uuidv4(),
+      tournamentId,
+      categoryId,
+      stage: "final",
+      pairAId: winners[0],
+      pairBId: winners[1],
+      status: "pending",
+    };
+    matches.push(finalMatch);
+    console.log(`⚽ Final: ${winners[0]} vs ${winners[1]}`);
+
+    // Crear tercer lugar
+    const thirdPlaceMatch: Match = {
+      id: uuidv4(),
+      tournamentId,
+      categoryId,
+      stage: "third_place",
+      pairAId: losers[0],
+      pairBId: losers[1],
+      status: "pending",
+    };
+    matches.push(thirdPlaceMatch);
+    console.log(`🥉 Tercer lugar: ${losers[0]} vs ${losers[1]}`);
+
+    // Crear partidos en la base de datos
+    const createdMatches = await createMatches(matches);
+    console.log(
+      `✅ Creados ${createdMatches.length} partidos (final y tercer lugar)`
+    );
+    return createdMatches;
+  } catch (error) {
+    console.error("❌ Error generando final y tercer lugar:", error);
+    throw error;
+  }
+}

@@ -1,0 +1,44 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
+import "./globals.css";
+import { Toaster } from "@/components/ui/sonner";
+import { AuthProvider } from "@/components/auth/AuthProvider";
+import { cn } from "@/lib/utils";
+
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
+  title: "MiTorneo - Gestión de Torneos de Pádel",
+  description:
+    "Aplicación completa para la gestión de torneos de pádel con generación automática de grupos, calendario y asignación de canchas.",
+};
+
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  return (
+    <html lang="es">
+      <body
+        className={cn(
+          inter.className,
+          "layout-root min-h-screen bg-background font-sans antialiased"
+        )}
+      >
+        <AuthProvider>
+          <div className="layout-container relative flex min-h-screen flex-col">
+            <main className="layout-main flex-1">{children}</main>
+          </div>
+        </AuthProvider>
+        <Toaster
+          position="top-right"
+          className="toaster-container"
+          toastOptions={{
+            className: "toaster-item",
+          }}
+        />
+      </body>
+    </html>
+  );
+}

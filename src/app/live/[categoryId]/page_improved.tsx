@@ -1,0 +1,698 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { useParams } from "next/navigation";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import {
+  Trophy,
+  Users,
+  Play,
+  Clock,
+  Crown,
+  Medal,
+  RefreshCw,
+  Eye,
+} from "lucide-react";
+import { Category, Match, Pair } from "@/types";
+import { toast } from "sonner";
+import {
+  getAllCategories,
+  getPairs,
+  getGroups,
+  getMatches,
+  getEliminationMatches,
+} from "@/lib/supabase-queries";
+
+export default function LiveCategoryView() {
+  const params = useParams();
+  const categoryId = params.categoryId as string;
+
+  const [category, setCategory] = useState<Category | null>(null);
+  const [pairs, setPairs] = useState<Pair[]>([]);
+  const [groups, setGroups] = useState<any[]>([]);
+  const [groupMatches, setGroupMatches] = useState<Match[]>([]);
+  const [eliminationMatches, setEliminationMatches] = useState<Match[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [lastUpdated, setLastUpdated] = useState(new Date());
+
+  const loadCategoryData = async () => {
+    try {
+      setLoading(true);
+
+      // Cargar categoría
+      const categories = await getAllCategories();
+      const currentCategory = categories.find((c) => c.id === categoryId);
+      setCategory(currentCategory || null);
+
+      if (!currentCategory) {
+        toast.error("Categoría no encontrada");
+        return;
+      }
+
+      // Cargar datos en paralelo
+      const [pairsData, groupsData, matchesData, eliminationData] =
+        await Promise.all([
+          getPairs(currentCategory.id),
+          getGroups(currentCategory.id),
+          getMatches(currentCategory.id),
+          getEliminationMatches(currentCategory.id),
+        ]);
+
+      setPairs(pairsData);
+      setGroups(groupsData);
+      setGroupMatches(matchesData.filter((m) => m.stage === "group"));
+      setEliminationMatches(eliminationData);
+      setLastUpdated(new Date());
+    } catch (error) {
+      console.error("Error loading category data:", error);
+      toast.error("Error cargando datos de la categoría");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadCategoryData();
+
+    // Actualizar cada 30 segundos
+    const interval = setInterval(loadCategoryData, 30000);
+    return () => clearInterval(interval);
+  }, [categoryId]);
+
+  const getPairName = (pairId: string) => {
+    const pair = pairs.find((p) => p.id === pairId);
+    return pair
+      ? `${pair.player1.name} & ${pair.player2.name}`
+      : "Pareja no encontrada";
+  };
+
+  const getGroupStandings = (groupId: string) => {
+    const groupPairs = pairs.filter((p) => p.groupId === groupId);
+    const groupMatchesData = groupMatches.filter((m) => m.groupId === groupId);
+
+    return groupPairs
+      .map((pair) => {
+        let wins = 0;
+        let losses = 0;
+        let setsWon = 0;
+        let setsLost = 0;
+
+        groupMatchesData.forEach((match) => {
+          if (match.status === "completed") {
+            const scoreA =
+              typeof match.scorePairA === "number"
+                ? match.scorePairA
+                : match.scorePairA?.set1 || 0;
+            const scoreB =
+              typeof match.scorePairB === "number"
+                ? match.scorePairB
+                : match.scorePairB?.set1 || 0;
+
+            if (match.pairAId === pair.id) {
+              setsWon += scoreA;
+              setsLost += scoreB;
+              if (scoreA > scoreB) wins++;
+              else losses++;
+            } else if (match.pairBId === pair.id) {
+              setsWon += scoreB;
+              setsLost += scoreA;
+              if (scoreB > scoreA) wins++;
+              else losses++;
+            }
+          }
+        });
+
+        const points = wins * 3 + (losses === 0 && wins > 0 ? 1 : 0); // 3 puntos por victoria, 1 por empate
+
+        return {
+          pair,
+          wins,
+          losses,
+          setsWon,
+          setsLost,
+          points,
+        };
+      })
+      .sort((a, b) => {
+        // Ordenar por puntos, luego por diferencia de sets
+        if (b.points !== a.points) return b.points - a.points;
+        return b.setsWon - b.setsLost - (a.setsWon - a.setsLost);
+      });
+  };
+
+  const getEliminationProgress = () => {
+    const semifinals = eliminationMatches.filter(
+      (m) => m.stage === "semifinals"
+    );
+    const finals = eliminationMatches.filter((m) => m.stage === "final");
+    const thirdPlace = eliminationMatches.filter(
+      (m) => m.stage === "third_place"
+    );
+
+    return {
+      semifinals: {
+        total: semifinals.length,
+        completed: semifinals.filter((m) => m.status === "completed").length,
+      },
+      finals: {
+        total: finals.length,
+        completed: finals.filter((m) => m.status === "completed").length,
+      },
+      thirdPlace: {
+        total: thirdPlace.length,
+        completed: thirdPlace.filter((m) => m.status === "completed").length,
+      },
+    };
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <RefreshCw className="h-16 w-16 mx-auto mb-4 text-blue-600 animate-spin" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Cargando datos en tiempo real...
+          </h1>
+          <p className="text-gray-600">
+            Obteniendo información actualizada del torneo
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!category) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+        <div className="text-center">
+          <Trophy className="h-16 w-16 mx-auto mb-4 text-gray-400" />
+          <h1 className="text-2xl font-bold text-gray-900 mb-2">
+            Categoría no encontrada
+          </h1>
+          <p className="text-gray-600">
+            La categoría que buscas no existe o ha sido eliminada.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  const progress = getEliminationProgress();
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
+      {/* Header */}
+      <div className="bg-white shadow-lg border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 flex items-center gap-3">
+                <Eye className="h-10 w-10 text-blue-600" />
+                Vista en Tiempo Real
+              </h1>
+              <p className="text-gray-600 mt-2 text-lg">
+                {category.name} • {pairs.length} parejas • Actualizado:{" "}
+                {lastUpdated.toLocaleTimeString()}
+              </p>
+            </div>
+            <Button
+              onClick={loadCategoryData}
+              variant="outline"
+              className="flex items-center gap-2 border-blue-300 text-blue-600 hover:bg-blue-50"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Actualizar
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Grupos */}
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Users className="h-8 w-8 text-blue-600" />
+              Fase de Grupos
+            </h2>
+
+            {groups.map((group) => {
+              const standings = getGroupStandings(group.id);
+              const groupMatchesData = groupMatches.filter(
+                (m) => m.groupId === group.id
+              );
+              const completedMatches = groupMatchesData.filter(
+                (m) => m.status === "completed"
+              );
+
+              return (
+                <Card
+                  key={group.id}
+                  className="shadow-lg border-2 border-blue-100"
+                >
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
+                    <CardTitle className="flex items-center gap-2 text-xl">
+                      <Play className="h-6 w-6 text-blue-600" />
+                      {group.name}
+                    </CardTitle>
+                    <CardDescription className="text-base">
+                      {standings.length} parejas • {completedMatches.length}/
+                      {groupMatchesData.length} partidos jugados
+                    </CardDescription>
+                  </CardHeader>
+                  <CardContent className="p-6">
+                    {/* Tabla de Posiciones */}
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                        <Trophy className="h-5 w-5 text-yellow-500" />
+                        Tabla de Posiciones
+                      </h3>
+                      <div className="space-y-2">
+                        {standings.map((standing, index) => (
+                          <div
+                            key={standing.pair.id}
+                            className={`flex items-center justify-between p-4 rounded-xl border-2 ${
+                              index === 0
+                                ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
+                                : index === 1
+                                ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
+                                : "bg-gray-50 border-gray-200"
+                            }`}
+                          >
+                            <div className="flex items-center gap-4">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                                  index === 0
+                                    ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
+                                    : index === 1
+                                    ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
+                                    : "bg-gray-300 text-gray-700"
+                                }`}
+                              >
+                                {index === 0
+                                  ? "🥇"
+                                  : index === 1
+                                  ? "🥈"
+                                  : index + 1}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-lg">
+                                  {standing.pair.player1.name} &{" "}
+                                  {standing.pair.player2.name}
+                                </p>
+                                <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                    {standing.wins} victorias
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                    {standing.losses} derrotas
+                                  </span>
+                                  <span className="flex items-center gap-1">
+                                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                    {standing.setsWon}-{standing.setsLost} sets
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                            <Badge
+                              variant={index === 0 ? "default" : "secondary"}
+                              className="text-lg px-4 py-2"
+                            >
+                              {standing.points} pts
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Partidos del Grupo */}
+                    {completedMatches.length > 0 && (
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                          <Clock className="h-5 w-5 text-green-500" />
+                          Partidos Jugados
+                        </h3>
+                        <div className="space-y-3">
+                          {completedMatches.map((match) => {
+                            const pairA = pairs.find(
+                              (p) => p.id === match.pairAId
+                            );
+                            const pairB = pairs.find(
+                              (p) => p.id === match.pairBId
+                            );
+                            const scoreA =
+                              typeof match.scorePairA === "number"
+                                ? match.scorePairA
+                                : match.scorePairA?.set1 || 0;
+                            const scoreB =
+                              typeof match.scorePairB === "number"
+                                ? match.scorePairB
+                                : match.scorePairB?.set1 || 0;
+
+                            return (
+                              <div
+                                key={match.id}
+                                className="bg-white border-2 border-green-200 rounded-lg p-4 shadow-sm"
+                              >
+                                <div className="flex items-center justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center justify-between">
+                                      <div
+                                        className={`flex items-center gap-2 ${
+                                          match.winnerId === match.pairAId
+                                            ? "font-bold text-green-700"
+                                            : "text-gray-600"
+                                        }`}
+                                      >
+                                        {match.winnerId === match.pairAId && (
+                                          <Crown className="h-4 w-4 text-yellow-500" />
+                                        )}
+                                        {pairA?.player1.name} &{" "}
+                                        {pairA?.player2.name}
+                                      </div>
+                                      <div className="text-2xl font-bold text-gray-800">
+                                        {scoreA}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center justify-between mt-2">
+                                      <div
+                                        className={`flex items-center gap-2 ${
+                                          match.winnerId === match.pairBId
+                                            ? "font-bold text-green-700"
+                                            : "text-gray-600"
+                                        }`}
+                                      >
+                                        {match.winnerId === match.pairBId && (
+                                          <Crown className="h-4 w-4 text-yellow-500" />
+                                        )}
+                                        {pairB?.player1.name} &{" "}
+                                        {pairB?.player2.name}
+                                      </div>
+                                      <div className="text-2xl font-bold text-gray-800">
+                                        {scoreB}
+                                      </div>
+                                    </div>
+                                  </div>
+                                  <div className="ml-4 text-center">
+                                    <Badge
+                                      variant="outline"
+                                      className="bg-green-50 text-green-700 border-green-300"
+                                    >
+                                      Finalizado
+                                    </Badge>
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
+
+          {/* Eliminatorias */}
+          <div className="space-y-6">
+            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+              <Trophy className="h-8 w-8 text-yellow-600" />
+              Fase Eliminatoria
+            </h2>
+
+            {/* Progreso de Eliminatorias */}
+            <Card className="shadow-lg border-2 border-yellow-100">
+              <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50">
+                <CardTitle className="flex items-center gap-2 text-xl">
+                  <Clock className="h-6 w-6 text-blue-600" />
+                  Progreso del Torneo
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6 p-6">
+                {/* Semifinales */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Play className="h-6 w-6 text-purple-600" />
+                    <span className="font-semibold text-lg">Semifinales</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-40 bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${
+                            progress.semifinals.total > 0
+                              ? (progress.semifinals.completed /
+                                  progress.semifinals.total) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    <Badge variant="outline" className="text-lg px-4 py-2">
+                      {progress.semifinals.completed}/
+                      {progress.semifinals.total}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Final */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Crown className="h-6 w-6 text-yellow-600" />
+                    <span className="font-semibold text-lg">Final</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-40 bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-yellow-500 to-orange-500 h-3 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${
+                            progress.finals.total > 0
+                              ? (progress.finals.completed /
+                                  progress.finals.total) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    <Badge variant="outline" className="text-lg px-4 py-2">
+                      {progress.finals.completed}/{progress.finals.total}
+                    </Badge>
+                  </div>
+                </div>
+
+                {/* Tercer Lugar */}
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Medal className="h-6 w-6 text-orange-600" />
+                    <span className="font-semibold text-lg">Tercer Lugar</span>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="w-40 bg-gray-200 rounded-full h-3">
+                      <div
+                        className="bg-gradient-to-r from-orange-500 to-red-500 h-3 rounded-full transition-all duration-500"
+                        style={{
+                          width: `${
+                            progress.thirdPlace.total > 0
+                              ? (progress.thirdPlace.completed /
+                                  progress.thirdPlace.total) *
+                                100
+                              : 0
+                          }%`,
+                        }}
+                      />
+                    </div>
+                    <Badge variant="outline" className="text-lg px-4 py-2">
+                      {progress.thirdPlace.completed}/
+                      {progress.thirdPlace.total}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Partidos de Eliminatorias */}
+            {eliminationMatches.length > 0 && (
+              <Card className="shadow-lg border-2 border-yellow-100">
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Trophy className="h-6 w-6 text-yellow-600" />
+                    Partidos de Eliminatorias
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    Resultados de la fase eliminatoria
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="space-y-6">
+                    {eliminationMatches.map((match) => {
+                      const pairA = pairs.find((p) => p.id === match.pairAId);
+                      const pairB = pairs.find((p) => p.id === match.pairBId);
+                      const scoreA =
+                        typeof match.scorePairA === "number"
+                          ? match.scorePairA
+                          : match.scorePairA?.set1 || 0;
+                      const scoreB =
+                        typeof match.scorePairB === "number"
+                          ? match.scorePairB
+                          : match.scorePairB?.set1 || 0;
+
+                      const getStageInfo = (stage: string) => {
+                        switch (stage) {
+                          case "semifinals":
+                            return {
+                              label: "Semifinal",
+                              icon: "🏆",
+                              color: "purple",
+                            };
+                          case "final":
+                            return {
+                              label: "Final",
+                              icon: "👑",
+                              color: "yellow",
+                            };
+                          case "third_place":
+                            return {
+                              label: "Tercer Lugar",
+                              icon: "🥉",
+                              color: "orange",
+                            };
+                          default:
+                            return { label: stage, icon: "🏅", color: "blue" };
+                        }
+                      };
+
+                      const stageInfo = getStageInfo(match.stage);
+
+                      return (
+                        <div
+                          key={match.id}
+                          className={`p-6 rounded-xl border-2 shadow-md ${
+                            match.status === "completed"
+                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
+                              : "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <span className="text-2xl">{stageInfo.icon}</span>
+                              <Badge
+                                variant="outline"
+                                className={`text-lg px-4 py-2 ${
+                                  stageInfo.color === "purple"
+                                    ? "border-purple-300 text-purple-700 bg-purple-50"
+                                    : stageInfo.color === "yellow"
+                                    ? "border-yellow-300 text-yellow-700 bg-yellow-50"
+                                    : stageInfo.color === "orange"
+                                    ? "border-orange-300 text-orange-700 bg-orange-50"
+                                    : "border-blue-300 text-blue-700 bg-blue-50"
+                                }`}
+                              >
+                                {stageInfo.label}
+                              </Badge>
+                            </div>
+                            {match.status === "completed" && (
+                              <Badge
+                                variant="outline"
+                                className="bg-green-100 text-green-700 border-green-300 text-lg px-4 py-2"
+                              >
+                                ✅ Finalizado
+                              </Badge>
+                            )}
+                          </div>
+
+                          <div className="space-y-4">
+                            {/* Pareja A */}
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                              <div
+                                className={`flex items-center gap-3 ${
+                                  match.winnerId === match.pairAId
+                                    ? "font-bold text-green-700"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                {match.winnerId === match.pairAId && (
+                                  <Crown className="h-5 w-5 text-yellow-500" />
+                                )}
+                                <div>
+                                  <p className="text-lg font-semibold">
+                                    {pairA?.player1.name} &{" "}
+                                    {pairA?.player2.name}
+                                  </p>
+                                  {match.winnerId === match.pairAId && (
+                                    <p className="text-sm text-green-600 font-medium">
+                                      🏆 Ganador
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
+                                {scoreA}
+                              </div>
+                            </div>
+
+                            {/* VS */}
+                            <div className="text-center">
+                              <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
+                                <span className="text-lg font-bold text-gray-600">
+                                  VS
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Pareja B */}
+                            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                              <div
+                                className={`flex items-center gap-3 ${
+                                  match.winnerId === match.pairBId
+                                    ? "font-bold text-green-700"
+                                    : "text-gray-700"
+                                }`}
+                              >
+                                {match.winnerId === match.pairBId && (
+                                  <Crown className="h-5 w-5 text-yellow-500" />
+                                )}
+                                <div>
+                                  <p className="text-lg font-semibold">
+                                    {pairB?.player1.name} &{" "}
+                                    {pairB?.player2.name}
+                                  </p>
+                                  {match.winnerId === match.pairBId && (
+                                    <p className="text-sm text-green-600 font-medium">
+                                      🏆 Ganador
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                              <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
+                                {scoreB}
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

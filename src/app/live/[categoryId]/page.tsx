@@ -1066,23 +1066,23 @@ export default function LiveCategoryView() {
 
           {/* Sección de Felicitaciones a los Ganadores */}
           {winners.isComplete && (
-            <div className="mt-12 mb-8">
-              <Card className="bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 border-4 border-gradient-to-r from-yellow-400 to-orange-500 shadow-2xl">
-                <CardContent className="p-12">
-                  <div className="text-center space-y-8">
+            <div className="mt-8 mb-12 px-4">
+              <Card className="bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 border-4 border-yellow-400 shadow-2xl max-w-7xl mx-auto">
+                <CardContent className="p-4 sm:p-6 lg:p-12">
+                  <div className="text-center space-y-6 lg:space-y-10">
                     {/* Título Principal */}
-                    <div className="space-y-4">
+                    <div className="space-y-3 lg:space-y-6">
                       <div className="flex justify-center">
-                        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-4 rounded-full shadow-lg">
-                          <Trophy className="h-16 w-16 text-white" />
+                        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-3 lg:p-4 rounded-full shadow-lg">
+                          <Trophy className="h-12 w-12 lg:h-16 lg:w-16 text-white" />
                         </div>
                       </div>
-                      <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                        ¡Felicitaciones!
+                      <h2 className="text-2xl sm:text-3xl lg:text-5xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent px-4">
+                        🎉 ¡Felicitaciones! 🎉
                       </h2>
-                      <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                      <p className="text-sm sm:text-base lg:text-xl text-gray-700 max-w-4xl mx-auto leading-relaxed px-4">
                         Ha concluido oficialmente el torneo de la categoría{" "}
-                        <span className="font-bold text-blue-600">
+                        <span className="font-bold text-blue-600 text-lg sm:text-xl lg:text-2xl">
                           {category.name}
                         </span>
                         . Felicitamos a todos los participantes por su excelente
@@ -1090,123 +1090,178 @@ export default function LiveCategoryView() {
                       </p>
                     </div>
 
-                    {/* Podio */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
-                      {/* Subcampeón */}
-                      <div className="order-2 md:order-1">
-                        <Card className="bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-gray-400 shadow-xl transform hover:scale-105 transition-transform duration-300">
-                          <CardContent className="p-6 text-center space-y-4">
+                    {/* Podio Responsive */}
+                    <div className="space-y-6 lg:space-y-8">
+                      {/* Campeones - Primera fila en móvil */}
+                      <div className="bg-gradient-to-r from-yellow-100 to-orange-100 p-4 lg:p-6 rounded-2xl shadow-xl border-4 border-yellow-500 relative overflow-hidden">
+                        {/* Confeti animado de fondo */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/10 to-orange-500/10 animate-pulse"></div>
+
+                        <div className="relative z-10 text-center space-y-4 lg:space-y-6">
+                          <div className="flex justify-center">
+                            <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-3 lg:p-4 rounded-full shadow-xl animate-bounce">
+                              <Crown className="h-12 w-12 lg:h-16 lg:w-16 text-white" />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2 lg:space-y-4">
+                            <h3 className="text-xl sm:text-2xl lg:text-4xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                              👑 ¡CAMPEONES! 👑
+                            </h3>
+                            <p className="text-base sm:text-lg lg:text-2xl font-bold text-gray-800 px-2">
+                              {winners.champion?.player1.name} /{" "}
+                              {winners.champion?.player2.name}
+                            </p>
+                            <div className="flex justify-center my-3 lg:my-4">
+                              <div className="bg-yellow-200 p-3 lg:p-4 rounded-xl shadow-inner">
+                                <span className="text-4xl lg:text-6xl">🏆</span>
+                              </div>
+                            </div>
+                            <p className="text-sm sm:text-base lg:text-lg font-semibold text-yellow-700">
+                              ¡Excelente juego! ¡Se lo merecen!
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Grid para Subcampeones y Tercer Lugar */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 lg:gap-8 max-w-5xl mx-auto">
+                        {/* Subcampeones */}
+                        <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-4 lg:p-6 rounded-2xl shadow-xl border-4 border-gray-400 transform hover:scale-105 transition-transform duration-300">
+                          <div className="text-center space-y-3 lg:space-y-4">
                             <div className="flex justify-center">
-                              <div className="bg-gradient-to-r from-gray-400 to-gray-500 p-3 rounded-full shadow-lg">
-                                <Medal className="h-12 w-12 text-white" />
+                              <div className="bg-gradient-to-r from-gray-400 to-gray-500 p-2 lg:p-3 rounded-full shadow-lg">
+                                <Medal className="h-8 w-8 lg:h-12 lg:w-12 text-white" />
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <h3 className="text-2xl font-bold text-gray-700">
-                                Subcampeón
+                              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-gray-700">
+                                🥈 Subcampeones
                               </h3>
-                              <p className="text-lg font-semibold text-gray-800">
+                              <p className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800 px-2">
                                 {winners.runnerUp?.player1.name} /{" "}
                                 {winners.runnerUp?.player2.name}
                               </p>
-                              <div className="bg-gray-200 p-3 rounded-lg">
-                                <span className="text-4xl">🥈</span>
+                              <div className="bg-gray-200 p-2 lg:p-3 rounded-lg mx-auto w-fit">
+                                <span className="text-2xl lg:text-4xl">🥈</span>
                               </div>
-                            </div>
-                          </CardContent>
-                        </Card>
-                      </div>
-
-                      {/* Campeón */}
-                      <div className="order-1 md:order-2">
-                        <Card className="bg-gradient-to-br from-yellow-100 to-orange-200 border-4 border-yellow-500 shadow-2xl transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
-                          {/* Confeti animado */}
-                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 animate-pulse"></div>
-                          <CardContent className="p-8 text-center space-y-6 relative z-10">
-                            <div className="flex justify-center">
-                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-4 rounded-full shadow-xl animate-bounce">
-                                <Crown className="h-16 w-16 text-white" />
-                              </div>
-                            </div>
-                            <div className="space-y-3">
-                              <h3 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                                ¡CAMPEÓN!
-                              </h3>
-                              <p className="text-xl font-bold text-gray-800">
-                                {winners.champion?.player1.name} /{" "}
-                                {winners.champion?.player2.name}
-                              </p>
-                              <div className="bg-yellow-200 p-4 rounded-lg shadow-inner">
-                                <span className="text-6xl">🏆</span>
-                              </div>
-                              <p className="text-lg font-semibold text-yellow-700">
-                                ¡Excelente juego!
+                              <p className="text-xs sm:text-sm lg:text-base text-gray-600">
+                                ¡Gran actuación!
                               </p>
                             </div>
-                          </CardContent>
-                        </Card>
-                      </div>
+                          </div>
+                        </div>
 
-                      {/* Tercer Lugar */}
-                      <div className="order-3">
-                        <Card className="bg-gradient-to-br from-orange-100 to-red-200 border-4 border-orange-500 shadow-xl transform hover:scale-105 transition-transform duration-300">
-                          <CardContent className="p-6 text-center space-y-4">
+                        {/* Tercer Lugar */}
+                        <div className="bg-gradient-to-br from-orange-50 to-red-100 p-4 lg:p-6 rounded-2xl shadow-xl border-4 border-orange-500 transform hover:scale-105 transition-transform duration-300">
+                          <div className="text-center space-y-3 lg:space-y-4">
                             <div className="flex justify-center">
-                              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-3 rounded-full shadow-lg">
-                                <Medal className="h-12 w-12 text-white" />
+                              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-2 lg:p-3 rounded-full shadow-lg">
+                                <Medal className="h-8 w-8 lg:h-12 lg:w-12 text-white" />
                               </div>
                             </div>
                             <div className="space-y-2">
-                              <h3 className="text-2xl font-bold text-orange-700">
-                                Tercer Lugar
+                              <h3 className="text-lg sm:text-xl lg:text-2xl font-bold text-orange-700">
+                                🥉 Tercer Lugar
                               </h3>
-                              <p className="text-lg font-semibold text-gray-800">
+                              <p className="text-sm sm:text-base lg:text-lg font-semibold text-gray-800 px-2">
                                 {winners.thirdPlace?.player1.name} /{" "}
                                 {winners.thirdPlace?.player2.name}
                               </p>
-                              <div className="bg-orange-200 p-3 rounded-lg">
-                                <span className="text-4xl">🥉</span>
+                              <div className="bg-orange-200 p-2 lg:p-3 rounded-lg mx-auto w-fit">
+                                <span className="text-2xl lg:text-4xl">🥉</span>
                               </div>
+                              <p className="text-xs sm:text-sm lg:text-base text-orange-600">
+                                ¡Muy buen nivel!
+                              </p>
                             </div>
-                          </CardContent>
-                        </Card>
+                          </div>
+                        </div>
                       </div>
                     </div>
 
-                    {/* Mensaje de Agradecimiento */}
-                    <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border-2 border-blue-200 max-w-4xl mx-auto">
-                      <div className="space-y-6">
+                    {/* Mensaje de Agradecimiento Mejorado */}
+                    <div className="bg-gradient-to-br from-blue-50 to-purple-50 border-4 border-blue-300 p-4 sm:p-6 lg:p-8 rounded-2xl shadow-xl max-w-5xl mx-auto">
+                      <div className="space-y-4 lg:space-y-6">
                         <div className="flex justify-center">
-                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-full shadow-lg">
-                            <Users className="h-10 w-10 text-white" />
+                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-2 lg:p-3 rounded-full shadow-lg">
+                            <Users className="h-8 w-8 lg:h-10 lg:w-10 text-white" />
                           </div>
                         </div>
-                        <h3 className="text-2xl font-bold text-gray-800">
-                          ¡Gracias por Participar!
+
+                        <h3 className="text-lg sm:text-xl lg:text-3xl font-bold text-gray-800 mb-4">
+                          🙏 ¡Gracias por Participar! 🙏
                         </h3>
-                        <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
-                          <p>
-                            Agradecemos profundamente a todos los participantes
-                            por hacer de este torneo una experiencia increíble.
-                            Su pasión por el pádel y su espíritu deportivo han
-                            sido ejemplares.
+
+                        <div className="space-y-3 lg:space-y-4 text-sm sm:text-base lg:text-lg text-gray-700 leading-relaxed">
+                          <p className="bg-white/70 p-3 lg:p-4 rounded-xl">
+                            <strong>Agradecemos profundamente</strong> a todos
+                            los participantes por hacer de este torneo una
+                            experiencia increíble. Su pasión por el pádel y su
+                            espíritu deportivo han sido ejemplares.
                           </p>
-                          <p className="font-semibold text-blue-600">
-                            Cada torneo que organizamos contribuye a una causa
-                            noble: ayudar a los perritos de la calle con
-                            alimento y cuidados veterinarios.
-                            <span className="text-red-500">❤️</span>
-                          </p>
-                          <p className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
-                            ¡Esperamos verlos en la siguiente edición!
-                          </p>
+
+                          <div className="bg-gradient-to-r from-red-50 to-pink-50 p-3 lg:p-4 rounded-xl border-2 border-red-200">
+                            <p className="font-semibold text-red-600 flex items-center justify-center gap-2 flex-wrap">
+                              <span className="text-xl lg:text-2xl">🐕</span>
+                              <span className="text-center">
+                                Cada torneo que organizamos contribuye a una
+                                causa noble:
+                                <br className="sm:hidden" />
+                                <strong className="text-red-700">
+                                  ayudar a los perritos de la calle
+                                </strong>
+                                <br className="sm:hidden" />
+                                con alimento y cuidados veterinarios
+                              </span>
+                              <span className="text-xl lg:text-2xl">❤️</span>
+                            </p>
+                          </div>
+
+                          <div className="bg-gradient-to-r from-green-50 to-blue-50 p-3 lg:p-4 rounded-xl border-2 border-green-300">
+                            <p className="text-lg sm:text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent text-center">
+                              🌟 ¡Esperamos verlos en la siguiente edición! 🌟
+                            </p>
+                          </div>
                         </div>
-                        <div className="flex justify-center space-x-4 text-3xl">
-                          <span>🐕</span>
-                          <span>🏆</span>
-                          <span>🎾</span>
-                          <span>❤️</span>
-                          <span>🌟</span>
+
+                        <div className="flex justify-center flex-wrap gap-2 lg:gap-4 text-2xl lg:text-3xl pt-4">
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0s" }}
+                          >
+                            🐕
+                          </span>
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0.1s" }}
+                          >
+                            🏆
+                          </span>
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0.2s" }}
+                          >
+                            🎾
+                          </span>
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0.3s" }}
+                          >
+                            ❤️
+                          </span>
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0.4s" }}
+                          >
+                            🌟
+                          </span>
+                          <span
+                            className="animate-bounce"
+                            style={{ animationDelay: "0.5s" }}
+                          >
+                            🎉
+                          </span>
                         </div>
                       </div>
                     </div>

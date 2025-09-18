@@ -541,12 +541,11 @@ export default function LiveCategoryView() {
                                   }
                                 }
 
-                                // Agregar indicador de victoria/derrota
-                                const indicator = isWinner ? " ✅" : " ❌";
+                                // No agregar indicador aquí, se agregará al final del partido
                                 console.log(
-                                  `✅ Resultado detallado: "${result}${indicator}"`
+                                  `✅ Resultado detallado: "${result}"`
                                 );
-                                return result + indicator;
+                                return result;
                               }
 
                               // Si son números simples (fallback para partidos antiguos)
@@ -557,11 +556,10 @@ export default function LiveCategoryView() {
                                 let result = isPairA
                                   ? `${scoreA}-${scoreB} sets`
                                   : `${scoreB}-${scoreA} sets`;
-                                const indicator = isWinner ? " ✅" : " ❌";
                                 console.log(
-                                  `⚠️ Solo sets ganados: "${result}${indicator}"`
+                                  `⚠️ Solo sets ganados: "${result}"`
                                 );
-                                return result + indicator;
+                                return result;
                               }
 
                               // Si llegamos aquí, formato no reconocido

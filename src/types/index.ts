@@ -97,6 +97,22 @@ export interface Match {
     superDeath?: number;
   };
   winnerPairId?: ID;
+  // 🆕 NUEVO: Campo score completo para debugging y datos detallados
+  score?: {
+    pairA?: {
+      set1: number;
+      set2: number;
+      set3?: number;
+      superDeath?: number;
+    };
+    pairB?: {
+      set1: number;
+      set2: number;
+      set3?: number;
+      superDeath?: number;
+    };
+    winner?: ID;
+  } | null;
   createdAt?: string;
   updatedAt?: string;
 }

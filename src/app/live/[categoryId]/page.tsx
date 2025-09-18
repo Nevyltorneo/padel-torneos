@@ -409,67 +409,304 @@ export default function LiveCategoryView() {
                           Tabla de Posiciones
                         </h3>
                         <div className="space-y-2 sm:space-y-3">
-                          {standings.map((standing, index) => (
-                            <div
-                              key={standing.pairId}
-                              className={`flex items-center justify-between p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl border-2 ${
-                                index === 0
-                                  ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
-                                  : index === 1
-                                  ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
-                                  : "bg-gray-50 border-gray-200"
-                              }`}
-                            >
-                              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-1 min-w-0">
-                                <div
-                                  className={`w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-sm sm:text-base lg:text-lg font-bold flex-shrink-0 ${
-                                    index === 0
-                                      ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
-                                      : index === 1
-                                      ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
-                                      : "bg-gray-300 text-gray-700"
-                                  }`}
-                                >
-                                  {index === 0
-                                    ? "🥇"
+                          {standings.map((standing, index) => {
+                            // Obtener los partidos de esta pareja en este grupo
+                            const pairMatches = groupMatchesData.filter(
+                              (match) =>
+                                (match.pairAId === standing.pairId ||
+                                  match.pairBId === standing.pairId) &&
+                                match.status === "completed"
+                            );
+
+                            // Debug: Verificar estructura de datos
+                            if (pairMatches.length > 0) {
+                              console.log(
+                                `🔍 BUSCANDO DATOS DETALLADOS para ${standing.pairName}:`,
+                                {
+                                  pairId: standing.pairId,
+                                  matches: pairMatches.map((m) => ({
+                                    id: m.id,
+                                    scorePairA: m.scorePairA,
+                                    scorePairB: m.scorePairB,
+                                    score: m.score, // Campo principal donde pueden estar los datos detallados
+                                    winnerPairId: m.winnerPairId,
+                                    allKeys: Object.keys(m), // Ver qué otros campos tiene
+                                    // Buscar en otros posibles campos
+                                    rawScoreA:
+                                      m.score?.pairA || m.score?.scoreA,
+                                    rawScoreB:
+                                      m.score?.pairB || m.score?.scoreB,
+                                    sets: m.score?.sets,
+                                    allScoreData: m.score,
+                                  })),
+                                }
+                              );
+                            }
+
+                            // Función para formatear el resultado de un partido
+                            const formatMatchResult = (
+                              match: any,
+                              pairId: string
+                            ) => {
+                              // Ahora con los datos arreglados, deberíamos tener acceso directo a los datos detallados
+                              let scoreA = match.scorePairA;
+                              let scoreB = match.scorePairB;
+
+                              console.log(
+                                `🎯 DEBUG formatMatchResult (ARREGLADO):`,
+                                {
+                                  matchId: match.id,
+                                  scorePairA: scoreA,
+                                  scorePairB: scoreB,
+                                  scoreField: match.score,
+                                  hasDetailedData:
+                                    scoreA &&
+                                    typeof scoreA === "object" &&
+                                    scoreA.set1 !== undefined,
+                                }
+                              );
+
+                              if (!scoreA || !scoreB) {
+                                return "";
+                              }
+
+                              // Parsear si es string
+                              if (typeof scoreA === "string") {
+                                try {
+                                  scoreA = JSON.parse(scoreA);
+                                } catch (e) {
+                                  console.warn("Error parsing scoreA:", scoreA);
+                                  return "";
+                                }
+                              }
+
+                              if (typeof scoreB === "string") {
+                                try {
+                                  scoreB = JSON.parse(scoreB);
+                                } catch (e) {
+                                  console.warn("Error parsing scoreB:", scoreB);
+                                  return "";
+                                }
+                              }
+
+                              const isPairA = match.pairAId === pairId;
+                              const isWinner = match.winnerPairId === pairId;
+
+                              // Si son objetos con sets detallados (LO QUE QUEREMOS AHORA)
+                              if (
+                                typeof scoreA === "object" &&
+                                typeof scoreB === "object" &&
+                                scoreA.set1 !== undefined
+                              ) {
+                                let result = "";
+                                if (isPairA) {
+                                  result = `${scoreA.set1}-${scoreB.set1}`;
+                                  if (
+                                    scoreA.set2 !== undefined &&
+                                    scoreB.set2 !== undefined
+                                  ) {
+                                    result += `, ${scoreA.set2}-${scoreB.set2}`;
+                                  }
+                                  if (
+                                    scoreA.set3 !== undefined &&
+                                    scoreB.set3 !== undefined
+                                  ) {
+                                    result += `, ${scoreA.set3}-${scoreB.set3}`;
+                                  }
+                                  if (
+                                    scoreA.superDeath !== undefined &&
+                                    scoreB.superDeath !== undefined
+                                  ) {
+                                    result += `, ${scoreA.superDeath}-${scoreB.superDeath}SD`;
+                                  }
+                                } else {
+                                  result = `${scoreB.set1}-${scoreA.set1}`;
+                                  if (
+                                    scoreA.set2 !== undefined &&
+                                    scoreB.set2 !== undefined
+                                  ) {
+                                    result += `, ${scoreB.set2}-${scoreA.set2}`;
+                                  }
+                                  if (
+                                    scoreA.set3 !== undefined &&
+                                    scoreB.set3 !== undefined
+                                  ) {
+                                    result += `, ${scoreB.set3}-${scoreA.set3}`;
+                                  }
+                                  if (
+                                    scoreA.superDeath !== undefined &&
+                                    scoreB.superDeath !== undefined
+                                  ) {
+                                    result += `, ${scoreB.superDeath}-${scoreA.superDeath}SD`;
+                                  }
+                                }
+
+                                // Agregar indicador de victoria/derrota
+                                const indicator = isWinner ? " ✅" : " ❌";
+                                console.log(
+                                  `✅ Resultado detallado: "${result}${indicator}"`
+                                );
+                                return result + indicator;
+                              }
+
+                              // Si son números simples (fallback para partidos antiguos)
+                              if (
+                                typeof scoreA === "number" &&
+                                typeof scoreB === "number"
+                              ) {
+                                let result = isPairA
+                                  ? `${scoreA}-${scoreB} sets`
+                                  : `${scoreB}-${scoreA} sets`;
+                                const indicator = isWinner ? " ✅" : " ❌";
+                                console.log(
+                                  `⚠️ Solo sets ganados: "${result}${indicator}"`
+                                );
+                                return result + indicator;
+                              }
+
+                              // Si llegamos aquí, formato no reconocido
+                              console.warn(
+                                "🚨 Formato de score no reconocido:",
+                                {
+                                  scoreA,
+                                  scoreB,
+                                }
+                              );
+                              return "";
+                            };
+
+                            return (
+                              <div
+                                key={standing.pairId}
+                                className={`flex items-center justify-between p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl border-2 ${
+                                  index === 0
+                                    ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
                                     : index === 1
-                                    ? "🥈"
-                                    : index + 1}
-                                </div>
-                                <div className="min-w-0 flex-1">
-                                  <p className="font-semibold text-sm sm:text-base lg:text-lg truncate">
-                                    {standing.pairName}
-                                  </p>
-                                  <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 text-xs sm:text-sm text-gray-600 flex-wrap">
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
-                                      <span className="whitespace-nowrap">
-                                        {standing.matchesWon}V
+                                    ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
+                                    : "bg-gray-50 border-gray-200"
+                                }`}
+                              >
+                                <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-1 min-w-0">
+                                  <div
+                                    className={`w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-sm sm:text-base lg:text-lg font-bold flex-shrink-0 ${
+                                      index === 0
+                                        ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
+                                        : index === 1
+                                        ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
+                                        : "bg-gray-300 text-gray-700"
+                                    }`}
+                                  >
+                                    {index === 0
+                                      ? "🥇"
+                                      : index === 1
+                                      ? "🥈"
+                                      : index + 1}
+                                  </div>
+                                  <div className="min-w-0 flex-1">
+                                    <p className="font-semibold text-sm sm:text-base lg:text-lg truncate">
+                                      {standing.pairName}
+                                    </p>
+
+                                    {/* Mostrar resultados de partidos */}
+                                    {pairMatches.length > 0 ? (
+                                      <div className="mt-1 space-y-0.5">
+                                        {pairMatches.map(
+                                          (match, matchIndex) => {
+                                            const result = formatMatchResult(
+                                              match,
+                                              standing.pairId
+                                            );
+                                            const isWinner =
+                                              match.winnerPairId ===
+                                              standing.pairId;
+                                            const opponentPair = pairs.find(
+                                              (p) =>
+                                                p.id ===
+                                                (match.pairAId ===
+                                                standing.pairId
+                                                  ? match.pairBId
+                                                  : match.pairAId)
+                                            );
+
+                                            // Mostrar incluso si no hay resultado, para debug
+                                            return (
+                                              <div
+                                                key={matchIndex}
+                                                className={`text-xs ${
+                                                  result
+                                                    ? isWinner
+                                                      ? "text-green-700 font-medium"
+                                                      : "text-red-600"
+                                                    : "text-gray-500 italic"
+                                                }`}
+                                              >
+                                                <span className="font-semibold">
+                                                  J{matchIndex + 1}:
+                                                </span>{" "}
+                                                {result ||
+                                                  "Sin resultado disponible"}
+                                                {opponentPair && (
+                                                  <>
+                                                    {" vs "}
+                                                    {
+                                                      opponentPair.player1.name.split(
+                                                        " "
+                                                      )[0]
+                                                    }
+                                                    /
+                                                    {
+                                                      opponentPair.player2.name.split(
+                                                        " "
+                                                      )[0]
+                                                    }
+                                                  </>
+                                                )}
+                                                {result &&
+                                                  (isWinner ? " ✅" : " ❌")}
+                                              </div>
+                                            );
+                                          }
+                                        )}
+                                      </div>
+                                    ) : (
+                                      <div className="mt-1 text-xs text-gray-500 italic">
+                                        Sin partidos completados aún
+                                      </div>
+                                    )}
+
+                                    <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 text-xs sm:text-sm text-gray-600 flex-wrap mt-1">
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
+                                        <span className="whitespace-nowrap">
+                                          {standing.matchesWon}V
+                                        </span>
                                       </span>
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></span>
-                                      <span className="whitespace-nowrap">
-                                        {standing.matchesLost}D
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></span>
+                                        <span className="whitespace-nowrap">
+                                          {standing.matchesLost}D
+                                        </span>
                                       </span>
-                                    </span>
-                                    <span className="flex items-center gap-1">
-                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></span>
-                                      <span className="whitespace-nowrap">
-                                        {standing.setsWon}-{standing.setsLost}
+                                      <span className="flex items-center gap-1">
+                                        <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></span>
+                                        <span className="whitespace-nowrap">
+                                          {standing.setsWon}-{standing.setsLost}
+                                        </span>
                                       </span>
-                                    </span>
+                                    </div>
                                   </div>
                                 </div>
+                                <Badge
+                                  variant={
+                                    index === 0 ? "default" : "secondary"
+                                  }
+                                  className="text-xs sm:text-sm lg:text-base px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 ml-2 flex-shrink-0"
+                                >
+                                  {standing.points}
+                                </Badge>
                               </div>
-                              <Badge
-                                variant={index === 0 ? "default" : "secondary"}
-                                className="text-xs sm:text-sm lg:text-base px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 ml-2 flex-shrink-0"
-                              >
-                                {standing.points}
-                              </Badge>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
 

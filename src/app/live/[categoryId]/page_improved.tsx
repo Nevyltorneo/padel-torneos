@@ -318,62 +318,241 @@ export default function LiveCategoryView() {
                         Tabla de Posiciones
                       </h3>
                       <div className="space-y-2">
-                        {standings.map((standing, index) => (
-                          <div
-                            key={standing.pair.id}
-                            className={`flex items-center justify-between p-4 rounded-xl border-2 ${
-                              index === 0
-                                ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
-                                : index === 1
-                                ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
-                                : "bg-gray-50 border-gray-200"
-                            }`}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
-                                  index === 0
-                                    ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
-                                    : index === 1
-                                    ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
-                                    : "bg-gray-300 text-gray-700"
-                                }`}
-                              >
-                                {index === 0
-                                  ? "🥇"
+                        {standings.map((standing, index) => {
+                          // Obtener los partidos de esta pareja en este grupo
+                          const pairMatches = groupMatchesData.filter(
+                            (match) =>
+                              (match.pairAId === standing.pair.id ||
+                                match.pairBId === standing.pair.id) &&
+                              match.status === "completed"
+                          );
+
+                          // Función para formatear el resultado de un partido
+                          const formatMatchResult = (
+                            match: any,
+                            pairId: string
+                          ) => {
+                            if (
+                              match.scorePairA === undefined ||
+                              match.scorePairA === null ||
+                              match.scorePairB === undefined ||
+                              match.scorePairB === null
+                            )
+                              return "";
+
+                            let scoreA = match.scorePairA;
+                            let scoreB = match.scorePairB;
+
+                            // Parsear si es string
+                            if (typeof scoreA === "string") {
+                              try {
+                                scoreA = JSON.parse(scoreA);
+                              } catch (e) {
+                                console.warn("Error parsing scoreA:", scoreA);
+                                return "";
+                              }
+                            }
+
+                            if (typeof scoreB === "string") {
+                              try {
+                                scoreB = JSON.parse(scoreB);
+                              } catch (e) {
+                                console.warn("Error parsing scoreB:", scoreB);
+                                return "";
+                              }
+                            }
+
+                            const isPairA = match.pairAId === pairId;
+
+                            // Si son números simples (formato legacy o simplificado)
+                            if (
+                              typeof scoreA === "number" &&
+                              typeof scoreB === "number"
+                            ) {
+                              if (isPairA) {
+                                return `${scoreA}-${scoreB}`;
+                              } else {
+                                return `${scoreB}-${scoreA}`;
+                              }
+                            }
+
+                            // Si son objetos con sets detallados
+                            if (
+                              typeof scoreA === "object" &&
+                              typeof scoreB === "object"
+                            ) {
+                              let result = "";
+                              if (isPairA) {
+                                if (
+                                  scoreA.set1 !== undefined &&
+                                  scoreB.set1 !== undefined
+                                ) {
+                                  result = `${scoreA.set1}-${scoreB.set1}`;
+                                }
+                                if (
+                                  scoreA.set2 !== undefined &&
+                                  scoreB.set2 !== undefined
+                                ) {
+                                  result += `, ${scoreA.set2}-${scoreB.set2}`;
+                                }
+                                if (
+                                  scoreA.set3 !== undefined &&
+                                  scoreB.set3 !== undefined
+                                ) {
+                                  result += `, ${scoreA.set3}-${scoreB.set3}`;
+                                }
+                                if (
+                                  scoreA.superDeath !== undefined &&
+                                  scoreB.superDeath !== undefined
+                                ) {
+                                  result += `, ${scoreA.superDeath}-${scoreB.superDeath}SD`;
+                                }
+                              } else {
+                                if (
+                                  scoreA.set1 !== undefined &&
+                                  scoreB.set1 !== undefined
+                                ) {
+                                  result = `${scoreB.set1}-${scoreA.set1}`;
+                                }
+                                if (
+                                  scoreA.set2 !== undefined &&
+                                  scoreB.set2 !== undefined
+                                ) {
+                                  result += `, ${scoreB.set2}-${scoreA.set2}`;
+                                }
+                                if (
+                                  scoreA.set3 !== undefined &&
+                                  scoreB.set3 !== undefined
+                                ) {
+                                  result += `, ${scoreB.set3}-${scoreA.set3}`;
+                                }
+                                if (
+                                  scoreA.superDeath !== undefined &&
+                                  scoreB.superDeath !== undefined
+                                ) {
+                                  result += `, ${scoreB.superDeath}-${scoreA.superDeath}SD`;
+                                }
+                              }
+                              return result;
+                            }
+
+                            // Si llegamos aquí, formato no reconocido
+                            console.warn("Formato de score no reconocido:", {
+                              scoreA,
+                              scoreB,
+                            });
+                            return "";
+                          };
+
+                          return (
+                            <div
+                              key={standing.pair.id}
+                              className={`flex items-center justify-between p-4 rounded-xl border-2 ${
+                                index === 0
+                                  ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
                                   : index === 1
-                                  ? "🥈"
-                                  : index + 1}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-lg">
-                                  {standing.pair.player1.name} /{" "}
-                                  {standing.pair.player2.name}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    {standing.wins} victorias
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                    {standing.losses} derrotas
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                    {standing.setsWon}-{standing.setsLost} sets
-                                  </span>
+                                  ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
+                                  : "bg-gray-50 border-gray-200"
+                              }`}
+                            >
+                              <div className="flex items-center gap-4 flex-1 min-w-0">
+                                <div
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold flex-shrink-0 ${
+                                    index === 0
+                                      ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
+                                      : index === 1
+                                      ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
+                                      : "bg-gray-300 text-gray-700"
+                                  }`}
+                                >
+                                  {index === 0
+                                    ? "🥇"
+                                    : index === 1
+                                    ? "🥈"
+                                    : index + 1}
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-lg">
+                                    {standing.pair.player1.name} /{" "}
+                                    {standing.pair.player2.name}
+                                  </p>
+
+                                  {/* Mostrar resultados de partidos */}
+                                  {pairMatches.length > 0 && (
+                                    <div className="mt-1 space-y-0.5">
+                                      {pairMatches.map((match, matchIndex) => {
+                                        const result = formatMatchResult(
+                                          match,
+                                          standing.pair.id
+                                        );
+                                        const isWinner =
+                                          match.winnerPairId ===
+                                          standing.pair.id;
+                                        const opponentPair = pairs.find(
+                                          (p) =>
+                                            p.id ===
+                                            (match.pairAId === standing.pair.id
+                                              ? match.pairBId
+                                              : match.pairAId)
+                                        );
+
+                                        return result ? (
+                                          <div
+                                            key={matchIndex}
+                                            className={`text-xs ${
+                                              isWinner
+                                                ? "text-green-700 font-medium"
+                                                : "text-red-600"
+                                            }`}
+                                          >
+                                            <span className="font-semibold">
+                                              J{matchIndex + 1}:
+                                            </span>{" "}
+                                            {result} vs{" "}
+                                            {
+                                              opponentPair?.player1.name.split(
+                                                " "
+                                              )[0]
+                                            }
+                                            /
+                                            {
+                                              opponentPair?.player2.name.split(
+                                                " "
+                                              )[0]
+                                            }
+                                            {isWinner ? " ✅" : " ❌"}
+                                          </div>
+                                        ) : null;
+                                      })}
+                                    </div>
+                                  )}
+
+                                  <div className="flex items-center gap-4 text-sm text-gray-600 mt-1">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                      {standing.wins} victorias
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                      {standing.losses} derrotas
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                      {standing.setsWon}-{standing.setsLost}{" "}
+                                      sets
+                                    </span>
+                                  </div>
                                 </div>
                               </div>
+                              <Badge
+                                variant={index === 0 ? "default" : "secondary"}
+                                className="text-lg px-4 py-2 ml-2 flex-shrink-0"
+                              >
+                                {standing.points} pts
+                              </Badge>
                             </div>
-                            <Badge
-                              variant={index === 0 ? "default" : "secondary"}
-                              className="text-lg px-4 py-2"
-                            >
-                              {standing.points} pts
-                            </Badge>
-                          </div>
-                        ))}
+                          );
+                        })}
                       </div>
                     </div>
 

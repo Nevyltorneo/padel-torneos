@@ -956,9 +956,12 @@ export async function getMatches(groupId: string): Promise<Match[]> {
     startTime: match.start_time,
     courtId: match.court_id,
     status: match.status,
-    scorePairA: match.score?.pairA || null,
-    scorePairB: match.score?.pairB || null,
+    // ✅ ARREGLADO: Usar los datos detallados del campo score
+    scorePairA: match.score?.pairA || match.score_pair_a || null,
+    scorePairB: match.score?.pairB || match.score_pair_b || null,
     winnerPairId: match.score?.winner || match.winner_id || null,
+    // 🆕 NUEVO: Pasar también el campo score completo
+    score: match.score || null,
     createdAt: match.created_at,
     updatedAt: match.updated_at,
   }));
@@ -992,9 +995,12 @@ export async function getAllMatchesByCategory(
     startTime: match.start_time,
     courtId: match.court_id,
     status: match.status,
-    scorePairA: match.score_pair_a, // Mantener como está - puede ser número o objeto
-    scorePairB: match.score_pair_b, // Mantener como está - puede ser número o objeto
-    winnerPairId: match.winner_pair_id,
+    // ✅ ARREGLADO: Usar los datos detallados del campo score
+    scorePairA: match.score?.pairA || match.score_pair_a || null,
+    scorePairB: match.score?.pairB || match.score_pair_b || null,
+    winnerPairId: match.score?.winner || match.winner_pair_id || null,
+    // 🆕 NUEVO: Pasar también el campo score completo para debugging
+    score: match.score || null,
     createdAt: match.created_at,
     updatedAt: match.updated_at,
   }));

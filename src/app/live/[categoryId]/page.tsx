@@ -137,8 +137,8 @@ export default function LiveCategoryView() {
   useEffect(() => {
     loadCategoryData();
 
-    // Actualizar cada 30 segundos
-    const interval = setInterval(loadCategoryData, 30000);
+    // Actualizar cada 60 segundos
+    const interval = setInterval(loadCategoryData, 60000);
     return () => clearInterval(interval);
   }, [categoryId]);
 
@@ -364,16 +364,16 @@ export default function LiveCategoryView() {
         </div>
       </div>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="space-y-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
+        <div className="space-y-4 sm:space-y-6 lg:space-y-8">
           {/* Grupos */}
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Users className="h-8 w-8 text-blue-600" />
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3 px-2">
+              <Users className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-blue-600" />
               Fase de Grupos
             </h2>
 
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 sm:gap-4 lg:gap-6">
               {Object.entries(groupStandings).map(([groupId, groupData]) => {
                 const group = groups.find((g) => g.id === groupId);
                 if (!group) return null;
@@ -391,28 +391,28 @@ export default function LiveCategoryView() {
                     key={group.id}
                     className="shadow-lg border-2 border-blue-100"
                   >
-                    <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-                      <CardTitle className="flex items-center gap-2 text-xl">
-                        <Play className="h-6 w-6 text-blue-600" />
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50 p-3 sm:p-4 lg:p-6">
+                      <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                        <Play className="h-5 w-5 sm:h-6 sm:w-6 text-blue-600" />
                         {groupData.groupName}
                       </CardTitle>
-                      <CardDescription className="text-base">
+                      <CardDescription className="text-sm sm:text-base">
                         {standings.length} parejas • {completedMatches.length}/
                         {groupMatchesData.length} partidos jugados
                       </CardDescription>
                     </CardHeader>
-                    <CardContent className="p-6">
+                    <CardContent className="p-3 sm:p-4 lg:p-6">
                       {/* Tabla de Posiciones */}
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                          <Trophy className="h-5 w-5 text-yellow-500" />
+                      <div className="mb-4 sm:mb-6">
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                          <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500" />
                           Tabla de Posiciones
                         </h3>
-                        <div className="space-y-2">
+                        <div className="space-y-2 sm:space-y-3">
                           {standings.map((standing, index) => (
                             <div
                               key={standing.pairId}
-                              className={`flex items-center justify-between p-4 rounded-xl border-2 ${
+                              className={`flex items-center justify-between p-2 sm:p-3 lg:p-4 rounded-lg sm:rounded-xl border-2 ${
                                 index === 0
                                   ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
                                   : index === 1
@@ -420,9 +420,9 @@ export default function LiveCategoryView() {
                                   : "bg-gray-50 border-gray-200"
                               }`}
                             >
-                              <div className="flex items-center gap-4">
+                              <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 flex-1 min-w-0">
                                 <div
-                                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                                  className={`w-8 h-8 sm:w-9 sm:h-9 lg:w-10 lg:h-10 rounded-full flex items-center justify-center text-sm sm:text-base lg:text-lg font-bold flex-shrink-0 ${
                                     index === 0
                                       ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
                                       : index === 1
@@ -436,32 +436,37 @@ export default function LiveCategoryView() {
                                     ? "🥈"
                                     : index + 1}
                                 </div>
-                                <div>
-                                  <p className="font-semibold text-lg">
+                                <div className="min-w-0 flex-1">
+                                  <p className="font-semibold text-sm sm:text-base lg:text-lg truncate">
                                     {standing.pairName}
                                   </p>
-                                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                                  <div className="flex items-center gap-2 sm:gap-3 lg:gap-4 text-xs sm:text-sm text-gray-600 flex-wrap">
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                      {standing.matchesWon} victorias
+                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-green-500 rounded-full"></span>
+                                      <span className="whitespace-nowrap">
+                                        {standing.matchesWon}V
+                                      </span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                      {standing.matchesLost} derrotas
+                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-red-500 rounded-full"></span>
+                                      <span className="whitespace-nowrap">
+                                        {standing.matchesLost}D
+                                      </span>
                                     </span>
                                     <span className="flex items-center gap-1">
-                                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                      {standing.setsWon}-{standing.setsLost}{" "}
-                                      sets
+                                      <span className="w-1.5 h-1.5 sm:w-2 sm:h-2 bg-blue-500 rounded-full"></span>
+                                      <span className="whitespace-nowrap">
+                                        {standing.setsWon}-{standing.setsLost}
+                                      </span>
                                     </span>
                                   </div>
                                 </div>
                               </div>
                               <Badge
                                 variant={index === 0 ? "default" : "secondary"}
-                                className="text-lg px-4 py-2"
+                                className="text-xs sm:text-sm lg:text-base px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 ml-2 flex-shrink-0"
                               >
-                                {standing.points} pts
+                                {standing.points}
                               </Badge>
                             </div>
                           ))}
@@ -470,33 +475,33 @@ export default function LiveCategoryView() {
 
                       {/* Tabla Detallada de Resultados */}
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                          <Trophy className="h-5 w-5 text-blue-500" />
+                        <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4 flex items-center gap-2">
+                          <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-blue-500" />
                           Resultados Detallados
                         </h3>
                         <div className="overflow-x-auto">
-                          <table className="w-full text-sm bg-white border border-gray-200 rounded-lg">
+                          <table className="w-full text-xs sm:text-sm bg-white border border-gray-200 rounded-lg">
                             <thead className="bg-gray-50">
                               <tr>
-                                <th className="text-left p-3 font-semibold text-gray-700">
+                                <th className="text-left p-2 sm:p-3 font-semibold text-gray-700">
                                   Pareja
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs">
                                   PJ
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs">
                                   PG
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs">
                                   PP
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs">
                                   Sets
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs hidden sm:table-cell">
                                   Games
                                 </th>
-                                <th className="text-center p-3 font-semibold text-gray-700">
+                                <th className="text-center p-1 sm:p-3 font-semibold text-gray-700 text-xs">
                                   Pts
                                 </th>
                               </tr>
@@ -511,67 +516,81 @@ export default function LiveCategoryView() {
                                       : ""
                                   }`}
                                 >
-                                  <td className="p-3">
-                                    <div className="flex items-center gap-2">
+                                  <td className="p-2 sm:p-3">
+                                    <div className="flex items-center gap-1 sm:gap-2">
                                       {index === 0 && (
-                                        <Crown className="h-4 w-4 text-yellow-500" />
+                                        <Crown className="h-3 w-3 sm:h-4 sm:w-4 text-yellow-500 flex-shrink-0" />
                                       )}
                                       {index === 1 && (
-                                        <Medal className="h-4 w-4 text-gray-400" />
+                                        <Medal className="h-3 w-3 sm:h-4 sm:w-4 text-gray-400 flex-shrink-0" />
                                       )}
                                       {index === 2 && (
-                                        <Medal className="h-4 w-4 text-amber-600" />
+                                        <Medal className="h-3 w-3 sm:h-4 sm:w-4 text-amber-600 flex-shrink-0" />
                                       )}
-                                      <span className="font-medium">
+                                      <span className="font-medium text-xs sm:text-sm truncate">
                                         {standing.pairName}
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="p-3 text-center">
+                                  <td className="p-1 sm:p-3 text-center text-xs sm:text-sm">
                                     {standing.matchesPlayed}
                                   </td>
-                                  <td className="p-3 text-center font-semibold text-green-600">
+                                  <td className="p-1 sm:p-3 text-center font-semibold text-green-600 text-xs sm:text-sm">
                                     {standing.matchesWon}
                                   </td>
-                                  <td className="p-3 text-center font-semibold text-red-600">
+                                  <td className="p-1 sm:p-3 text-center font-semibold text-red-600 text-xs sm:text-sm">
                                     {standing.matchesLost}
                                   </td>
-                                  <td className="p-3 text-center">
-                                    <span className="font-medium">
-                                      {standing.setsWon}-{standing.setsLost}
-                                    </span>
-                                    {standing.setsDifference > 0 && (
-                                      <span className="text-green-600 ml-1 text-xs">
-                                        (+{standing.setsDifference})
+                                  <td className="p-1 sm:p-3 text-center text-xs sm:text-sm">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center">
+                                      <span className="font-medium">
+                                        {standing.setsWon}-{standing.setsLost}
                                       </span>
-                                    )}
-                                    {standing.setsDifference < 0 && (
-                                      <span className="text-red-600 ml-1 text-xs">
-                                        ({standing.setsDifference})
-                                      </span>
-                                    )}
+                                      {standing.setsDifference !== 0 && (
+                                        <span
+                                          className={`text-xs ${
+                                            standing.setsDifference > 0
+                                              ? "text-green-600"
+                                              : "text-red-600"
+                                          } sm:ml-1`}
+                                        >
+                                          (
+                                          {standing.setsDifference > 0
+                                            ? "+"
+                                            : ""}
+                                          {standing.setsDifference})
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
-                                  <td className="p-3 text-center">
-                                    <span className="font-medium">
-                                      {standing.gamesWon}-{standing.gamesLost}
-                                    </span>
-                                    {standing.gamesDifference > 0 && (
-                                      <span className="text-green-600 ml-1 text-xs">
-                                        (+{standing.gamesDifference})
+                                  <td className="p-1 sm:p-3 text-center text-xs sm:text-sm hidden sm:table-cell">
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center">
+                                      <span className="font-medium">
+                                        {standing.gamesWon}-{standing.gamesLost}
                                       </span>
-                                    )}
-                                    {standing.gamesDifference < 0 && (
-                                      <span className="text-red-600 ml-1 text-xs">
-                                        ({standing.gamesDifference})
-                                      </span>
-                                    )}
+                                      {standing.gamesDifference !== 0 && (
+                                        <span
+                                          className={`text-xs ${
+                                            standing.gamesDifference > 0
+                                              ? "text-green-600"
+                                              : "text-red-600"
+                                          } sm:ml-1`}
+                                        >
+                                          (
+                                          {standing.gamesDifference > 0
+                                            ? "+"
+                                            : ""}
+                                          {standing.gamesDifference})
+                                        </span>
+                                      )}
+                                    </div>
                                   </td>
-                                  <td className="p-3 text-center">
+                                  <td className="p-1 sm:p-3 text-center">
                                     <Badge
                                       variant={
                                         index === 0 ? "default" : "secondary"
                                       }
-                                      className="font-bold"
+                                      className="font-bold text-xs sm:text-sm px-1 sm:px-2 py-0.5 sm:py-1"
                                     >
                                       {standing.points}
                                     </Badge>
@@ -591,9 +610,9 @@ export default function LiveCategoryView() {
 
           {/* Clasificados a Eliminatorias */}
           {qualifiedPairs.length > 0 && (
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-                <Star className="h-8 w-8 text-amber-600" />
+            <div className="space-y-4 sm:space-y-6">
+              <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3 px-2">
+                <Star className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-amber-600" />
                 Clasificación Final por Rendimiento
               </h2>
 
@@ -787,9 +806,9 @@ export default function LiveCategoryView() {
           )}
 
           {/* Eliminatorias */}
-          <div className="space-y-6">
-            <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
-              <Trophy className="h-8 w-8 text-yellow-600" />
+          <div className="space-y-4 sm:space-y-6">
+            <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3 px-2">
+              <Trophy className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-yellow-600" />
               Fase Eliminatoria
             </h2>
 

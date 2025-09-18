@@ -82,8 +82,8 @@ export default function LiveCategoryView() {
   useEffect(() => {
     loadCategoryData();
 
-    // Actualizar cada 30 segundos
-    const interval = setInterval(loadCategoryData, 30000);
+    // Actualizar cada 60 segundos
+    const interval = setInterval(loadCategoryData, 60000);
     return () => clearInterval(interval);
   }, [categoryId]);
 

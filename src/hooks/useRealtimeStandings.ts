@@ -112,6 +112,17 @@ export function useRealtimeStandings({
                 ? JSON.parse(match.scorePairB)
                 : match.scorePairB;
 
+            // Debug logging para ver qué está pasando
+            console.log("🏓 Processing match scores:", {
+              matchId: match.id,
+              pairAId: match.pairAId,
+              pairBId: match.pairBId,
+              winnerPairId: match.winnerPairId,
+              scoreA,
+              scoreB,
+              status: match.status,
+            });
+
             // Calcular games totales
             const gamesA =
               (scoreA.set1 || 0) +
@@ -123,6 +134,15 @@ export function useRealtimeStandings({
               (scoreB.set2 || 0) +
               (scoreB.set3 || 0) +
               (scoreB.superDeath || 0);
+
+            console.log("🎯 Games calculation:", {
+              gamesA: `${scoreA.set1}+${scoreA.set2}+${scoreA.set3 || 0}+${
+                scoreA.superDeath || 0
+              }=${gamesA}`,
+              gamesB: `${scoreB.set1}+${scoreB.set2}+${scoreB.set3 || 0}+${
+                scoreB.superDeath || 0
+              }=${gamesB}`,
+            });
 
             pairAStats.gamesWon += gamesA;
             pairAStats.gamesLost += gamesB;
@@ -226,6 +246,20 @@ export function useRealtimeStandings({
         if (a.setsLost !== b.setsLost) return a.setsLost - b.setsLost;
         return b.gamesWon - a.gamesWon;
       });
+
+      // Debug final standings
+      console.log(
+        "📊 Final standings calculated:",
+        sortedStandings.map((s) => ({
+          pair: `${s.pair.player1.name}/${s.pair.player2.name}`,
+          played: s.matchesPlayed,
+          won: s.matchesWon,
+          gamesWon: s.gamesWon,
+          gamesLost: s.gamesLost,
+          setsWon: s.setsWon,
+          setsLost: s.setsLost,
+        }))
+      );
 
       return sortedStandings;
     } catch (error) {

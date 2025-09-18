@@ -134,33 +134,79 @@ function createBracketPositions(
 }
 
 /**
- * Genera el orden de seeds para el bracket (1 vs último, 2 vs penúltimo, etc.)
+ * Genera el orden de seeds para el bracket con seeding estándar
+ * ALGORITMO INFINITO - Funciona para cualquier cantidad de equipos
+ * Ejemplos:
+ * - 2 equipos: 1vs2
+ * - 4 equipos: 1vs4, 2vs3
+ * - 8 equipos: 1vs8, 2vs7, 3vs6, 4vs5
+ * - 16 equipos: 1vs16, 2vs15, 3vs14, 4vs13, 5vs12, 6vs11, 7vs10, 8vs9
+ * - 32 equipos: 1vs32, 2vs31, ..., 16vs17
+ * - 64 equipos: 1vs64, 2vs63, ..., 32vs33
+ * - 128 equipos: 1vs128, 2vs127, ..., 64vs65
+ * - etc. infinitamente...
  */
 function generateSeedOrder(bracketSize: number): number[] {
+  console.log(
+    `🎯 Generando seeding DINÁMICO para bracket de ${bracketSize} equipos`
+  );
+
+  // Validar que sea potencia de 2
+  if (bracketSize <= 0 || (bracketSize & (bracketSize - 1)) !== 0) {
+    throw new Error(
+      `El bracket size debe ser una potencia de 2. Recibido: ${bracketSize}`
+    );
+  }
+
   const order: number[] = [];
+  const numMatches = bracketSize / 2;
 
-  // Algoritmo de seeding estándar
-  for (let round = 0; round < Math.log2(bracketSize); round++) {
-    const roundSize = Math.pow(2, round + 1);
-    const newOrder: number[] = [];
+  // ALGORITMO UNIVERSAL: Para cualquier potencia de 2
+  // Patrón: 1 vs último, 2 vs penúltimo, 3 vs antepenúltimo, etc.
+  for (let i = 1; i <= numMatches; i++) {
+    const highSeed = i; // 1, 2, 3, 4, 5, ...
+    const lowSeed = bracketSize + 1 - i; // último, penúltimo, antepenúltimo, ...
 
-    if (round === 0) {
-      newOrder.push(1, bracketSize);
-    } else {
-      for (let i = 0; i < order.length; i += 2) {
-        const high = order[i];
-        const low = order[i + 1];
-        const mid1 = bracketSize + 1 - high;
-        const mid2 = bracketSize + 1 - low;
+    order.push(highSeed, lowSeed);
+  }
 
-        newOrder.push(high, mid1, mid2, low);
-      }
-    }
+  // Logging detallado
+  console.log(
+    `📊 Bracket de ${bracketSize} equipos = ${numMatches} partidos en primera ronda`
+  );
+  console.log(`📋 Orden generado:`, order);
 
-    order.splice(0, order.length, ...newOrder);
+  const matchups = [];
+  for (let i = 0; i < order.length; i += 2) {
+    matchups.push(`Seed ${order[i]} vs Seed ${order[i + 1]}`);
+  }
+  console.log(`🥊 Enfrentamientos generados:`, matchups);
+
+  // Verificar que el seeding sea correcto
+  if (order.length !== bracketSize) {
+    throw new Error(
+      `Error en el algoritmo: se generaron ${order.length} seeds para ${bracketSize} equipos`
+    );
   }
 
   return order;
+}
+
+/**
+ * Calcula el bracket size correcto (siguiente potencia de 2) para cualquier número de equipos
+ */
+export function calculateOptimalBracketSize(numTeams: number): number {
+  if (numTeams <= 0) return 0;
+  if (numTeams === 1) return 2; // Mínimo 2 para un bracket
+
+  // Encontrar la siguiente potencia de 2 mayor o igual al número de equipos
+  let bracketSize = 1;
+  while (bracketSize < numTeams) {
+    bracketSize *= 2;
+  }
+
+  console.log(`🧮 Para ${numTeams} equipos → Bracket óptimo: ${bracketSize}`);
+  return bracketSize;
 }
 
 /**
@@ -172,7 +218,7 @@ function generateSourceDescription(standing: Standing): string {
 }
 
 /**
- * Genera los partidos de la primera ronda
+ * Genera los partidos de la primera ronda con seeding correcto
  */
 function generateFirstRound(
   bracketPositions: BracketPosition[],
@@ -183,10 +229,23 @@ function generateFirstRound(
   const matches: Match[] = [];
   const stage = getFirstRoundStage(bracketSize);
 
-  // Emparejar posiciones: 1 vs 2, 3 vs 4, etc.
+  console.log("🎾 Generando primera ronda con seeding correcto:");
+  console.log(
+    "Posiciones del bracket:",
+    bracketPositions.map((p) => ({
+      position: p.position,
+      seed: p.seed,
+      pair: p.pair ? `${p.pair.player1.name}/${p.pair.player2.name}` : "TBD",
+    }))
+  );
+
+  // El array bracketPositions ya viene ordenado por el seeding correcto
+  // Generar enfrentamientos por pares consecutivos: [0] vs [1], [2] vs [3], etc.
   for (let i = 0; i < bracketPositions.length; i += 2) {
     const pos1 = bracketPositions[i];
     const pos2 = bracketPositions[i + 1];
+
+    console.log(`🥎 Enfrentamiento: Seed ${pos1.seed} vs Seed ${pos2.seed}`);
 
     // Solo crear partido si ambas posiciones tienen parejas
     if (pos1.pair && pos2.pair) {
@@ -200,6 +259,10 @@ function generateFirstRound(
         status: "pending",
       };
       matches.push(match);
+
+      console.log(
+        `✅ Partido creado: ${pos1.pair.player1.name}/${pos1.pair.player2.name} vs ${pos2.pair.player1.name}/${pos2.pair.player2.name}`
+      );
     }
   }
 

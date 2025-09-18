@@ -48,6 +48,8 @@ import {
 import { useRealtimeMatches } from "@/hooks/useRealtimeMatches";
 import { useRealtimeStandings } from "@/hooks/useRealtimeStandings";
 import { RealtimeIndicator } from "@/components/realtime/RealtimeIndicator";
+import { EliminationStandingsTable } from "@/components/admin/EliminationStandingsTable";
+import { QualifiedPairsTable } from "@/components/admin/QualifiedPairsTable";
 
 export default function BracketPage() {
   const currentTournament = useCurrentTournament();
@@ -780,6 +782,20 @@ export default function BracketPage() {
           </CardHeader>
         </Card>
       </div>
+
+      {/* Parejas Clasificadas - Tabla Detallada de Grupos */}
+      {selectedCategoryId && (
+        <div className="mb-8">
+          <QualifiedPairsTable categoryId={selectedCategoryId} />
+        </div>
+      )}
+
+      {/* Tabla General de Eliminatorias */}
+      {selectedCategoryId && (
+        <div className="mb-8">
+          <EliminationStandingsTable categoryId={selectedCategoryId} />
+        </div>
+      )}
 
       {/* Bracket Visual */}
       {knockoutMatches.length > 0 ? (

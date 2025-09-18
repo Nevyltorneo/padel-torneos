@@ -52,6 +52,7 @@ import {
   clearEliminations,
   getAllGroupStandings,
 } from "@/lib/supabase-queries";
+import { QualifiedPairsTable } from "@/components/admin/QualifiedPairsTable";
 
 export default function EliminationsPage() {
   const router = useRouter();
@@ -493,100 +494,133 @@ export default function EliminationsPage() {
   return (
     <div className="eliminations-page p-6 max-w-7xl mx-auto space-y-6">
       {/* Header */}
-      <div className="eliminations-header flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-900">Eliminatorias</h1>
-          <p className="text-gray-600 mt-1">
-            Torneo: {currentTournament.name} • {topPairs.length} parejas
-            clasificadas
-          </p>
-        </div>
+      <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-l-4 border-l-blue-600 shadow-lg">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            {/* Título y información */}
+            <div className="flex-1">
+              <CardTitle className="text-2xl font-bold text-gray-900 mb-2 flex items-center gap-2">
+                <Trophy className="h-6 w-6 text-amber-600" />
+                Eliminatorias
+              </CardTitle>
+              <CardDescription className="text-base text-gray-600">
+                <span className="font-medium">{currentTournament.name}</span> •
+                <span className="text-blue-600 font-medium">
+                  {" "}
+                  {topPairs.length} parejas clasificadas
+                </span>
+              </CardDescription>
+            </div>
 
-        {/* Category Selector */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Label
-              htmlFor="category-select"
-              className="text-sm font-medium whitespace-nowrap"
-            >
-              Categoría:
-            </Label>
-            <Select
-              value={selectedCategoryId}
-              onValueChange={setSelectedCategoryId}
-            >
-              <SelectTrigger className="w-48">
-                <SelectValue placeholder="Seleccionar categoría" />
-              </SelectTrigger>
-              <SelectContent>
-                {categories.map((category) => (
-                  <SelectItem key={category.id} value={category.id}>
-                    {category.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Selector de categoría */}
+            <div className="flex items-center gap-3 bg-white p-4 rounded-lg border shadow-sm">
+              <Label
+                htmlFor="category-select"
+                className="text-sm font-semibold text-gray-700"
+              >
+                📋 Categoría:
+              </Label>
+              <Select
+                value={selectedCategoryId}
+                onValueChange={setSelectedCategoryId}
+              >
+                <SelectTrigger className="w-52 bg-white border-gray-300 shadow-sm">
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  {categories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
+        </CardHeader>
 
-          <div className="flex gap-3">
-            {eliminationMatches.length === 0 ? (
+        <CardContent className="pt-0 pb-6">
+          {/* Botones de acción organizados */}
+          {eliminationMatches.length === 0 ? (
+            <div className="flex justify-center">
               <Button
                 onClick={handleGenerateEliminations}
                 disabled={isGenerating || topPairs.length < 2}
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 px-8 py-3 text-base font-semibold shadow-lg"
+                size="lg"
               >
-                <Trophy className="h-4 w-4 mr-2" />
-                {isGenerating ? "Generando..." : "Generar Eliminatorias"}
+                <Trophy className="h-5 w-5 mr-2" />
+                {isGenerating ? "Generando..." : "🚀 Generar Eliminatorias"}
               </Button>
-            ) : (
-              <>
-                <Button variant="outline" onClick={handleViewMatches}>
-                  <Calendar className="h-4 w-4 mr-2" />
-                  Ver Partidos
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() =>
-                    window.open(`/live/${selectedCategoryId}`, "_blank")
-                  }
-                  className="bg-green-600 hover:bg-green-700 text-white border-green-600"
-                >
-                  <Eye className="h-4 w-4 mr-2" />
-                  Vista en Tiempo Real
-                  <ExternalLink className="h-3 w-3 ml-1" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  onClick={handleForceNextRound}
-                  className="bg-blue-600 hover:bg-blue-700 text-white"
-                >
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Generar Siguiente Ronda
-                </Button>
-                <Button
-                  variant="destructive"
-                  onClick={handleDeleteEliminations}
-                >
-                  <Trash2 className="h-4 w-4 mr-2" />
-                  Eliminar Eliminatorias
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => {
-                    setTopPairs([]);
-                    setEliminationMatches([]);
-                    loadCategoryData();
-                  }}
-                  className="bg-gray-100 hover:bg-gray-200"
-                >
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Recargar Datos
-                </Button>
-              </>
-            )}
-          </div>
-        </div>
-      </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Botones principales */}
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  🎯 Acciones Principales
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={handleViewMatches}
+                    className="bg-white border-gray-300 hover:bg-gray-50 justify-start"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Ver Partidos
+                  </Button>
+                  <Button
+                    onClick={() =>
+                      window.open(`/live/${selectedCategoryId}`, "_blank")
+                    }
+                    className="bg-green-600 hover:bg-green-700 text-white justify-start"
+                  >
+                    <Eye className="h-4 w-4 mr-2" />
+                    Vista en Tiempo Real
+                    <ExternalLink className="h-3 w-3 ml-auto" />
+                  </Button>
+                  <Button
+                    onClick={handleForceNextRound}
+                    className="bg-blue-600 hover:bg-blue-700 text-white justify-start sm:col-span-2 lg:col-span-1 xl:col-span-2"
+                  >
+                    <ArrowRight className="h-4 w-4 mr-2" />
+                    Generar Siguiente Ronda
+                  </Button>
+                </div>
+              </div>
+
+              {/* Botones de administración */}
+              <div className="bg-white p-4 rounded-lg border shadow-sm">
+                <h3 className="text-sm font-semibold text-gray-700 mb-3 flex items-center gap-2">
+                  ⚙️ Administración
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2 gap-3">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setTopPairs([]);
+                      setEliminationMatches([]);
+                      loadCategoryData();
+                    }}
+                    className="bg-gray-50 border-gray-300 hover:bg-gray-100 justify-start"
+                  >
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Recargar Datos
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={handleDeleteEliminations}
+                    className="bg-red-600 hover:bg-red-700 justify-start"
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Eliminar Eliminatorias
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Content */}
       <div className="space-y-6">
@@ -698,123 +732,79 @@ export default function EliminationsPage() {
           </CardContent>
         </Card>
 
-        {/* Clasificados y Estado de Eliminatorias */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Clasificados */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-yellow-600" />
-                Parejas Clasificadas
-              </CardTitle>
-              <CardDescription>
-                Mejores parejas de cada grupo para eliminatorias
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {topPairs.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Users className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay parejas clasificadas</p>
-                  <p className="text-sm">
-                    Genera grupos y completa partidos primero
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {topPairs.map((pair, index) => (
-                    <div
-                      key={pair.id}
-                      className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-yellow-100 text-yellow-800 rounded-full flex items-center justify-center text-sm font-bold">
-                          {index + 1}
+        {/* Parejas Clasificadas - Tabla Detallada */}
+        {selectedCategoryId && (
+          <div className="mb-8">
+            <QualifiedPairsTable categoryId={selectedCategoryId} />
+          </div>
+        )}
+
+        {/* Estado de Eliminatorias */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Crown className="h-5 w-5 text-purple-600" />
+              Estado de Eliminatorias
+            </CardTitle>
+            <CardDescription>
+              Progreso de los partidos de eliminatorias
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {eliminationMatches.length === 0 ? (
+              <div className="text-center py-8 text-gray-500">
+                <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
+                <p>No hay eliminatorias generadas</p>
+                <p className="text-sm">
+                  Haz clic en "Generar Eliminatorias" para comenzar
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {["quarterfinals", "semifinals", "final", "third_place"].map(
+                  (stage) => {
+                    const stageMatches = eliminationMatches.filter(
+                      (match) => match.stage === stage
+                    );
+                    const completedMatches = stageMatches.filter(
+                      (match) => match.status === "completed"
+                    );
+
+                    if (stageMatches.length === 0) return null;
+
+                    return (
+                      <div key={stage} className="p-4 border rounded-lg">
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            {getStageIcon(stage)}
+                            <span className="font-medium">
+                              {getStageName(stage)}
+                            </span>
+                          </div>
+                          <Badge className={getStageColor(stage)}>
+                            {completedMatches.length}/{stageMatches.length}
+                          </Badge>
                         </div>
-                        <div>
-                          <div className="font-medium text-gray-900">
-                            {pair.player1.name} & {pair.player2.name}
-                          </div>
-                          <div className="text-sm text-gray-500">
-                            {pair.player1.phone} • {pair.player2.phone}
-                          </div>
+                        <div className="w-full bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                            style={{
+                              width: `${
+                                (completedMatches.length /
+                                  stageMatches.length) *
+                                100
+                              }%`,
+                            }}
+                          ></div>
                         </div>
                       </div>
-                      <Badge variant="secondary">Clasificado</Badge>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Estado de Eliminatorias */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Crown className="h-5 w-5 text-purple-600" />
-                Estado de Eliminatorias
-              </CardTitle>
-              <CardDescription>
-                Progreso de los partidos de eliminatorias
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              {eliminationMatches.length === 0 ? (
-                <div className="text-center py-8 text-gray-500">
-                  <Trophy className="h-12 w-12 mx-auto mb-4 text-gray-300" />
-                  <p>No hay eliminatorias generadas</p>
-                  <p className="text-sm">
-                    Haz clic en "Generar Eliminatorias" para comenzar
-                  </p>
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {["quarterfinals", "semifinals", "final", "third_place"].map(
-                    (stage) => {
-                      const stageMatches = eliminationMatches.filter(
-                        (match) => match.stage === stage
-                      );
-                      const completedMatches = stageMatches.filter(
-                        (match) => match.status === "completed"
-                      );
-
-                      if (stageMatches.length === 0) return null;
-
-                      return (
-                        <div key={stage} className="p-4 border rounded-lg">
-                          <div className="flex items-center justify-between mb-3">
-                            <div className="flex items-center gap-2">
-                              {getStageIcon(stage)}
-                              <span className="font-medium">
-                                {getStageName(stage)}
-                              </span>
-                            </div>
-                            <Badge className={getStageColor(stage)}>
-                              {completedMatches.length}/{stageMatches.length}
-                            </Badge>
-                          </div>
-                          <div className="w-full bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-green-600 h-2 rounded-full transition-all duration-300"
-                              style={{
-                                width: `${
-                                  (completedMatches.length /
-                                    stageMatches.length) *
-                                  100
-                                }%`,
-                              }}
-                            ></div>
-                          </div>
-                        </div>
-                      );
-                    }
-                  )}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
+                    );
+                  }
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
       {/* Dialog para mostrar partidos */}

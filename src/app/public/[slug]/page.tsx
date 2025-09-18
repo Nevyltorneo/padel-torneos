@@ -4,6 +4,8 @@ import { useState, useEffect, use, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Trophy, Crown, Medal, Calendar } from "lucide-react";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 import { Match, Pair, Tournament } from "@/types";
 import {
   getTournaments,
@@ -544,6 +546,22 @@ export default function PublicTournamentPage({
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Enlace a Eliminatorias */}
+        {currentCategory && (
+          <div className="flex justify-center mb-8">
+            <Link href={`/public/elimination/${currentCategory.id}`}>
+              <Button
+                size="lg"
+                className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white"
+              >
+                <Crown className="h-5 w-5 mr-2" />
+                Ver Eliminatorias en Tiempo Real
+                <Trophy className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
         )}
 
         {/* Footer */}

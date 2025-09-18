@@ -5,7 +5,15 @@ import { use } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, MapPin, Trophy, ArrowLeft } from "lucide-react";
+import {
+  Calendar,
+  Clock,
+  MapPin,
+  Trophy,
+  ArrowLeft,
+  Crown,
+} from "lucide-react";
+import Link from "next/link";
 import { Category, Match, Court, Pair } from "@/types";
 import {
   getCategory,
@@ -282,6 +290,20 @@ export default function PublicCategoryPage({
               </div>
             </CardContent>
           </Card>
+        </div>
+
+        {/* Botón de Eliminatorias */}
+        <div className="flex justify-center mb-8">
+          <Link href={`/public/elimination/${categoryId}`}>
+            <Button
+              size="lg"
+              className="bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white"
+            >
+              <Crown className="h-5 w-5 mr-2" />
+              Ver Eliminatorias
+              <Trophy className="h-5 w-5 ml-2" />
+            </Button>
+          </Link>
         </div>
 
         {/* Partidos por etapa */}

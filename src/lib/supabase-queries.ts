@@ -1148,7 +1148,8 @@ export async function deleteAllCategoryMatches(
 // DYNAMIC BRACKET SIZING
 // ============================================================================
 
-// Función para calcular cuántas parejas avanzan de la fase de grupos
+// Función INFINITA para calcular cuántas parejas avanzan de la fase de grupos
+// Funciona para cualquier número de grupos: 2, 5, 10, 50, 100, etc.
 export function calculateAdvancingPairs(groups: Group[]): {
   totalAdvancing: number;
   bracketSize: number;
@@ -1168,40 +1169,28 @@ export function calculateAdvancingPairs(groups: Group[]): {
     };
   }
 
-  // Siempre avanzan los primeros lugares de cada grupo
-  const firstPlaces = totalGroups;
+  // NUEVA LÓGICA: Siempre clasifican los 2 mejores de cada grupo
+  const firstPlaces = totalGroups; // 1º lugar de cada grupo
+  const secondPlaces = totalGroups; // 2º lugar de cada grupo
+  const totalAdvancing = firstPlaces + secondPlaces; // Total = 2 * número de grupos
 
-  // Calcular cuántos segundos lugares necesitamos para completar un bracket válido
-  let totalAdvancing = firstPlaces;
-  let bestSecondPlaces = 0;
+  // ALGORITMO DINÁMICO: Encontrar el bracket size óptimo para TODOS los clasificados
+  let bracketSize = calculateOptimalBracketSize(totalAdvancing);
 
-  // Encontrar el siguiente poder de 2 mayor o igual al número de primeros lugares
-  let bracketSize = 1;
-  while (bracketSize < firstPlaces) {
-    bracketSize *= 2;
-  }
+  // Los "mejores segundos" son TODOS los segundos lugares (ya que todos clasifican)
+  const bestSecondPlaces = secondPlaces;
 
-  // Si el bracket size es mayor que los primeros lugares, necesitamos segundos lugares
-  if (bracketSize > firstPlaces) {
-    bestSecondPlaces = bracketSize - firstPlaces;
-    totalAdvancing = bracketSize;
-  }
+  // GENERADOR DINÁMICO DE ETAPAS: Funciona para cualquier bracket size
+  const stages = generateStagesForBracketSize(bracketSize);
 
-  // Determinar las etapas basadas en el tamaño del bracket
-  const stages = [];
-  if (bracketSize >= 32) stages.push("round_of_32");
-  if (bracketSize >= 16) stages.push("round_of_16");
-  if (bracketSize >= 8) stages.push("quarterfinals");
-  if (bracketSize >= 4) stages.push("semifinals");
-  if (bracketSize >= 2) stages.push("final");
-
-  console.log(`📊 Bracket dinámico calculado:
-    - Grupos: ${totalGroups}
-    - Primeros lugares: ${firstPlaces}
-    - Mejores segundos: ${bestSecondPlaces}
-    - Total que avanzan: ${totalAdvancing}
-    - Tamaño del bracket: ${bracketSize}
-    - Etapas: ${stages.join(", ")}`);
+  console.log(`📊 BRACKET DINÁMICO INFINITO calculado:
+    🏟️  Grupos: ${totalGroups}
+    🥇 Primeros lugares: ${firstPlaces}
+    🥈 Segundos lugares: ${bestSecondPlaces}
+    👥 Total que avanzan: ${totalAdvancing} (2 por grupo)
+    🏆 Tamaño del bracket: ${bracketSize}
+    🎯 Etapas: ${stages.join(" → ")}
+    📏 Número de rondas: ${Math.log2(bracketSize)}`);
 
   return {
     totalAdvancing,
@@ -1212,7 +1201,324 @@ export function calculateAdvancingPairs(groups: Group[]): {
   };
 }
 
-// Función para obtener las parejas que avanzan a eliminatorias
+/**
+ * Calcula el bracket size óptimo (siguiente potencia de 2) para cualquier número de equipos
+ */
+function calculateOptimalBracketSize(numTeams: number): number {
+  if (numTeams <= 0) return 0;
+  if (numTeams === 1) return 2; // Mínimo bracket válido
+
+  // Encontrar la siguiente potencia de 2 mayor o igual al número de equipos
+  let bracketSize = 1;
+  while (bracketSize < numTeams) {
+    bracketSize *= 2;
+  }
+
+  return bracketSize;
+}
+
+/**
+ * Genera las etapas dinámicamente basado en el bracket size
+ * Funciona para brackets de cualquier tamaño: 4, 8, 16, 32, 64, 128, 256, etc.
+ */
+function generateStagesForBracketSize(bracketSize: number): string[] {
+  const stages: string[] = [];
+
+  // Mapeo de bracket sizes a nombres de etapas
+  const stageNames: { [key: number]: string } = {
+    256: "round_of_256",
+    128: "round_of_128",
+    64: "round_of_64",
+    32: "round_of_32",
+    16: "round_of_16",
+    8: "quarterfinals",
+    4: "semifinals",
+    2: "final",
+  };
+
+  // Generar etapas en orden descendente
+  let currentSize = bracketSize;
+  while (currentSize >= 2) {
+    const stageName = stageNames[currentSize] || `round_of_${currentSize}`;
+    stages.push(stageName);
+    currentSize = currentSize / 2;
+  }
+
+  return stages;
+}
+
+// Función para obtener las parejas que avanzan a eliminatorias CON ESTADÍSTICAS COMPLETAS
+export async function getAdvancingPairsWithStats(categoryId: string): Promise<{
+  advancingPairs: Array<{
+    pair: Pair;
+    seed: number;
+    position: string;
+    groupStanding: {
+      points: number;
+      matchesPlayed: number;
+      matchesWon: number;
+      matchesLost: number;
+      setsWon: number;
+      setsLost: number;
+      setsDiff: number;
+      gamesWon: number;
+      gamesLost: number;
+      gamesDiff: number;
+      groupPosition: number;
+      groupName: string;
+    };
+  }>;
+  bracketInfo: ReturnType<typeof calculateAdvancingPairs>;
+}> {
+  // Obtener grupos y standings
+  const groups = await getGroups(categoryId);
+  const allPairs = await getPairs(categoryId);
+  const standings = await calculateStandings(categoryId, allPairs);
+
+  const bracketInfo = calculateAdvancingPairs(groups);
+
+  if (bracketInfo.totalAdvancing === 0) {
+    return { advancingPairs: [], bracketInfo };
+  }
+
+  // 🔥 VALIDACIÓN CRÍTICA: Verificar que hay partidos jugados en los grupos
+  let hasPlayedMatches = false;
+  for (const group of groups) {
+    const groupMatches = await getMatches(group.id);
+    const finishedMatches = groupMatches.filter(
+      (match) => match.status === "completed"
+    );
+
+    if (finishedMatches.length > 0) {
+      hasPlayedMatches = true;
+      break;
+    }
+  }
+
+  // Si no hay partidos jugados, NO generar parejas clasificadas
+  if (!hasPlayedMatches) {
+    console.log(
+      "❌ No se pueden generar parejas clasificadas: No hay partidos jugados en la fase de grupos"
+    );
+    return { advancingPairs: [], bracketInfo };
+  }
+
+  // Separar por posición en grupo CON ESTADÍSTICAS COMPLETAS
+  const firstPlaces: Array<{
+    pair: Pair;
+    points: number;
+    setsDiff: number;
+    gamesDiff: number;
+    position: number;
+    fullStats: any;
+    groupName: string;
+  }> = [];
+  const secondPlaces: Array<{
+    pair: Pair;
+    points: number;
+    setsDiff: number;
+    gamesDiff: number;
+    position: number;
+    fullStats: any;
+    groupName: string;
+  }> = [];
+
+  console.log(
+    `🔍 DEBUG: Analizando ${groups.length} grupos para clasificación`
+  );
+  console.log(`🏆 Bracket info:`, bracketInfo);
+
+  // Obtener standings por grupo individual
+  for (let groupIndex = 0; groupIndex < groups.length; groupIndex++) {
+    const group = groups[groupIndex];
+    const groupName = `Grupo ${String.fromCharCode(65 + groupIndex)}`; // A, B, C...
+
+    const groupPairs = allPairs.filter((pair) =>
+      group.pairIds.includes(pair.id)
+    );
+    const groupStandings = await calculateStandings(group.id, groupPairs);
+
+    console.log(
+      `📊 ${groupName}: ${groupPairs.length} parejas, ${groupStandings.length} standings`
+    );
+
+    // Ordenar por puntos, diferencia de sets, diferencia de games
+    const sorted = groupStandings.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.setsDifference !== a.setsDifference)
+        return b.setsDifference - a.setsDifference;
+      return b.gamesDifference - a.gamesDifference;
+    });
+
+    console.log(
+      `🏅 ${groupName} resultados:`,
+      sorted.map((s) => `${s.pairId} - ${s.points} pts`)
+    );
+
+    if (sorted[0]) {
+      const firstPair = allPairs.find((p) => p.id === sorted[0].pairId);
+      if (firstPair) {
+        firstPlaces.push({
+          pair: firstPair,
+          points: sorted[0].points,
+          setsDiff: sorted[0].setsDifference,
+          gamesDiff: sorted[0].gamesDifference,
+          position: 1,
+          fullStats: sorted[0],
+          groupName,
+        });
+      }
+    }
+
+    if (sorted[1]) {
+      const secondPair = allPairs.find((p) => p.id === sorted[1].pairId);
+      if (secondPair) {
+        secondPlaces.push({
+          pair: secondPair,
+          points: sorted[1].points,
+          setsDiff: sorted[1].setsDifference,
+          gamesDiff: sorted[1].gamesDifference,
+          position: 2,
+          fullStats: sorted[1],
+          groupName,
+        });
+      }
+    }
+  }
+
+  // NUEVO ALGORITMO: Combinar TODOS los clasificados y ordenarlos globalmente por rendimiento
+  const allQualified: Array<{
+    pair: Pair;
+    points: number;
+    setsDiff: number;
+    gamesDiff: number;
+    position: number;
+    fullStats: any;
+    groupName: string;
+  }> = [];
+
+  // Agregar todos los primeros lugares
+  allQualified.push(...firstPlaces);
+
+  // Agregar solo los mejores segundos lugares que clasifican
+  const selectedSecondPlaces = secondPlaces.slice(
+    0,
+    bracketInfo.bestSecondPlaces
+  );
+  allQualified.push(...selectedSecondPlaces);
+
+  console.log(`🔍 RESUMEN ANTES DEL ORDENAMIENTO:`);
+  console.log(`   👥 Primeros lugares encontrados: ${firstPlaces.length}`);
+  console.log(`   👥 Segundos lugares disponibles: ${secondPlaces.length}`);
+  console.log(
+    `   👥 Segundos lugares que clasifican: ${selectedSecondPlaces.length}`
+  );
+  console.log(`   👥 Total clasificados: ${allQualified.length}`);
+
+  // ORDENAMIENTO GLOBAL por rendimiento (independiente de posición en grupo)
+  allQualified.sort((a, b) => {
+    // 1º criterio: Puntos (mayor es mejor)
+    if (b.points !== a.points) return b.points - a.points;
+
+    // 2º criterio: Diferencia de sets (mayor es mejor)
+    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+
+    // 3º criterio: Diferencia de games (mayor es mejor)
+    return b.gamesDiff - a.gamesDiff;
+  });
+
+  // Crear array con el seeding correcto basado en rendimiento GLOBAL
+  const seededAdvancing: Array<{
+    pair: Pair;
+    seed: number;
+    position: string;
+    groupStanding: {
+      points: number;
+      matchesPlayed: number;
+      matchesWon: number;
+      matchesLost: number;
+      setsWon: number;
+      setsLost: number;
+      setsDiff: number;
+      gamesWon: number;
+      gamesLost: number;
+      gamesDiff: number;
+      groupPosition: number;
+      groupName: string;
+    };
+  }> = [];
+
+  // Asignar seeds basado en el ordenamiento global de rendimiento
+  allQualified.forEach((qualified, index) => {
+    const seed = index + 1; // Seed 1 = mejor rendimiento, Seed 2 = segundo mejor, etc.
+    const positionText =
+      qualified.position === 1
+        ? `1º lugar - ${qualified.points} pts`
+        : `2º lugar - ${qualified.points} pts`;
+
+    seededAdvancing.push({
+      pair: qualified.pair,
+      seed,
+      position: positionText,
+      groupStanding: {
+        points: qualified.fullStats.points,
+        matchesPlayed: qualified.fullStats.matchesPlayed,
+        matchesWon: qualified.fullStats.matchesWon,
+        matchesLost: qualified.fullStats.matchesLost,
+        setsWon: qualified.fullStats.setsWon,
+        setsLost: qualified.fullStats.setsLost,
+        setsDiff: qualified.fullStats.setsDifference,
+        gamesWon: qualified.fullStats.gamesWon,
+        gamesLost: qualified.fullStats.gamesLost,
+        gamesDiff: qualified.fullStats.gamesDifference,
+        groupPosition: qualified.position,
+        groupName: qualified.groupName,
+      },
+    });
+  });
+
+  // Log detallado del seeding GLOBAL
+  console.log(`🏆 SEEDING GLOBAL POR RENDIMIENTO (NO POR POSICIÓN EN GRUPO):`);
+  console.log(`📊 Información del bracket:`, bracketInfo);
+  console.log(`🎯 ORDEN FINAL DE CLASIFICADOS (mejor a peor):`);
+
+  seededAdvancing.forEach((qualified, index) => {
+    console.log(
+      `  🏅 Seed ${qualified.seed}: ${qualified.pair.player1.name}/${qualified.pair.player2.name}`
+    );
+    console.log(
+      `     📊 Stats: ${qualified.groupStanding.points} pts | Sets: ${
+        qualified.groupStanding.setsDiff > 0 ? "+" : ""
+      }${qualified.groupStanding.setsDiff} | Games: ${
+        qualified.groupStanding.gamesDiff > 0 ? "+" : ""
+      }${qualified.groupStanding.gamesDiff}`
+    );
+    console.log(
+      `     📍 Origen: ${qualified.groupStanding.groupName} (${qualified.groupStanding.groupPosition}º lugar)`
+    );
+    console.log(
+      `     ⚔️  Vs: Seed ${
+        seededAdvancing.length + 1 - qualified.seed
+      } en eliminatorias`
+    );
+    console.log("");
+  });
+
+  console.log(`🎯 ENFRENTAMIENTOS DE PRIMERA RONDA:`);
+  for (let i = 0; i < seededAdvancing.length; i += 2) {
+    const pair1 = seededAdvancing[i];
+    const pair2 = seededAdvancing[seededAdvancing.length - 1 - i];
+    if (pair2) {
+      console.log(
+        `  🥊 Seed ${pair1.seed} (${pair1.pair.player1.name}/${pair1.pair.player2.name}) vs Seed ${pair2.seed} (${pair2.pair.player1.name}/${pair2.pair.player2.name})`
+      );
+    }
+  }
+
+  return { advancingPairs: seededAdvancing, bracketInfo };
+}
+
+// Función para obtener las parejas que avanzan a eliminatorias (VERSIÓN SIMPLE)
 export async function getAdvancingPairs(categoryId: string): Promise<{
   advancingPairs: Pair[];
   bracketInfo: ReturnType<typeof calculateAdvancingPairs>;
@@ -1251,10 +1557,20 @@ export async function getAdvancingPairs(categoryId: string): Promise<{
   }
 
   // Separar por posición en grupo
-  const firstPlaces: Array<{ pair: Pair; points: number; position: number }> =
-    [];
-  const secondPlaces: Array<{ pair: Pair; points: number; position: number }> =
-    [];
+  const firstPlaces: Array<{
+    pair: Pair;
+    points: number;
+    setsDiff: number;
+    gamesDiff: number;
+    position: number;
+  }> = [];
+  const secondPlaces: Array<{
+    pair: Pair;
+    points: number;
+    setsDiff: number;
+    gamesDiff: number;
+    position: number;
+  }> = [];
 
   // Obtener standings por grupo individual
   for (const group of groups) {
@@ -1263,8 +1579,13 @@ export async function getAdvancingPairs(categoryId: string): Promise<{
     );
     const groupStandings = await calculateStandings(group.id, groupPairs);
 
-    // Ordenar por puntos (ya debería estar ordenado, pero por seguridad)
-    const sorted = groupStandings.sort((a, b) => b.points - a.points);
+    // Ordenar por puntos, diferencia de sets, diferencia de games
+    const sorted = groupStandings.sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.setsDifference !== a.setsDifference)
+        return b.setsDifference - a.setsDifference;
+      return b.gamesDifference - a.gamesDifference;
+    });
 
     if (sorted[0]) {
       const firstPair = allPairs.find((p) => p.id === sorted[0].pairId);
@@ -1272,6 +1593,8 @@ export async function getAdvancingPairs(categoryId: string): Promise<{
         firstPlaces.push({
           pair: firstPair,
           points: sorted[0].points,
+          setsDiff: sorted[0].setsDifference,
+          gamesDiff: sorted[0].gamesDifference,
           position: 1,
         });
       }
@@ -1283,20 +1606,77 @@ export async function getAdvancingPairs(categoryId: string): Promise<{
         secondPlaces.push({
           pair: secondPair,
           points: sorted[1].points,
+          setsDiff: sorted[1].setsDifference,
+          gamesDiff: sorted[1].gamesDifference,
           position: 2,
         });
       }
     }
   }
 
-  // Ordenar segundos lugares por puntos (mejores primero)
-  secondPlaces.sort((a, b) => b.points - a.points);
+  // Ordenar primeros lugares por rendimiento (el mejor 1º vs el peor, 2º mejor vs 2º peor, etc.)
+  firstPlaces.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+    return b.gamesDiff - a.gamesDiff;
+  });
 
-  // Seleccionar parejas que avanzan
-  const advancingPairs: Pair[] = [
-    ...firstPlaces.map((fp) => fp.pair),
-    ...secondPlaces.slice(0, bracketInfo.bestSecondPlaces).map((sp) => sp.pair),
-  ];
+  // Ordenar segundos lugares por rendimiento (mejores primero)
+  secondPlaces.sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    if (b.setsDiff !== a.setsDiff) return b.setsDiff - a.setsDiff;
+    return b.gamesDiff - a.gamesDiff;
+  });
+
+  // Crear array con el seeding correcto: todos los primeros lugares primero, luego los mejores segundos
+  const seededAdvancing: { pair: Pair; seed: number; position: string }[] = [];
+
+  // Agregar primeros lugares (seeds 1, 2, 3, etc.)
+  firstPlaces.forEach((fp, index) => {
+    seededAdvancing.push({
+      pair: fp.pair,
+      seed: index + 1,
+      position: `1º lugar - ${fp.points} pts`,
+    });
+  });
+
+  // Agregar mejores segundos lugares (seeds siguientes)
+  const selectedSecondPlaces = secondPlaces.slice(
+    0,
+    bracketInfo.bestSecondPlaces
+  );
+  selectedSecondPlaces.forEach((sp, index) => {
+    seededAdvancing.push({
+      pair: sp.pair,
+      seed: firstPlaces.length + index + 1,
+      position: `2º lugar - ${sp.points} pts`,
+    });
+  });
+
+  const advancingPairs: Pair[] = seededAdvancing.map((sa) => sa.pair);
+
+  // Log detallado del seeding
+  console.log(`🏆 SEEDING DE ELIMINATORIAS GENERADO:`);
+  console.log(`📊 Información del bracket:`, bracketInfo);
+  console.log(`🥇 Primeros lugares (seeds 1-${firstPlaces.length}):`);
+  seededAdvancing.slice(0, firstPlaces.length).forEach((sa, i) => {
+    console.log(
+      `  Seed ${sa.seed}: ${sa.pair.player1.name}/${sa.pair.player2.name} (${sa.position})`
+    );
+  });
+
+  if (selectedSecondPlaces.length > 0) {
+    console.log(
+      `🥈 Mejores segundos lugares (seeds ${firstPlaces.length + 1}-${
+        seededAdvancing.length
+      }):`
+    );
+    seededAdvancing.slice(firstPlaces.length).forEach((sa, i) => {
+      console.log(
+        `  Seed ${sa.seed}: ${sa.pair.player1.name}/${sa.pair.player2.name} (${sa.position})`
+      );
+    });
+  }
 
   console.log(`✅ Parejas que avanzan calculadas:
     - Primeros lugares: ${firstPlaces.length}

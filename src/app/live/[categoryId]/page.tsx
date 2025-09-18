@@ -20,6 +20,8 @@ import {
   Medal,
   RefreshCw,
   Eye,
+  Star,
+  Target,
 } from "lucide-react";
 import { Category, Match, Pair } from "@/types";
 import { toast } from "sonner";
@@ -30,6 +32,7 @@ import {
   getAllMatchesByCategory,
   getEliminationMatches,
   getAllGroupStandings,
+  getAdvancingPairsWithStats,
 } from "@/lib/supabase-queries";
 
 export default function LiveCategoryView() {
@@ -44,6 +47,8 @@ export default function LiveCategoryView() {
   const [groupStandings, setGroupStandings] = useState<{
     [groupId: string]: { groupName: string; standings: any[] };
   }>({});
+  const [qualifiedPairs, setQualifiedPairs] = useState<any[]>([]);
+  const [bracketInfo, setBracketInfo] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -98,6 +103,23 @@ export default function LiveCategoryView() {
         setGroupMatches(matchesData.filter((m) => m.stage === "group"));
         setEliminationMatches(eliminationData);
         setGroupStandings(standingsData);
+
+        // Cargar información de clasificados para eliminatorias
+        try {
+          const qualifiedData = await getAdvancingPairsWithStats(categoryId);
+          setQualifiedPairs(qualifiedData.advancingPairs);
+          setBracketInfo(qualifiedData.bracketInfo);
+          console.log(
+            "✅ Qualified pairs loaded:",
+            qualifiedData.advancingPairs.length
+          );
+        } catch (qualifiedError) {
+          console.warn("⚠️ Could not load qualified pairs:", qualifiedError);
+          // No fallar si no hay clasificados aún
+          setQualifiedPairs([]);
+          setBracketInfo(null);
+        }
+
         setLastUpdated(new Date());
         console.log("🎉 Data loading completed successfully");
       } catch (parallelError) {
@@ -300,7 +322,7 @@ export default function LiveCategoryView() {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        <div className="space-y-8">
           {/* Grupos */}
           <div className="space-y-6">
             <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
@@ -308,218 +330,418 @@ export default function LiveCategoryView() {
               Fase de Grupos
             </h2>
 
-            {Object.entries(groupStandings).map(([groupId, groupData]) => {
-              const group = groups.find((g) => g.id === groupId);
-              if (!group) return null;
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {Object.entries(groupStandings).map(([groupId, groupData]) => {
+                const group = groups.find((g) => g.id === groupId);
+                if (!group) return null;
 
-              const standings = groupData.standings;
-              const groupMatchesData = groupMatches.filter(
-                (m) => m.groupId === groupId
-              );
-              const completedMatches = groupMatchesData.filter(
-                (m) => m.status === "completed"
-              );
+                const standings = groupData.standings;
+                const groupMatchesData = groupMatches.filter(
+                  (m) => m.groupId === groupId
+                );
+                const completedMatches = groupMatchesData.filter(
+                  (m) => m.status === "completed"
+                );
 
-              return (
-                <Card
-                  key={group.id}
-                  className="shadow-lg border-2 border-blue-100"
-                >
-                  <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
-                    <CardTitle className="flex items-center gap-2 text-xl">
-                      <Play className="h-6 w-6 text-blue-600" />
-                      {groupData.groupName}
-                    </CardTitle>
-                    <CardDescription className="text-base">
-                      {standings.length} parejas • {completedMatches.length}/
-                      {groupMatchesData.length} partidos jugados
-                    </CardDescription>
-                  </CardHeader>
-                  <CardContent className="p-6">
-                    {/* Tabla de Posiciones */}
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-yellow-500" />
-                        Tabla de Posiciones
-                      </h3>
-                      <div className="space-y-2">
-                        {standings.map((standing, index) => (
-                          <div
-                            key={standing.pairId}
-                            className={`flex items-center justify-between p-4 rounded-xl border-2 ${
-                              index === 0
-                                ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
-                                : index === 1
-                                ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
-                                : "bg-gray-50 border-gray-200"
-                            }`}
-                          >
-                            <div className="flex items-center gap-4">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
-                                  index === 0
-                                    ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
-                                    : index === 1
-                                    ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
-                                    : "bg-gray-300 text-gray-700"
-                                }`}
-                              >
-                                {index === 0
-                                  ? "🥇"
+                return (
+                  <Card
+                    key={group.id}
+                    className="shadow-lg border-2 border-blue-100"
+                  >
+                    <CardHeader className="bg-gradient-to-r from-blue-50 to-purple-50">
+                      <CardTitle className="flex items-center gap-2 text-xl">
+                        <Play className="h-6 w-6 text-blue-600" />
+                        {groupData.groupName}
+                      </CardTitle>
+                      <CardDescription className="text-base">
+                        {standings.length} parejas • {completedMatches.length}/
+                        {groupMatchesData.length} partidos jugados
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="p-6">
+                      {/* Tabla de Posiciones */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-yellow-500" />
+                          Tabla de Posiciones
+                        </h3>
+                        <div className="space-y-2">
+                          {standings.map((standing, index) => (
+                            <div
+                              key={standing.pairId}
+                              className={`flex items-center justify-between p-4 rounded-xl border-2 ${
+                                index === 0
+                                  ? "bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-300 shadow-md"
                                   : index === 1
-                                  ? "🥈"
-                                  : index + 1}
-                              </div>
-                              <div>
-                                <p className="font-semibold text-lg">
-                                  {standing.pairName}
-                                </p>
-                                <div className="flex items-center gap-4 text-sm text-gray-600">
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                                    {standing.matchesWon} victorias
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                                    {standing.matchesLost} derrotas
-                                  </span>
-                                  <span className="flex items-center gap-1">
-                                    <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
-                                    {standing.setsWon}-{standing.setsLost} sets
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                            <Badge
-                              variant={index === 0 ? "default" : "secondary"}
-                              className="text-lg px-4 py-2"
+                                  ? "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
+                                  : "bg-gray-50 border-gray-200"
+                              }`}
                             >
-                              {standing.points} pts
-                            </Badge>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Tabla Detallada de Resultados */}
-                    <div>
-                      <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
-                        <Trophy className="h-5 w-5 text-blue-500" />
-                        Resultados Detallados
-                      </h3>
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm bg-white border border-gray-200 rounded-lg">
-                          <thead className="bg-gray-50">
-                            <tr>
-                              <th className="text-left p-3 font-semibold text-gray-700">
-                                Pareja
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                PJ
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                PG
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                PP
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                Sets
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                Games
-                              </th>
-                              <th className="text-center p-3 font-semibold text-gray-700">
-                                Pts
-                              </th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {standings.map((standing, index) => (
-                              <tr
-                                key={standing.pairId}
-                                className={`border-b hover:bg-gray-50 ${
-                                  index === 0
-                                    ? "bg-gradient-to-r from-yellow-50 to-orange-50"
-                                    : ""
-                                }`}
-                              >
-                                <td className="p-3">
-                                  <div className="flex items-center gap-2">
-                                    {index === 0 && (
-                                      <Crown className="h-4 w-4 text-yellow-500" />
-                                    )}
-                                    {index === 1 && (
-                                      <Medal className="h-4 w-4 text-gray-400" />
-                                    )}
-                                    {index === 2 && (
-                                      <Medal className="h-4 w-4 text-amber-600" />
-                                    )}
-                                    <span className="font-medium">
-                                      {standing.pairName}
+                              <div className="flex items-center gap-4">
+                                <div
+                                  className={`w-10 h-10 rounded-full flex items-center justify-center text-lg font-bold ${
+                                    index === 0
+                                      ? "bg-gradient-to-r from-yellow-400 to-orange-400 text-white shadow-lg"
+                                      : index === 1
+                                      ? "bg-gradient-to-r from-gray-400 to-blue-400 text-white"
+                                      : "bg-gray-300 text-gray-700"
+                                  }`}
+                                >
+                                  {index === 0
+                                    ? "🥇"
+                                    : index === 1
+                                    ? "🥈"
+                                    : index + 1}
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-lg">
+                                    {standing.pairName}
+                                  </p>
+                                  <div className="flex items-center gap-4 text-sm text-gray-600">
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                                      {standing.matchesWon} victorias
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                                      {standing.matchesLost} derrotas
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                      <span className="w-2 h-2 bg-blue-500 rounded-full"></span>
+                                      {standing.setsWon}-{standing.setsLost}{" "}
+                                      sets
                                     </span>
                                   </div>
-                                </td>
-                                <td className="p-3 text-center">
-                                  {standing.matchesPlayed}
-                                </td>
-                                <td className="p-3 text-center font-semibold text-green-600">
-                                  {standing.matchesWon}
-                                </td>
-                                <td className="p-3 text-center font-semibold text-red-600">
-                                  {standing.matchesLost}
-                                </td>
-                                <td className="p-3 text-center">
-                                  <span className="font-medium">
-                                    {standing.setsWon}-{standing.setsLost}
-                                  </span>
-                                  {standing.setsDifference > 0 && (
-                                    <span className="text-green-600 ml-1 text-xs">
-                                      (+{standing.setsDifference})
-                                    </span>
-                                  )}
-                                  {standing.setsDifference < 0 && (
-                                    <span className="text-red-600 ml-1 text-xs">
-                                      ({standing.setsDifference})
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="p-3 text-center">
-                                  <span className="font-medium">
-                                    {standing.gamesWon}-{standing.gamesLost}
-                                  </span>
-                                  {standing.gamesDifference > 0 && (
-                                    <span className="text-green-600 ml-1 text-xs">
-                                      (+{standing.gamesDifference})
-                                    </span>
-                                  )}
-                                  {standing.gamesDifference < 0 && (
-                                    <span className="text-red-600 ml-1 text-xs">
-                                      ({standing.gamesDifference})
-                                    </span>
-                                  )}
-                                </td>
-                                <td className="p-3 text-center">
-                                  <Badge
-                                    variant={
-                                      index === 0 ? "default" : "secondary"
-                                    }
-                                    className="font-bold"
-                                  >
-                                    {standing.points}
-                                  </Badge>
-                                </td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
+                                </div>
+                              </div>
+                              <Badge
+                                variant={index === 0 ? "default" : "secondary"}
+                                className="text-lg px-4 py-2"
+                              >
+                                {standing.points} pts
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+
+                      {/* Tabla Detallada de Resultados */}
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                          <Trophy className="h-5 w-5 text-blue-500" />
+                          Resultados Detallados
+                        </h3>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-sm bg-white border border-gray-200 rounded-lg">
+                            <thead className="bg-gray-50">
+                              <tr>
+                                <th className="text-left p-3 font-semibold text-gray-700">
+                                  Pareja
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  PJ
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  PG
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  PP
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  Sets
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  Games
+                                </th>
+                                <th className="text-center p-3 font-semibold text-gray-700">
+                                  Pts
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {standings.map((standing, index) => (
+                                <tr
+                                  key={standing.pairId}
+                                  className={`border-b hover:bg-gray-50 ${
+                                    index === 0
+                                      ? "bg-gradient-to-r from-yellow-50 to-orange-50"
+                                      : ""
+                                  }`}
+                                >
+                                  <td className="p-3">
+                                    <div className="flex items-center gap-2">
+                                      {index === 0 && (
+                                        <Crown className="h-4 w-4 text-yellow-500" />
+                                      )}
+                                      {index === 1 && (
+                                        <Medal className="h-4 w-4 text-gray-400" />
+                                      )}
+                                      {index === 2 && (
+                                        <Medal className="h-4 w-4 text-amber-600" />
+                                      )}
+                                      <span className="font-medium">
+                                        {standing.pairName}
+                                      </span>
+                                    </div>
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    {standing.matchesPlayed}
+                                  </td>
+                                  <td className="p-3 text-center font-semibold text-green-600">
+                                    {standing.matchesWon}
+                                  </td>
+                                  <td className="p-3 text-center font-semibold text-red-600">
+                                    {standing.matchesLost}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <span className="font-medium">
+                                      {standing.setsWon}-{standing.setsLost}
+                                    </span>
+                                    {standing.setsDifference > 0 && (
+                                      <span className="text-green-600 ml-1 text-xs">
+                                        (+{standing.setsDifference})
+                                      </span>
+                                    )}
+                                    {standing.setsDifference < 0 && (
+                                      <span className="text-red-600 ml-1 text-xs">
+                                        ({standing.setsDifference})
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <span className="font-medium">
+                                      {standing.gamesWon}-{standing.gamesLost}
+                                    </span>
+                                    {standing.gamesDifference > 0 && (
+                                      <span className="text-green-600 ml-1 text-xs">
+                                        (+{standing.gamesDifference})
+                                      </span>
+                                    )}
+                                    {standing.gamesDifference < 0 && (
+                                      <span className="text-red-600 ml-1 text-xs">
+                                        ({standing.gamesDifference})
+                                      </span>
+                                    )}
+                                  </td>
+                                  <td className="p-3 text-center">
+                                    <Badge
+                                      variant={
+                                        index === 0 ? "default" : "secondary"
+                                      }
+                                      className="font-bold"
+                                    >
+                                      {standing.points}
+                                    </Badge>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
           </div>
+
+          {/* Clasificados a Eliminatorias */}
+          {qualifiedPairs.length > 0 && (
+            <div className="space-y-6">
+              <h2 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+                <Star className="h-8 w-8 text-amber-600" />
+                Clasificación Final por Rendimiento
+              </h2>
+
+              <Card className="shadow-lg border-2 border-amber-100">
+                <CardHeader className="bg-gradient-to-r from-amber-50 to-yellow-50">
+                  <CardTitle className="flex items-center gap-2 text-xl">
+                    <Target className="h-6 w-6 text-amber-600" />
+                    Parejas Clasificadas a Eliminatorias
+                  </CardTitle>
+                  <CardDescription className="text-base">
+                    {bracketInfo && (
+                      <>
+                        {qualifiedPairs.length} parejas clasificadas • Bracket
+                        de {bracketInfo.bracketSize} equipos •
+                        {bracketInfo.stages.length} etapas:{" "}
+                        {bracketInfo.stages.join(" → ")}
+                      </>
+                    )}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="p-6">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm bg-white border border-gray-200 rounded-lg">
+                      <thead className="bg-gradient-to-r from-amber-50 to-yellow-50">
+                        <tr>
+                          <th className="text-left p-3 font-semibold text-gray-700">
+                            Seed
+                          </th>
+                          <th className="text-left p-3 font-semibold text-gray-700">
+                            Pareja
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            Grupo Origen
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            Pts
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            PJ
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            Sets
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            Games
+                          </th>
+                          <th className="text-center p-3 font-semibold text-gray-700">
+                            Estado
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {qualifiedPairs.map((qualified, index) => (
+                          <tr
+                            key={qualified.pair.id}
+                            className={`border-b hover:bg-gray-50 ${
+                              qualified.seed <= 4
+                                ? "bg-gradient-to-r from-amber-50 to-yellow-50"
+                                : qualified.seed <= 8
+                                ? "bg-gradient-to-r from-blue-50 to-cyan-50"
+                                : "bg-gray-50"
+                            }`}
+                          >
+                            <td className="p-3">
+                              <div className="flex items-center gap-2">
+                                <div
+                                  className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold ${
+                                    qualified.seed === 1
+                                      ? "bg-gradient-to-r from-yellow-400 to-amber-400 text-white shadow-lg"
+                                      : qualified.seed === 2
+                                      ? "bg-gradient-to-r from-gray-300 to-gray-400 text-white"
+                                      : qualified.seed === 3
+                                      ? "bg-gradient-to-r from-orange-300 to-red-400 text-white"
+                                      : qualified.seed <= 4
+                                      ? "bg-gradient-to-r from-amber-200 to-yellow-300 text-gray-800"
+                                      : qualified.seed <= 8
+                                      ? "bg-gradient-to-r from-blue-200 to-cyan-300 text-gray-800"
+                                      : "bg-gray-200 text-gray-700"
+                                  }`}
+                                >
+                                  {qualified.seed}
+                                </div>
+                                {qualified.seed === 1 && (
+                                  <Crown className="h-4 w-4 text-yellow-500" />
+                                )}
+                                {qualified.seed === 2 && (
+                                  <Medal className="h-4 w-4 text-gray-400" />
+                                )}
+                                {qualified.seed === 3 && (
+                                  <Medal className="h-4 w-4 text-amber-600" />
+                                )}
+                              </div>
+                            </td>
+                            <td className="p-3">
+                              <div className="font-medium text-gray-900">
+                                {qualified.pair.player1.name} &{" "}
+                                {qualified.pair.player2.name}
+                              </div>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge variant="outline" className="text-sm">
+                                {qualified.groupStanding.groupName}(
+                                {qualified.groupStanding.groupPosition}º)
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge
+                                variant={
+                                  qualified.seed <= 4 ? "default" : "secondary"
+                                }
+                                className="font-bold"
+                              >
+                                {qualified.groupStanding.points}
+                              </Badge>
+                            </td>
+                            <td className="p-3 text-center font-medium">
+                              {qualified.groupStanding.matchesPlayed}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="font-medium">
+                                {qualified.groupStanding.setsWon}-
+                                {qualified.groupStanding.setsLost}
+                              </span>
+                              {qualified.groupStanding.setsDiff > 0 && (
+                                <span className="text-green-600 ml-1 text-xs">
+                                  (+{qualified.groupStanding.setsDiff})
+                                </span>
+                              )}
+                              {qualified.groupStanding.setsDiff < 0 && (
+                                <span className="text-red-600 ml-1 text-xs">
+                                  ({qualified.groupStanding.setsDiff})
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <span className="font-medium">
+                                {qualified.groupStanding.gamesWon}-
+                                {qualified.groupStanding.gamesLost}
+                              </span>
+                              {qualified.groupStanding.gamesDiff > 0 && (
+                                <span className="text-green-600 ml-1 text-xs">
+                                  (+{qualified.groupStanding.gamesDiff})
+                                </span>
+                              )}
+                              {qualified.groupStanding.gamesDiff < 0 && (
+                                <span className="text-red-600 ml-1 text-xs">
+                                  ({qualified.groupStanding.gamesDiff})
+                                </span>
+                              )}
+                            </td>
+                            <td className="p-3 text-center">
+                              <Badge
+                                variant="outline"
+                                className={
+                                  qualified.groupStanding.groupPosition === 1
+                                    ? "bg-yellow-100 text-yellow-700 border-yellow-300"
+                                    : "bg-blue-100 text-blue-700 border-blue-300"
+                                }
+                              >
+                                {qualified.position}
+                              </Badge>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+
+                  {/* Leyenda */}
+                  <div className="mt-6 grid grid-cols-2 lg:grid-cols-4 gap-4 text-sm text-gray-600">
+                    <div className="flex items-center gap-2">
+                      <Crown className="h-4 w-4 text-yellow-500" />
+                      <span>1º lugar de grupo</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Medal className="h-4 w-4 text-gray-400" />
+                      <span>2º lugar de grupo</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Star className="h-4 w-4 text-amber-600" />
+                      <span>Seed: Posición en bracket</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-blue-600" />
+                      <span>Pts: Puntos (3 por victoria)</span>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
 
           {/* Eliminatorias */}
           <div className="space-y-6">

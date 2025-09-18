@@ -145,7 +145,7 @@ export default function LiveCategoryView() {
   const getPairName = (pairId: string) => {
     const pair = pairs.find((p) => p.id === pairId);
     return pair
-      ? `${pair.player1.name} & ${pair.player2.name}`
+      ? `${pair.player1.name} / ${pair.player2.name}`
       : "Pareja no encontrada";
   };
 
@@ -244,6 +244,48 @@ export default function LiveCategoryView() {
     };
   };
 
+  const getTournamentWinners = () => {
+    const finishedFinals = eliminationMatches.filter(
+      (m) => m.stage === "final" && m.status === "completed"
+    );
+    const finishedThirdPlace = eliminationMatches.filter(
+      (m) => m.stage === "third_place" && m.status === "completed"
+    );
+
+    let champion = null;
+    let runnerUp = null;
+    let thirdPlace = null;
+
+    // Campeón y subcampeón de la final
+    if (finishedFinals.length > 0) {
+      const finalMatch = finishedFinals[0];
+      const championPair = pairs.find((p) => p.id === finalMatch.winnerPairId);
+      const runnerUpPair = pairs.find(
+        (p) =>
+          p.id ===
+          (finalMatch.winnerPairId === finalMatch.pairAId
+            ? finalMatch.pairBId
+            : finalMatch.pairAId)
+      );
+
+      champion = championPair;
+      runnerUp = runnerUpPair;
+    }
+
+    // Tercer lugar
+    if (finishedThirdPlace.length > 0) {
+      const thirdPlaceMatch = finishedThirdPlace[0];
+      const thirdPlacePair = pairs.find(
+        (p) => p.id === thirdPlaceMatch.winnerPairId
+      );
+      thirdPlace = thirdPlacePair;
+    }
+
+    const isComplete = champion && runnerUp && thirdPlace;
+
+    return { champion, runnerUp, thirdPlace, isComplete };
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -292,6 +334,7 @@ export default function LiveCategoryView() {
   }
 
   const progress = getEliminationProgress();
+  const winners = getTournamentWinners();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50">
@@ -646,7 +689,7 @@ export default function LiveCategoryView() {
                             </td>
                             <td className="p-3">
                               <div className="font-medium text-gray-900">
-                                {qualified.pair.player1.name} &{" "}
+                                {qualified.pair.player1.name} /{" "}
                                 {qualified.pair.player2.name}
                               </div>
                             </td>
@@ -959,7 +1002,7 @@ export default function LiveCategoryView() {
                                 )}
                                 <div>
                                   <p className="text-lg font-semibold">
-                                    {pairA?.player1.name} &{" "}
+                                    {pairA?.player1.name} /{" "}
                                     {pairA?.player2.name}
                                   </p>
                                   {match.winnerPairId === match.pairAId && (
@@ -997,7 +1040,7 @@ export default function LiveCategoryView() {
                                 )}
                                 <div>
                                   <p className="text-lg font-semibold">
-                                    {pairB?.player1.name} &{" "}
+                                    {pairB?.player1.name} /{" "}
                                     {pairB?.player2.name}
                                   </p>
                                   {match.winnerPairId === match.pairBId && (
@@ -1020,6 +1063,158 @@ export default function LiveCategoryView() {
               </Card>
             )}
           </div>
+
+          {/* Sección de Felicitaciones a los Ganadores */}
+          {winners.isComplete && (
+            <div className="mt-12 mb-8">
+              <Card className="bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50 border-4 border-gradient-to-r from-yellow-400 to-orange-500 shadow-2xl">
+                <CardContent className="p-12">
+                  <div className="text-center space-y-8">
+                    {/* Título Principal */}
+                    <div className="space-y-4">
+                      <div className="flex justify-center">
+                        <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-4 rounded-full shadow-lg">
+                          <Trophy className="h-16 w-16 text-white" />
+                        </div>
+                      </div>
+                      <h2 className="text-4xl md:text-5xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                        ¡Felicitaciones!
+                      </h2>
+                      <p className="text-xl text-gray-700 max-w-3xl mx-auto leading-relaxed">
+                        Ha concluido oficialmente el torneo de la categoría{" "}
+                        <span className="font-bold text-blue-600">
+                          {category.name}
+                        </span>
+                        . Felicitamos a todos los participantes por su excelente
+                        nivel y deportividad.
+                      </p>
+                    </div>
+
+                    {/* Podio */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                      {/* Subcampeón */}
+                      <div className="order-2 md:order-1">
+                        <Card className="bg-gradient-to-br from-gray-100 to-gray-200 border-4 border-gray-400 shadow-xl transform hover:scale-105 transition-transform duration-300">
+                          <CardContent className="p-6 text-center space-y-4">
+                            <div className="flex justify-center">
+                              <div className="bg-gradient-to-r from-gray-400 to-gray-500 p-3 rounded-full shadow-lg">
+                                <Medal className="h-12 w-12 text-white" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-2xl font-bold text-gray-700">
+                                Subcampeón
+                              </h3>
+                              <p className="text-lg font-semibold text-gray-800">
+                                {winners.runnerUp?.player1.name} /{" "}
+                                {winners.runnerUp?.player2.name}
+                              </p>
+                              <div className="bg-gray-200 p-3 rounded-lg">
+                                <span className="text-4xl">🥈</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Campeón */}
+                      <div className="order-1 md:order-2">
+                        <Card className="bg-gradient-to-br from-yellow-100 to-orange-200 border-4 border-yellow-500 shadow-2xl transform hover:scale-105 transition-transform duration-300 relative overflow-hidden">
+                          {/* Confeti animado */}
+                          <div className="absolute inset-0 bg-gradient-to-br from-yellow-400/20 to-orange-500/20 animate-pulse"></div>
+                          <CardContent className="p-8 text-center space-y-6 relative z-10">
+                            <div className="flex justify-center">
+                              <div className="bg-gradient-to-r from-yellow-400 to-orange-500 p-4 rounded-full shadow-xl animate-bounce">
+                                <Crown className="h-16 w-16 text-white" />
+                              </div>
+                            </div>
+                            <div className="space-y-3">
+                              <h3 className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
+                                ¡CAMPEÓN!
+                              </h3>
+                              <p className="text-xl font-bold text-gray-800">
+                                {winners.champion?.player1.name} /{" "}
+                                {winners.champion?.player2.name}
+                              </p>
+                              <div className="bg-yellow-200 p-4 rounded-lg shadow-inner">
+                                <span className="text-6xl">🏆</span>
+                              </div>
+                              <p className="text-lg font-semibold text-yellow-700">
+                                ¡Excelente juego!
+                              </p>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+
+                      {/* Tercer Lugar */}
+                      <div className="order-3">
+                        <Card className="bg-gradient-to-br from-orange-100 to-red-200 border-4 border-orange-500 shadow-xl transform hover:scale-105 transition-transform duration-300">
+                          <CardContent className="p-6 text-center space-y-4">
+                            <div className="flex justify-center">
+                              <div className="bg-gradient-to-r from-orange-500 to-red-500 p-3 rounded-full shadow-lg">
+                                <Medal className="h-12 w-12 text-white" />
+                              </div>
+                            </div>
+                            <div className="space-y-2">
+                              <h3 className="text-2xl font-bold text-orange-700">
+                                Tercer Lugar
+                              </h3>
+                              <p className="text-lg font-semibold text-gray-800">
+                                {winners.thirdPlace?.player1.name} /{" "}
+                                {winners.thirdPlace?.player2.name}
+                              </p>
+                              <div className="bg-orange-200 p-3 rounded-lg">
+                                <span className="text-4xl">🥉</span>
+                              </div>
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </div>
+                    </div>
+
+                    {/* Mensaje de Agradecimiento */}
+                    <div className="bg-white/80 backdrop-blur-sm p-8 rounded-2xl shadow-lg border-2 border-blue-200 max-w-4xl mx-auto">
+                      <div className="space-y-6">
+                        <div className="flex justify-center">
+                          <div className="bg-gradient-to-r from-blue-500 to-purple-600 p-3 rounded-full shadow-lg">
+                            <Users className="h-10 w-10 text-white" />
+                          </div>
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-800">
+                          ¡Gracias por Participar!
+                        </h3>
+                        <div className="space-y-4 text-lg text-gray-700 leading-relaxed">
+                          <p>
+                            Agradecemos profundamente a todos los participantes
+                            por hacer de este torneo una experiencia increíble.
+                            Su pasión por el pádel y su espíritu deportivo han
+                            sido ejemplares.
+                          </p>
+                          <p className="font-semibold text-blue-600">
+                            Cada torneo que organizamos contribuye a una causa
+                            noble: ayudar a los perritos de la calle con
+                            alimento y cuidados veterinarios.
+                            <span className="text-red-500">❤️</span>
+                          </p>
+                          <p className="text-xl font-bold bg-gradient-to-r from-green-600 to-blue-600 bg-clip-text text-transparent">
+                            ¡Esperamos verlos en la siguiente edición!
+                          </p>
+                        </div>
+                        <div className="flex justify-center space-x-4 text-3xl">
+                          <span>🐕</span>
+                          <span>🏆</span>
+                          <span>🎾</span>
+                          <span>❤️</span>
+                          <span>🌟</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </div>
     </div>

@@ -3084,7 +3084,7 @@ export async function getTopPairsFromGroups(
       console.log(
         `✅ Top ${topGroupPairs.length} parejas de ${group.name}:`,
         topGroupPairs.map(
-          (pair) => `${pair.player1.name} & ${pair.player2.name}`
+          (pair) => `${pair.player1.name} / ${pair.player2.name}`
         )
       );
 

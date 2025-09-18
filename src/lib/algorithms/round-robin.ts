@@ -30,7 +30,7 @@ export function generateRoundRobinMatches(
   );
   groupPairs.forEach((pair, index) => {
     console.log(
-      `  ${index + 1}. ${pair.player1.name} & ${pair.player2.name} (ID: ${
+      `  ${index + 1}. ${pair.player1.name} / ${pair.player2.name} (ID: ${
         pair.id
       })`
     );
@@ -63,7 +63,7 @@ export function generateRoundRobinMatches(
       };
 
       console.log(
-        `⚽ Partido: ${pairA.player1.name} & ${pairA.player2.name} vs ${pairB.player1.name} & ${pairB.player2.name}`
+        `⚽ Partido: ${pairA.player1.name} / ${pairA.player2.name} vs ${pairB.player1.name} / ${pairB.player2.name}`
       );
       matches.push(newMatch);
     }

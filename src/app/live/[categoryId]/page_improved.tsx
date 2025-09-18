@@ -90,7 +90,7 @@ export default function LiveCategoryView() {
   const getPairName = (pairId: string) => {
     const pair = pairs.find((p) => p.id === pairId);
     return pair
-      ? `${pair.player1.name} & ${pair.player2.name}`
+      ? `${pair.player1.name} / ${pair.player2.name}`
       : "Pareja no encontrada";
   };
 
@@ -171,6 +171,48 @@ export default function LiveCategoryView() {
         completed: thirdPlace.filter((m) => m.status === "completed").length,
       },
     };
+  };
+
+  const getTournamentWinners = () => {
+    const finishedFinals = eliminationMatches.filter(
+      (m) => m.stage === "final" && m.status === "completed"
+    );
+    const finishedThirdPlace = eliminationMatches.filter(
+      (m) => m.stage === "third_place" && m.status === "completed"
+    );
+
+    let champion = null;
+    let runnerUp = null;
+    let thirdPlace = null;
+
+    // Campeón y subcampeón de la final
+    if (finishedFinals.length > 0) {
+      const finalMatch = finishedFinals[0];
+      const championPair = pairs.find((p) => p.id === finalMatch.winnerPairId);
+      const runnerUpPair = pairs.find(
+        (p) =>
+          p.id ===
+          (finalMatch.winnerPairId === finalMatch.pairAId
+            ? finalMatch.pairBId
+            : finalMatch.pairAId)
+      );
+
+      champion = championPair;
+      runnerUp = runnerUpPair;
+    }
+
+    // Tercer lugar
+    if (finishedThirdPlace.length > 0) {
+      const thirdPlaceMatch = finishedThirdPlace[0];
+      const thirdPlacePair = pairs.find(
+        (p) => p.id === thirdPlaceMatch.winnerPairId
+      );
+      thirdPlace = thirdPlacePair;
+    }
+
+    const isComplete = champion && runnerUp && thirdPlace;
+
+    return { champion, runnerUp, thirdPlace, isComplete };
   };
 
   if (loading) {
@@ -305,7 +347,7 @@ export default function LiveCategoryView() {
                               </div>
                               <div>
                                 <p className="font-semibold text-lg">
-                                  {standing.pair.player1.name} &{" "}
+                                  {standing.pair.player1.name} /{" "}
                                   {standing.pair.player2.name}
                                 </p>
                                 <div className="flex items-center gap-4 text-sm text-gray-600">
@@ -377,7 +419,7 @@ export default function LiveCategoryView() {
                                         {match.winnerId === match.pairAId && (
                                           <Crown className="h-4 w-4 text-yellow-500" />
                                         )}
-                                        {pairA?.player1.name} &{" "}
+                                        {pairA?.player1.name} /{" "}
                                         {pairA?.player2.name}
                                       </div>
                                       <div className="text-2xl font-bold text-gray-800">
@@ -395,7 +437,7 @@ export default function LiveCategoryView() {
                                         {match.winnerId === match.pairBId && (
                                           <Crown className="h-4 w-4 text-yellow-500" />
                                         )}
-                                        {pairB?.player1.name} &{" "}
+                                        {pairB?.player1.name} /{" "}
                                         {pairB?.player2.name}
                                       </div>
                                       <div className="text-2xl font-bold text-gray-800">
@@ -630,7 +672,7 @@ export default function LiveCategoryView() {
                                 )}
                                 <div>
                                   <p className="text-lg font-semibold">
-                                    {pairA?.player1.name} &{" "}
+                                    {pairA?.player1.name} /{" "}
                                     {pairA?.player2.name}
                                   </p>
                                   {match.winnerId === match.pairAId && (
@@ -668,7 +710,7 @@ export default function LiveCategoryView() {
                                 )}
                                 <div>
                                   <p className="text-lg font-semibold">
-                                    {pairB?.player1.name} &{" "}
+                                    {pairB?.player1.name} /{" "}
                                     {pairB?.player2.name}
                                   </p>
                                   {match.winnerId === match.pairBId && (

@@ -570,17 +570,17 @@ export default function LiveCategoryView() {
             {/* Partidos de Eliminatorias */}
             {eliminationMatches.length > 0 && (
               <Card className="shadow-lg border-2 border-yellow-100">
-                <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50">
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <Trophy className="h-6 w-6 text-yellow-600" />
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50 p-3 sm:p-4 lg:p-6">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                    <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
                     Partidos de Eliminatorias
                   </CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-sm sm:text-base">
                     Resultados de la fase eliminatoria
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-6">
+                <CardContent className="p-3 sm:p-4 lg:p-6">
+                  <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                     {eliminationMatches.map((match) => {
                       const pairA = pairs.find((p) => p.id === match.pairAId);
                       const pairB = pairs.find((p) => p.id === match.pairBId);

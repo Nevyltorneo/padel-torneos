@@ -909,17 +909,17 @@ export default function LiveCategoryView() {
             {/* Partidos de Eliminatorias */}
             {eliminationMatches.length > 0 && (
               <Card className="shadow-lg border-2 border-yellow-100">
-                <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50">
-                  <CardTitle className="flex items-center gap-2 text-xl">
-                    <Trophy className="h-6 w-6 text-yellow-600" />
+                <CardHeader className="bg-gradient-to-r from-yellow-50 to-orange-50 p-3 sm:p-4 lg:p-6">
+                  <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                    <Trophy className="h-5 w-5 sm:h-6 sm:w-6 text-yellow-600" />
                     Partidos de Eliminatorias
                   </CardTitle>
-                  <CardDescription className="text-base">
+                  <CardDescription className="text-sm sm:text-base">
                     Resultados de la fase eliminatoria
                   </CardDescription>
                 </CardHeader>
-                <CardContent className="p-6">
-                  <div className="space-y-6">
+                <CardContent className="p-3 sm:p-4 lg:p-6">
+                  <div className="space-y-3 sm:space-y-4 lg:space-y-6">
                     {eliminationMatches.map((match) => {
                       const pairA = pairs.find((p) => p.id === match.pairAId);
                       const pairB = pairs.find((p) => p.id === match.pairBId);
@@ -972,18 +972,20 @@ export default function LiveCategoryView() {
                       return (
                         <div
                           key={match.id}
-                          className={`p-6 rounded-xl border-2 shadow-md ${
+                          className={`p-3 sm:p-4 lg:p-6 rounded-lg sm:rounded-xl border-2 shadow-md ${
                             match.status === "completed"
                               ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
                               : "bg-gradient-to-r from-gray-50 to-blue-50 border-gray-300"
                           }`}
                         >
-                          <div className="flex items-center justify-between mb-4">
-                            <div className="flex items-center gap-3">
-                              <span className="text-2xl">{stageInfo.icon}</span>
+                          <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <div className="flex items-center gap-2 sm:gap-3">
+                              <span className="text-lg sm:text-xl lg:text-2xl">
+                                {stageInfo.icon}
+                              </span>
                               <Badge
                                 variant="outline"
-                                className={`text-lg px-4 py-2 ${
+                                className={`text-xs sm:text-sm lg:text-base px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 ${
                                   stageInfo.color === "purple"
                                     ? "border-purple-300 text-purple-700 bg-purple-50"
                                     : stageInfo.color === "yellow"
@@ -999,78 +1001,82 @@ export default function LiveCategoryView() {
                             {match.status === "completed" && (
                               <Badge
                                 variant="outline"
-                                className="bg-green-100 text-green-700 border-green-300 text-lg px-4 py-2"
+                                className="bg-green-100 text-green-700 border-green-300 text-xs sm:text-sm lg:text-base px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2"
                               >
                                 ✅ Finalizado
                               </Badge>
                             )}
                           </div>
 
-                          <div className="space-y-4">
+                          <div className="space-y-2 sm:space-y-3 lg:space-y-4">
                             {/* Pareja A */}
-                            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between p-2 sm:p-3 lg:p-4 bg-white rounded-lg border border-gray-200">
                               <div
-                                className={`flex items-center gap-3 ${
+                                className={`flex items-center gap-2 sm:gap-3 flex-1 min-w-0 ${
                                   match.winnerPairId === match.pairAId
                                     ? "font-bold text-green-700"
                                     : "text-gray-700"
                                 }`}
                               >
                                 {match.winnerPairId === match.pairAId && (
-                                  <Crown className="h-5 w-5 text-yellow-500" />
+                                  <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 flex-shrink-0" />
                                 )}
-                                <div>
-                                  <p className="text-lg font-semibold">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm sm:text-base lg:text-lg font-semibold truncate">
                                     {pairA?.player1.name} /{" "}
                                     {pairA?.player2.name}
                                   </p>
                                   {match.winnerPairId === match.pairAId && (
-                                    <p className="text-sm text-green-600 font-medium">
+                                    <p className="text-xs sm:text-sm text-green-600 font-medium">
                                       🏆 Ganador
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
-                                {scoreA}
+                              <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-800 bg-gray-100 px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 rounded-lg ml-2 flex-shrink-0 min-w-0 leading-tight">
+                                <span className="block text-center break-all">
+                                  {scoreA}
+                                </span>
                               </div>
                             </div>
 
                             {/* VS */}
                             <div className="text-center">
-                              <div className="inline-flex items-center justify-center w-12 h-12 bg-gray-200 rounded-full">
-                                <span className="text-lg font-bold text-gray-600">
+                              <div className="inline-flex items-center justify-center w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-gray-200 rounded-full">
+                                <span className="text-sm sm:text-base lg:text-lg font-bold text-gray-600">
                                   VS
                                 </span>
                               </div>
                             </div>
 
                             {/* Pareja B */}
-                            <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
+                            <div className="flex items-center justify-between p-2 sm:p-3 lg:p-4 bg-white rounded-lg border border-gray-200">
                               <div
-                                className={`flex items-center gap-3 ${
+                                className={`flex items-center gap-2 sm:gap-3 flex-1 min-w-0 ${
                                   match.winnerPairId === match.pairBId
                                     ? "font-bold text-green-700"
                                     : "text-gray-700"
                                 }`}
                               >
                                 {match.winnerPairId === match.pairBId && (
-                                  <Crown className="h-5 w-5 text-yellow-500" />
+                                  <Crown className="h-4 w-4 sm:h-5 sm:w-5 text-yellow-500 flex-shrink-0" />
                                 )}
-                                <div>
-                                  <p className="text-lg font-semibold">
+                                <div className="min-w-0 flex-1">
+                                  <p className="text-sm sm:text-base lg:text-lg font-semibold truncate">
                                     {pairB?.player1.name} /{" "}
                                     {pairB?.player2.name}
                                   </p>
                                   {match.winnerPairId === match.pairBId && (
-                                    <p className="text-sm text-green-600 font-medium">
+                                    <p className="text-xs sm:text-sm text-green-600 font-medium">
                                       🏆 Ganador
                                     </p>
                                   )}
                                 </div>
                               </div>
-                              <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
-                                {scoreB}
+                              <div className="text-lg sm:text-xl lg:text-2xl xl:text-3xl font-bold text-gray-800 bg-gray-100 px-2 sm:px-3 lg:px-4 py-1 sm:py-1.5 lg:py-2 rounded-lg ml-2 flex-shrink-0 min-w-0 leading-tight">
+                                <span className="block text-center break-all">
+                                  {scoreB}
+                                </span>
                               </div>
                             </div>
                           </div>

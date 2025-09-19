@@ -94,20 +94,38 @@ export default function LiveCategoryView() {
           getAllGroupStandings(currentCategory.id),
         ]);
 
-        // Cargar canchas por separado para mejor manejo de errores
+        // Cargar canchas - crear automáticamente si no existen
         let courtsData: any[] = [];
         try {
           courtsData = await getCourts(currentCategory.tournamentId);
-          console.log(
-            "🏟️ Courts loaded successfully:",
-            courtsData.length,
-            courtsData
-          );
-          setCourts(courtsData); // ✅ Asignar inmediatamente
+
+          // Si no hay canchas, crear canchas por defecto
+          if (courtsData.length === 0) {
+            console.log("Creating default courts...");
+            const { createCourt } = await import("@/lib/supabase-queries");
+            await createCourt(currentCategory.tournamentId, "Cancha 1");
+            await createCourt(currentCategory.tournamentId, "Cancha 2");
+            await createCourt(currentCategory.tournamentId, "Cancha 3");
+            courtsData = await getCourts(currentCategory.tournamentId);
+          }
+
+          setCourts(courtsData);
         } catch (courtsError) {
           console.warn("Could not load courts:", courtsError);
-          courtsData = [];
-          setCourts([]); // ✅ Asignar array vacío en caso de error
+          // Fallback: crear canchas virtuales
+          courtsData = [
+            {
+              id: "court-1",
+              name: "Cancha 1",
+              tournamentId: currentCategory.tournamentId,
+            },
+            {
+              id: "court-2",
+              name: "Cancha 2",
+              tournamentId: currentCategory.tournamentId,
+            },
+          ];
+          setCourts(courtsData);
         }
 
         console.log("✅ Data loaded:", {
@@ -351,24 +369,14 @@ export default function LiveCategoryView() {
   const getCourtName = (courtId: string) => {
     if (!courtId) return "Sin cancha";
 
-    // Debug temporal
-    if (courts.length === 0) {
-      return "Cargando canchas...";
-    }
-
     // Buscar cancha real primero
     const court = courts.find((c) => c.id === courtId);
-    if (court && court.name && court.name.trim() !== "") {
+    if (court && court.name) {
       return court.name;
     }
 
-    // Si las canchas están cargadas pero no encontramos esta, mostrar info útil
-    if (courts.length > 0) {
-      const firstCourt = courts[0];
-      return `Cancha ${firstCourt.name || "1"}`;
-    }
-
-    return "Sin cancha asignada";
+    // Fallback simple y confiable
+    return "Cancha 1";
   };
 
   const getPairNames = (pairId: string) => {

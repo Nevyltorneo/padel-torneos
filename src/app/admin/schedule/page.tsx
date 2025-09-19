@@ -36,6 +36,7 @@ import {
   Send,
   Eraser,
   X,
+  Save,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, addDays, isSameDay } from "date-fns";
@@ -104,6 +105,14 @@ export default function CalendarPage() {
     targetDate: "",
     categoryId: "all",
   });
+
+  // 🆕 ESTADO PARA CAMBIOS PENDIENTES
+  const [pendingChanges, setPendingChanges] = useState<{
+    [matchId: string]: {
+      startTime?: string;
+      courtId?: string;
+    };
+  }>({});
 
   useEffect(() => {
     if (currentTournament) {
@@ -949,63 +958,89 @@ export default function CalendarPage() {
     setShowScheduleDialog(true);
   };
 
-  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE CANCHA
-  const handleQuickCourtChange = async (
-    matchId: string,
-    newCourtId: string
-  ) => {
-    try {
-      const match = allMatches.find((m) => m.id === matchId);
-      if (!match) return;
+  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE CANCHA (Solo actualiza estado local)
+  const handleQuickCourtChange = (matchId: string, newCourtId: string) => {
+    console.log(
+      `🏟️ Preparando cambio de cancha del partido ${matchId} a ${newCourtId}`
+    );
 
-      console.log(`🏟️ Cambiando cancha del partido ${matchId} a ${newCourtId}`);
-
-      // Mantener día y hora actuales, solo cambiar cancha
-      await updateMatchSchedule(
-        matchId,
-        match.day || "",
-        match.startTime || "",
-        newCourtId
-      );
-
-      // Recargar datos
-      await loadData();
-
-      const court = courts.find((c) => c.id === newCourtId);
-      toast.success(`Cancha actualizada a: ${court?.name || "Sin nombre"}`, {
-        id: `court-change-${matchId}`,
-      });
-    } catch (error) {
-      console.error("❌ Error updating court:", error);
-      toast.error("Error al cambiar cancha", { id: `court-change-${matchId}` });
-    }
+    setPendingChanges((prev) => ({
+      ...prev,
+      [matchId]: {
+        ...prev[matchId],
+        courtId: newCourtId,
+      },
+    }));
   };
 
-  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE HORA
-  const handleQuickTimeChange = async (matchId: string, newTime: string) => {
+  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE HORA (Solo actualiza estado local)
+  const handleQuickTimeChange = (matchId: string, newTime: string) => {
+    console.log(
+      `🕐 Preparando cambio de hora del partido ${matchId} a ${newTime}`
+    );
+
+    setPendingChanges((prev) => ({
+      ...prev,
+      [matchId]: {
+        ...prev[matchId],
+        startTime: newTime,
+      },
+    }));
+  };
+
+  // 🆕 FUNCIÓN PARA GUARDAR TODOS LOS CAMBIOS PENDIENTES
+  const handleSavePendingChanges = async () => {
     try {
-      const match = allMatches.find((m) => m.id === matchId);
-      if (!match) return;
+      const changedMatchIds = Object.keys(pendingChanges);
+      if (changedMatchIds.length === 0) {
+        toast.info("No hay cambios pendientes para guardar");
+        return;
+      }
 
-      console.log(`🕐 Cambiando hora del partido ${matchId} a ${newTime}`);
-
-      // Mantener día y cancha actuales, solo cambiar hora
-      await updateMatchSchedule(
-        matchId,
-        match.day || "",
-        newTime,
-        match.courtId || ""
+      console.log(
+        `💾 Guardando ${changedMatchIds.length} cambios pendientes...`
       );
+
+      let savedCount = 0;
+      for (const matchId of changedMatchIds) {
+        const changes = pendingChanges[matchId];
+        const match = allMatches.find((m) => m.id === matchId);
+        if (!match) continue;
+
+        // Usar valores actuales del match como fallback
+        const finalStartTime =
+          changes.startTime !== undefined
+            ? changes.startTime
+            : match.startTime || "";
+        const finalCourtId =
+          changes.courtId !== undefined ? changes.courtId : match.courtId || "";
+
+        console.log(`  💾 Guardando partido ${matchId}:`, {
+          hora: finalStartTime,
+          cancha: finalCourtId,
+        });
+
+        await updateMatchSchedule(
+          matchId,
+          match.day || "",
+          finalStartTime,
+          finalCourtId
+        );
+        savedCount++;
+      }
+
+      // Limpiar cambios pendientes
+      setPendingChanges({});
 
       // Recargar datos
       await loadData();
 
-      toast.success(`Hora actualizada a: ${newTime}`, {
-        id: `time-change-${matchId}`,
+      toast.success(`¡${savedCount} cambios guardados exitosamente!`, {
+        id: "save-pending-changes",
       });
     } catch (error) {
-      console.error("❌ Error updating time:", error);
-      toast.error("Error al cambiar hora", { id: `time-change-${matchId}` });
+      console.error("❌ Error saving pending changes:", error);
+      toast.error("Error al guardar cambios", { id: "save-pending-changes" });
     }
   };
 
@@ -1274,6 +1309,43 @@ export default function CalendarPage() {
             </div>
           )}
 
+          {/* 🆕 BOTÓN GUARDAR CAMBIOS */}
+          {Object.keys(pendingChanges).length > 0 && (
+            <div className="mt-4">
+              <Card className="border-orange-200 bg-orange-50">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-orange-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm font-medium text-orange-800">
+                        Tienes {Object.keys(pendingChanges).length} cambio(s)
+                        sin guardar
+                      </span>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        onClick={() => setPendingChanges({})}
+                        variant="outline"
+                        size="sm"
+                        className="text-gray-600 hover:text-gray-800"
+                      >
+                        Descartar
+                      </Button>
+                      <Button
+                        onClick={handleSavePendingChanges}
+                        className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white shadow-lg"
+                        size="sm"
+                      >
+                        <Save className="h-4 w-4 mr-2" />
+                        Guardar Cambios
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* 🎨 CONTROLES MODERNOS Y ELEGANTES */}
           <div className="mt-6 space-y-4">
             {/* Programación Automática */}
@@ -1443,14 +1515,24 @@ export default function CalendarPage() {
                                 <Clock className="h-4 w-4" />
                                 <input
                                   type="time"
-                                  value={match.startTime || ""}
+                                  value={
+                                    pendingChanges[match.id]?.startTime !==
+                                    undefined
+                                      ? pendingChanges[match.id].startTime
+                                      : match.startTime || ""
+                                  }
                                   onChange={(e) =>
                                     handleQuickTimeChange(
                                       match.id,
                                       e.target.value
                                     )
                                   }
-                                  className="text-sm border border-gray-300 rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                                  className={`text-sm border rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors ${
+                                    pendingChanges[match.id]?.startTime !==
+                                    undefined
+                                      ? "border-orange-400 bg-orange-50"
+                                      : "border-gray-300"
+                                  }`}
                                   style={{ minWidth: "100px" }}
                                 />
                               </div>
@@ -1459,14 +1541,24 @@ export default function CalendarPage() {
                               <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4" />
                                 <select
-                                  value={match.courtId || ""}
+                                  value={
+                                    pendingChanges[match.id]?.courtId !==
+                                    undefined
+                                      ? pendingChanges[match.id].courtId
+                                      : match.courtId || ""
+                                  }
                                   onChange={(e) =>
                                     handleQuickCourtChange(
                                       match.id,
                                       e.target.value
                                     )
                                   }
-                                  className="text-sm border border-gray-300 rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                                  className={`text-sm border rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors ${
+                                    pendingChanges[match.id]?.courtId !==
+                                    undefined
+                                      ? "border-orange-400 bg-orange-50"
+                                      : "border-gray-300"
+                                  }`}
                                   style={{ minWidth: "120px" }}
                                 >
                                   <option value="">Sin cancha</option>

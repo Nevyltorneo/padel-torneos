@@ -97,20 +97,9 @@ export default function LiveCategoryView() {
         // Cargar canchas por separado para mejor manejo de errores
         let courtsData: any[] = [];
         try {
-          console.log(
-            "🔄 Loading courts for tournament:",
-            currentCategory.tournamentId
-          );
           courtsData = await getCourts(currentCategory.tournamentId);
-          console.log("✅ Courts loaded:", courtsData.length, courtsData);
-
-          // Si no hay canchas, crear algunas por defecto (solo para mostrar)
-          if (courtsData.length === 0) {
-            console.log("⚠️ No courts found, using default display");
-            courtsData = [];
-          }
         } catch (courtsError) {
-          console.warn("⚠️ Could not load courts:", courtsError);
+          console.warn("Could not load courts:", courtsError);
           courtsData = [];
         }
 
@@ -353,29 +342,16 @@ export default function LiveCategoryView() {
   };
 
   const getCourtName = (courtId: string) => {
-    console.log("🏟️ getCourtName called:", {
-      courtId: courtId.slice(0, 8),
-      courtsLoaded: courts.length,
-      courts: courts.map((c) => ({ id: c.id.slice(0, 8), name: c.name })),
-    });
-
     if (!courtId) return "Sin cancha";
 
     // Buscar cancha real primero
     const court = courts.find((c) => c.id === courtId);
     if (court && court.name && court.name.trim() !== "") {
-      console.log("✅ Found real court:", court.name);
       return court.name;
     }
 
-    console.log("❌ Court not found, using fallback");
-    // Problema: en móvil las canchas no se cargan bien
-    // Solución: usar nombres simples y secuenciales (1-3)
-    const hash = courtId
-      .split("")
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    const num = (hash % 3) + 1; // Solo 1, 2 o 3
-    return `Cancha ${num}`;
+    // Fallback simple si no se encuentra
+    return "Sin cancha asignada";
   };
 
   const getPairNames = (pairId: string) => {

@@ -3217,7 +3217,7 @@ function getFirstRoundStage(
   }
 }
 
-// Función para crear solo los partidos de la primera ronda
+// 🌟 ALGORITMO UNIVERSAL DE SEEDING - Funciona para 1 a 1000+ parejas
 function createFirstRoundMatches(
   pairs: Pair[],
   stage: "quarterfinals" | "semifinals" | "final"
@@ -3230,103 +3230,109 @@ function createFirstRoundMatches(
     return [];
   }
 
-  // 🏆 RESPETAR EL SEEDING - NO MEZCLAR ALEATORIAMENTE
-  // Las parejas ya vienen ordenadas por rendimiento (seed 1, 2, 3, 4...)
-  const seededPairs = [...pairs]; // Mantener el orden del seeding
+  // 🏆 SEEDING UNIVERSAL - Las parejas ya vienen ordenadas por rendimiento
+  const seededPairs = [...pairs];
+  const numPairs = seededPairs.length;
 
-  if (stage === "final") {
-    // Solo 2 parejas - van directo a la final
-    if (seededPairs[0] && seededPairs[1]) {
-      matches.push({
-        pairAId: seededPairs[0].id,
-        pairBId: seededPairs[1].id,
-      });
-    } else {
-      console.log("❌ createFirstRoundMatches: Parejas faltantes para final");
-    }
-  } else if (stage === "semifinals") {
-    // 3-4 parejas - van a semifinales con SEEDING CORRECTO
-    console.log("🏆 Creando semifinales para", pairs.length, "parejas");
-    console.log(
-      "🏆 Parejas seeded (en orden de rendimiento):",
-      seededPairs.map((p, i) => `Seed ${i + 1}: ${p.id}`)
-    );
+  console.log(
+    `🌟 ALGORITMO UNIVERSAL DE SEEDING activado para ${numPairs} parejas`
+  );
+  console.log(
+    "🏆 Parejas ordenadas por rendimiento:",
+    seededPairs.map((p, i) => `Seed ${i + 1}: ${p.id}`).slice(0, 8) // Mostrar solo primeras 8
+  );
 
-    // SEEDING CORRECTO: 1 vs 4, 2 vs 3
-    if (seededPairs[0] && seededPairs[3]) {
-      matches.push({
-        pairAId: seededPairs[0].id, // Seed 1 (mejor)
-        pairBId: seededPairs[3].id, // Seed 4 (peor)
-      });
-      console.log(
-        "⚽ Semifinal 1 (Seeding correcto):",
-        `Seed 1 (${seededPairs[0].id}) vs Seed 4 (${seededPairs[3].id})`
-      );
+  // 🧮 CALCULAR BRACKET SIZE DINÁMICO (siguiente potencia de 2)
+  const bracketSize = calculateOptimalBracketSize(numPairs);
+  const firstRoundSize = bracketSize / 2; // Número de partidos en primera ronda
+
+  console.log(
+    `📊 Bracket dinámico: ${numPairs} parejas → Bracket de ${bracketSize} → ${firstRoundSize} partidos`
+  );
+
+  // 🎯 ALGORITMO MATEMÁTICO UNIVERSAL DE SEEDING
+  // Usa la fórmula estándar de torneos: Seed A vs Seed (bracketSize + 1 - A)
+  const matchups = generateUniversalSeeding(numPairs, bracketSize);
+
+  console.log("🔢 Enfrentamientos calculados por seeding matemático:");
+  matchups.forEach((matchup, i) => {
+    if (matchup.bye) {
+      console.log(`   Partido ${i + 1}: Seed ${matchup.seedA} (BYE)`);
     } else {
       console.log(
-        "❌ createFirstRoundMatches: Parejas faltantes para semifinal 1"
+        `   Partido ${i + 1}: Seed ${matchup.seedA} vs Seed ${matchup.seedB}`
       );
     }
+  });
 
-    if (seededPairs[1] && seededPairs[2]) {
+  // 🏗️ CREAR PARTIDOS BASADOS EN SEEDING MATEMÁTICO
+  for (let i = 0; i < matchups.length; i++) {
+    const matchup = matchups[i];
+    const pairA = seededPairs[matchup.seedA - 1]; // seedA es 1-based, array es 0-based
+    const pairB = matchup.bye ? null : seededPairs[matchup.seedB - 1];
+
+    if (pairA && pairB) {
+      // Partido normal
       matches.push({
-        pairAId: seededPairs[1].id, // Seed 2
-        pairBId: seededPairs[2].id, // Seed 3
+        pairAId: pairA.id,
+        pairBId: pairB.id,
       });
-      console.log(
-        "⚽ Semifinal 2 (Seeding correcto):",
-        `Seed 2 (${seededPairs[1].id}) vs Seed 3 (${seededPairs[2].id})`
-      );
+      console.log(`✅ Partido ${i + 1} creado: ${pairA.id} vs ${pairB.id}`);
+    } else if (pairA) {
+      // BYE - pareja pasa automáticamente
+      matches.push({
+        pairAId: pairA.id,
+        pairBId: pairA.id, // Mismo ID indica BYE
+      });
+      console.log(`✅ Partido ${i + 1} (BYE): ${pairA.id} pasa directo`);
     } else {
-      console.log("⚠️ No hay suficientes parejas para semifinal 2");
-    }
-
-    console.log("📊 Total de semifinales creadas:", matches.length);
-  } else if (stage === "quarterfinals") {
-    // 5+ parejas - van a cuartos de final con SEEDING CORRECTO
-    console.log("🏆 Creando cuartos de final para", pairs.length, "parejas");
-    console.log(
-      "🏆 Parejas seeded (en orden de rendimiento):",
-      seededPairs.map((p, i) => `Seed ${i + 1}: ${p.id}`)
-    );
-
-    // SEEDING DE BRACKET CORRECTO: 1 vs 8, 2 vs 7, 3 vs 6, 4 vs 5
-    const bracketMatchups = [
-      [0, 7], // Seed 1 vs Seed 8
-      [1, 6], // Seed 2 vs Seed 7
-      [2, 5], // Seed 3 vs Seed 6
-      [3, 4], // Seed 4 vs Seed 5
-    ];
-
-    for (let i = 0; i < bracketMatchups.length; i++) {
-      const [seedA, seedB] = bracketMatchups[i];
-
-      if (seededPairs[seedA] && seededPairs[seedB]) {
-        matches.push({
-          pairAId: seededPairs[seedA].id,
-          pairBId: seededPairs[seedB].id,
-        });
-        console.log(
-          `⚽ Cuarto ${i + 1} (Bracket seeding):`,
-          `Seed ${seedA + 1} (${seededPairs[seedA].id}) vs Seed ${seedB + 1} (${
-            seededPairs[seedB].id
-          })`
-        );
-      } else if (seededPairs[seedA]) {
-        // Solo una pareja disponible, pasa directo
-        matches.push({
-          pairAId: seededPairs[seedA].id,
-          pairBId: seededPairs[seedA].id, // BYE
-        });
-        console.log(
-          `⚽ Cuarto ${i + 1} (BYE):`,
-          `Seed ${seedA + 1} (${seededPairs[seedA].id}) pasa directo`
-        );
-      }
+      console.warn(
+        `⚠️ Partido ${i + 1}: Parejas no encontradas para seeds ${
+          matchup.seedA
+        }-${matchup.seedB}`
+      );
     }
   }
 
+  console.log(`🎉 Total de partidos generados: ${matches.length}`);
   return matches;
+}
+
+// 🧮 GENERADOR UNIVERSAL DE SEEDING MATEMÁTICO
+// Funciona para cualquier número de parejas usando la fórmula estándar de torneos
+function generateUniversalSeeding(numPairs: number, bracketSize: number): Array<{
+  seedA: number;
+  seedB: number | null;
+  bye: boolean;
+}> {
+  const matchups: Array<{ seedA: number; seedB: number | null; bye: boolean }> = [];
+  const numMatches = bracketSize / 2;
+
+  console.log(`🧮 Generando seeding universal: ${numPairs} parejas en bracket de ${bracketSize}`);
+
+  for (let i = 0; i < numMatches; i++) {
+    const seedA = i + 1; // Seed del mejor (1, 2, 3, 4...)
+    const seedB = bracketSize - i; // Seed del contrario por fórmula matemática
+
+    if (seedA <= numPairs && seedB <= numPairs) {
+      // Ambas parejas existen - partido normal
+      matchups.push({
+        seedA,
+        seedB,
+        bye: false,
+      });
+    } else if (seedA <= numPairs) {
+      // Solo la pareja A existe - BYE
+      matchups.push({
+        seedA,
+        seedB: null,
+        bye: true,
+      });
+    }
+    // Si ninguna pareja existe, no crear partido (esto no debería pasar con bracket correcto)
+  }
+
+  return matchups;
 }
 
 // Función para crear el bracket de eliminatorias (DEPRECATED - solo para referencia)

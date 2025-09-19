@@ -77,6 +77,14 @@ export default function CalendarPage() {
     name: "",
   });
 
+  // 🆕 Estados para programación de eliminatorias
+  const [showEliminationDialog, setShowEliminationDialog] = useState(false);
+  const [eliminationForm, setEliminationForm] = useState({
+    startDate: "",
+    startTime: "09:00",
+    daySpacing: 1, // días entre etapas
+  });
+
   useEffect(() => {
     if (currentTournament) {
       loadData();
@@ -131,6 +139,28 @@ export default function CalendarPage() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // 🆕 Función para generar slots desde una hora específica
+  const generateTimeSlotsFromStart = (startTime: string): string[] => {
+    const slots = [];
+    const [startHour, startMinute] = startTime.split(":").map(Number);
+    const slotDuration = 90; // 90 minutos por partido
+
+    let currentTime = startHour * 60 + startMinute; // Convertir a minutos
+    const endTime = 22 * 60; // Hasta las 22:00
+
+    while (currentTime < endTime) {
+      const hour = Math.floor(currentTime / 60);
+      const minute = currentTime % 60;
+      const timeString = `${hour.toString().padStart(2, "0")}:${minute
+        .toString()
+        .padStart(2, "0")}`;
+      slots.push(timeString);
+      currentTime += slotDuration;
+    }
+
+    return slots;
   };
 
   // Función para generar slots de tiempo basados en la configuración del día
@@ -404,8 +434,12 @@ export default function CalendarPage() {
     }
   };
 
-  // 🏆 NUEVA FUNCIÓN: Programar eliminatorias automáticamente
-  const handleAutoScheduleEliminations = async () => {
+  // 🏆 NUEVA FUNCIÓN: Programar eliminatorias automáticamente con parámetros
+  const handleAutoScheduleEliminations = async (
+    startDate: string,
+    startTime: string,
+    daySpacing: number
+  ) => {
     if (
       !currentTournament ||
       tournamentDays.length === 0 ||
@@ -468,37 +502,61 @@ export default function CalendarPage() {
         return numB - numA; // Más alto = más baja categoría
       });
 
-      // Crear estructura de horarios disponibles (empezar después de grupos)
+      // 🗓️ CREAR ESTRUCTURA DE HORARIOS PARA FECHAS FUTURAS
+      const { addDays: addDaysDate, format: formatDate } = await import(
+        "date-fns"
+      );
+
+      console.log(
+        `📅 Iniciando programación desde: ${startDate} a las ${startTime}`
+      );
+
+      // Generar fechas futuras para eliminatorias
+      const baseDate = new Date(startDate);
+      const eliminationDays: string[] = [];
+
+      // Crear fechas con espaciado: startDate, startDate+daySpacing, startDate+2*daySpacing...
+      for (let i = 0; i < 4; i++) {
+        // Máximo 4 días diferentes para etapas
+        const dayDate = addDaysDate(baseDate, i * daySpacing);
+        const dayString = formatDate(dayDate, "yyyy-MM-dd");
+        eliminationDays.push(dayString);
+      }
+
+      console.log(`📆 Fechas para eliminatorias:`, eliminationDays);
+
+      // Crear estructura de horarios para fechas futuras
       const schedule: {
         [day: string]: { [time: string]: { [courtId: string]: boolean } };
       } = {};
 
-      // Obtener partidos YA programados para evitar conflictos
-      const scheduledMatches = allMatches.filter(
-        (match) => match.day && match.startTime && match.courtId
-      );
-
-      // Inicializar estructura de disponibilidad
-      tournamentDays.forEach((dayConfig) => {
-        const dayString = dayConfig.date;
+      // Generar horarios para cada día de eliminatorias
+      eliminationDays.forEach((dayString) => {
         schedule[dayString] = {};
 
-        const timeSlots = getTimeSlotsForDay(dayConfig);
-        timeSlots.forEach((timeSlot) => {
+        // Generar slots de tiempo desde startTime
+        const slots = generateTimeSlotsFromStart(startTime);
+        slots.forEach((timeSlot) => {
           schedule[dayString][timeSlot] = {};
           courts.forEach((court) => {
             schedule[dayString][timeSlot][court.id] = true; // Disponible
           });
         });
+      });
 
-        // Marcar slots ocupados por partidos ya programados
-        scheduledMatches
-          .filter((match) => match.day === dayString)
-          .forEach((match) => {
-            if (schedule[dayString][match.startTime!] && match.courtId) {
-              schedule[dayString][match.startTime!][match.courtId] = false;
-            }
-          });
+      // Verificar conflictos con partidos ya programados
+      const scheduledMatches = allMatches.filter(
+        (match) => match.day && match.startTime && match.courtId
+      );
+
+      scheduledMatches.forEach((match) => {
+        if (
+          schedule[match.day!] &&
+          schedule[match.day!][match.startTime!] &&
+          match.courtId
+        ) {
+          schedule[match.day!][match.startTime!][match.courtId] = false;
+        }
       });
 
       // Definir orden de prioridad de etapas (final primero para mejores horarios)
@@ -583,6 +641,27 @@ export default function CalendarPage() {
       toast.error("Error al programar eliminatorias", {
         id: "auto-schedule-eliminations",
       });
+    }
+  };
+
+  // 🎯 Función para confirmar y ejecutar programación de eliminatorias
+  const handleConfirmEliminationScheduling = async () => {
+    if (!eliminationForm.startDate || !eliminationForm.startTime) {
+      toast.error("Por favor completa fecha y hora de inicio");
+      return;
+    }
+
+    setShowEliminationDialog(false);
+
+    try {
+      await handleAutoScheduleEliminations(
+        eliminationForm.startDate,
+        eliminationForm.startTime,
+        eliminationForm.daySpacing
+      );
+    } catch (error) {
+      console.error("Error in elimination scheduling:", error);
+      toast.error("Error al programar eliminatorias");
     }
   };
 
@@ -893,7 +972,7 @@ export default function CalendarPage() {
               Programar Fase de Grupos
             </Button>
             <Button
-              onClick={handleAutoScheduleEliminations}
+              onClick={() => setShowEliminationDialog(true)}
               className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
             >
               <Trophy className="h-4 w-4" />
@@ -1208,6 +1287,120 @@ export default function CalendarPage() {
                 Cancelar
               </Button>
               <Button onClick={handleCreateCourt}>Crear Cancha</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🏆 Diálogo para programar eliminatorias */}
+      <Dialog
+        open={showEliminationDialog}
+        onOpenChange={setShowEliminationDialog}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trophy className="h-5 w-5 text-purple-600" />
+              Programar Eliminatorias
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="startDate">📅 Fecha de Inicio</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={eliminationForm.startDate}
+                onChange={(e) =>
+                  setEliminationForm({
+                    ...eliminationForm,
+                    startDate: e.target.value,
+                  })
+                }
+                min={new Date().toISOString().split("T")[0]}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Las eliminatorias empezarán en esta fecha
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="startTime">🕐 Hora de Inicio</Label>
+              <Select
+                value={eliminationForm.startTime}
+                onValueChange={(value) =>
+                  setEliminationForm({ ...eliminationForm, startTime: value })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar hora" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[
+                    "08:00",
+                    "09:00",
+                    "10:00",
+                    "11:00",
+                    "12:00",
+                    "13:00",
+                    "14:00",
+                    "15:00",
+                    "16:00",
+                    "17:00",
+                    "18:00",
+                  ].map((time) => (
+                    <SelectItem key={time} value={time}>
+                      {time}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="daySpacing">
+                📆 Espaciado entre etapas (días)
+              </Label>
+              <Select
+                value={eliminationForm.daySpacing.toString()}
+                onValueChange={(value) =>
+                  setEliminationForm({
+                    ...eliminationForm,
+                    daySpacing: parseInt(value),
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Días entre etapas" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Mismo día</SelectItem>
+                  <SelectItem value="1">1 día después</SelectItem>
+                  <SelectItem value="2">2 días después</SelectItem>
+                  <SelectItem value="3">3 días después</SelectItem>
+                  <SelectItem value="7">1 semana después</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-gray-500 mt-1">
+                Tiempo entre semifinales → final, etc.
+              </p>
+            </div>
+
+            <div className="flex justify-end gap-3">
+              <Button
+                variant="outline"
+                onClick={() => setShowEliminationDialog(false)}
+              >
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmEliminationScheduling}
+                className="bg-purple-600 hover:bg-purple-700"
+              >
+                <Trophy className="h-4 w-4 mr-2" />
+                Programar Eliminatorias
+              </Button>
             </div>
           </div>
         </DialogContent>

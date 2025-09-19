@@ -98,9 +98,16 @@ export default function LiveCategoryView() {
         let courtsData: any[] = [];
         try {
           courtsData = await getCourts(currentCategory.tournamentId);
+          console.log(
+            "🏟️ Courts loaded successfully:",
+            courtsData.length,
+            courtsData
+          );
+          setCourts(courtsData); // ✅ Asignar inmediatamente
         } catch (courtsError) {
           console.warn("Could not load courts:", courtsError);
           courtsData = [];
+          setCourts([]); // ✅ Asignar array vacío en caso de error
         }
 
         console.log("✅ Data loaded:", {
@@ -122,7 +129,7 @@ export default function LiveCategoryView() {
         setGroupMatches(matchesData.filter((m) => m.stage === "group"));
         setEliminationMatches(eliminationData);
         setGroupStandings(standingsData);
-        setCourts(courtsData);
+        // setCourts ya se ejecutó arriba
 
         // Cargar información de clasificados para eliminatorias
         try {

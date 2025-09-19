@@ -127,7 +127,7 @@ export default function PublicCategoryPage({
 
   const groupMatchesByStage = (matches: Match[]) => {
     const grouped = matches.reduce((acc, match) => {
-      const stage = match.stage || "groups";
+      const stage = match.stage || "group";
       if (!acc[stage]) acc[stage] = [];
       acc[stage].push(match);
       return acc;
@@ -326,7 +326,7 @@ export default function PublicCategoryPage({
                         <div className="flex-1">
                           <div className="flex items-center gap-3 mb-2">
                             <h3 className="font-semibold text-gray-900">
-                              {match.stage === "groups"
+                              {match.stage === "group"
                                 ? `Grupo ${match.groupId?.slice(
                                     -1
                                   )} - Partido ${match.matchNumber}`

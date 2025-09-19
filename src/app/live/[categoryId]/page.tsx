@@ -22,6 +22,8 @@ import {
   Eye,
   Star,
   Target,
+  Calendar,
+  MapPin,
 } from "lucide-react";
 import { Category, Match, Pair } from "@/types";
 import { toast } from "sonner";
@@ -33,6 +35,7 @@ import {
   getEliminationMatches,
   getAllGroupStandings,
   getAdvancingPairsWithStats,
+  getCourts,
 } from "@/lib/supabase-queries";
 
 export default function LiveCategoryView() {
@@ -49,6 +52,7 @@ export default function LiveCategoryView() {
   }>({});
   const [qualifiedPairs, setQualifiedPairs] = useState<any[]>([]);
   const [bracketInfo, setBracketInfo] = useState<any>(null);
+  const [courts, setCourts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
@@ -90,12 +94,29 @@ export default function LiveCategoryView() {
           getAllGroupStandings(currentCategory.id),
         ]);
 
+        // Cargar canchas por separado para mejor manejo de errores
+        let courtsData: any[] = [];
+        try {
+          courtsData = await getCourts(currentCategory.tournamentId);
+          console.log("✅ Courts loaded:", courtsData.length);
+
+          // Si no hay canchas, crear algunas por defecto (solo para mostrar)
+          if (courtsData.length === 0) {
+            console.log("⚠️ No courts found, using default display");
+            courtsData = [];
+          }
+        } catch (courtsError) {
+          console.warn("⚠️ Could not load courts:", courtsError);
+          courtsData = [];
+        }
+
         console.log("✅ Data loaded:", {
           pairs: pairsData.length,
           groups: groupsData.length,
           matches: matchesData.length,
           eliminations: eliminationData.length,
           standings: Object.keys(standingsData).length,
+          courts: courtsData.length,
         });
 
         setPairs(pairsData);
@@ -103,6 +124,7 @@ export default function LiveCategoryView() {
         setGroupMatches(matchesData.filter((m) => m.stage === "group"));
         setEliminationMatches(eliminationData);
         setGroupStandings(standingsData);
+        setCourts(courtsData);
 
         // Cargar información de clasificados para eliminatorias
         try {
@@ -286,6 +308,109 @@ export default function LiveCategoryView() {
     return { champion, runnerUp, thirdPlace, isComplete };
   };
 
+  const getScheduledMatches = () => {
+    // Obtener todos los partidos que tienen programación (día y hora)
+    const allMatches = [...groupMatches, ...eliminationMatches];
+    const scheduledMatches = allMatches.filter(
+      (match) => match.day && match.startTime
+    );
+
+    // Agrupar por día
+    const matchesByDay = scheduledMatches.reduce((acc, match) => {
+      const day = match.day!;
+      if (!acc[day]) {
+        acc[day] = [];
+      }
+      acc[day].push(match);
+      return acc;
+    }, {} as { [day: string]: Match[] });
+
+    // Ordenar partidos por hora dentro de cada día
+    Object.keys(matchesByDay).forEach((day) => {
+      matchesByDay[day].sort((a, b) => {
+        const timeA = a.startTime || "00:00";
+        const timeB = b.startTime || "00:00";
+        return timeA.localeCompare(timeB);
+      });
+    });
+
+    return matchesByDay;
+  };
+
+  const getCourtName = (courtId: string) => {
+    if (!courtId) return "Sin cancha asignada";
+
+    const court = courts.find((c) => c.id === courtId);
+    if (court) {
+      return court.name;
+    }
+
+    // Si no encontramos la cancha, generar un nombre basado en el ID
+    // Intentar extraer un número o identificador del final del ID
+    const matches = courtId.match(/(\w+)$/);
+    if (matches) {
+      const lastPart = matches[1];
+      // Si los últimos 4 caracteres son números/letras cortos, usarlos
+      if (lastPart.length <= 8) {
+        return `Cancha ${lastPart.toUpperCase()}`;
+      }
+    }
+
+    // Fallback: usar los últimos 8 caracteres
+    const shortId =
+      courtId.length > 8 ? courtId.slice(-8).toUpperCase() : courtId;
+    return `Cancha ${shortId}`;
+  };
+
+  const getPairNames = (pairId: string) => {
+    const pair = pairs.find((p) => p.id === pairId);
+    if (!pair) return "Pareja no encontrada";
+    return `${pair.player1.name} / ${pair.player2.name}`;
+  };
+
+  const getGroupName = (groupId: string) => {
+    if (!groupId) return "Grupo";
+
+    const group = groups.find((g) => g.id === groupId);
+    if (group) {
+      return group.name; // Esto debería ser "Grupo A", "Grupo B", etc.
+    }
+
+    // Fallback si no encontramos el grupo
+    return "Grupo";
+  };
+
+  const formatDate = (dateStr: string) => {
+    try {
+      const date = new Date(dateStr + "T00:00:00");
+      return date.toLocaleDateString("es-ES", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      });
+    } catch {
+      return dateStr;
+    }
+  };
+
+  const getMatchStatusBadge = (match: Match) => {
+    switch (match.status) {
+      case "completed":
+        return (
+          <Badge className="bg-green-100 text-green-800">Finalizado</Badge>
+        );
+      case "playing":
+        return <Badge className="bg-blue-100 text-blue-800">En Juego</Badge>;
+      case "scheduled":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800">Programado</Badge>
+        );
+      default:
+        return <Badge variant="outline">Pendiente</Badge>;
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
@@ -432,11 +557,8 @@ export default function LiveCategoryView() {
                                     winnerPairId: m.winnerPairId,
                                     allKeys: Object.keys(m), // Ver qué otros campos tiene
                                     // Buscar en otros posibles campos
-                                    rawScoreA:
-                                      m.score?.pairA || m.score?.scoreA,
-                                    rawScoreB:
-                                      m.score?.pairB || m.score?.scoreB,
-                                    sets: m.score?.sets,
+                                    rawScoreA: m.score?.pairA,
+                                    rawScoreB: m.score?.pairB,
                                     allScoreData: m.score,
                                   })),
                                 }
@@ -842,6 +964,128 @@ export default function LiveCategoryView() {
               })}
             </div>
           </div>
+
+          {/* Calendario de Partidos */}
+          {(() => {
+            const scheduledMatches = getScheduledMatches();
+            const hasScheduledMatches =
+              Object.keys(scheduledMatches).length > 0;
+
+            return hasScheduledMatches ? (
+              <div className="space-y-4 sm:space-y-6">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-900 flex items-center gap-2 sm:gap-3 px-2">
+                  <Calendar className="h-6 w-6 sm:h-7 sm:w-7 lg:h-8 lg:w-8 text-green-600" />
+                  Calendario de Partidos
+                </h2>
+
+                <div className="space-y-4">
+                  {Object.entries(scheduledMatches)
+                    .sort(([dayA], [dayB]) => dayA.localeCompare(dayB))
+                    .map(([day, matches]) => (
+                      <Card
+                        key={day}
+                        className="shadow-lg border-2 border-green-100"
+                      >
+                        <CardHeader className="bg-gradient-to-r from-green-50 to-emerald-50 p-3 sm:p-4 lg:p-6">
+                          <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                            <Calendar className="h-5 w-5 sm:h-6 sm:w-6 text-green-600" />
+                            {formatDate(day)}
+                          </CardTitle>
+                          <CardDescription className="text-sm sm:text-base">
+                            {matches.length} partidos programados
+                          </CardDescription>
+                        </CardHeader>
+                        <CardContent className="p-3 sm:p-4 lg:p-6">
+                          <div className="space-y-3">
+                            {matches.map((match) => (
+                              <div
+                                key={match.id}
+                                className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                              >
+                                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                                  {/* Información del partido */}
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <h3 className="font-semibold text-gray-900">
+                                        {match.stage === "group"
+                                          ? getGroupName(match.groupId || "")
+                                          : match.stage === "quarterfinals"
+                                          ? "Cuartos de Final"
+                                          : match.stage === "semifinals"
+                                          ? "Semifinal"
+                                          : match.stage === "final"
+                                          ? "Final"
+                                          : match.stage === "third_place"
+                                          ? "Tercer Lugar"
+                                          : "Partido"}
+                                      </h3>
+                                      {getMatchStatusBadge(match)}
+                                    </div>
+
+                                    <div className="text-sm text-gray-600 space-y-1">
+                                      <div className="font-medium">
+                                        {getPairNames(match.pairAId)} vs{" "}
+                                        {getPairNames(match.pairBId)}
+                                      </div>
+
+                                      {/* Resultado si está completado */}
+                                      {match.status === "completed" &&
+                                        match.scorePairA &&
+                                        match.scorePairB && (
+                                          <div className="text-xs bg-gray-50 p-2 rounded border">
+                                            <span className="font-medium">
+                                              Resultado:
+                                            </span>{" "}
+                                            {match.scorePairA.set1}-
+                                            {match.scorePairB.set1}
+                                            {match.scorePairA.set2 !==
+                                              undefined && (
+                                              <>
+                                                , {match.scorePairA.set2}-
+                                                {match.scorePairB.set2}
+                                              </>
+                                            )}
+                                            {match.scorePairA.set3 !==
+                                              undefined && (
+                                              <>
+                                                , {match.scorePairA.set3}-
+                                                {match.scorePairB.set3}
+                                              </>
+                                            )}
+                                          </div>
+                                        )}
+                                    </div>
+                                  </div>
+
+                                  {/* Horario y cancha */}
+                                  <div className="flex flex-col sm:flex-row gap-2 text-sm">
+                                    <div className="flex items-center gap-1 bg-blue-50 px-3 py-1 rounded-full">
+                                      <Clock className="h-4 w-4 text-blue-600" />
+                                      <span className="font-medium text-blue-800">
+                                        {match.startTime}
+                                      </span>
+                                    </div>
+
+                                    {match.courtId && (
+                                      <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full">
+                                        <MapPin className="h-4 w-4 text-green-600" />
+                                        <span className="font-medium text-green-800">
+                                          {getCourtName(match.courtId)}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                </div>
+              </div>
+            ) : null;
+          })()}
 
           {/* Clasificados a Eliminatorias */}
           {qualifiedPairs.length > 0 && (

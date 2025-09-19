@@ -557,9 +557,9 @@ export default function BracketPage() {
     console.log("🔍 Processing", finishedMatches.length, "finished matches...");
 
     // 🔍 Debug: Verificar conteo de partidos por stage
-    const groupFinished = finishedMatches.filter((m) => m.stage === "groups");
+    const groupFinished = finishedMatches.filter((m) => m.stage === "group");
     const knockoutFinished = finishedMatches.filter(
-      (m) => m.stage !== "groups"
+      (m) => m.stage !== "group"
     );
     console.log("🔍 FINISHED MATCHES BY STAGE:", {
       groups: groupFinished.length,

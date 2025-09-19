@@ -177,7 +177,7 @@ export default function CalendarPage() {
 
       // Obtener solo partidos de FASE DE GRUPOS pendientes (sin programar)
       const pendingMatches = allMatches.filter(
-        (match) => match.stage === "groups" && (!match.day || !match.startTime)
+        (match) => match.stage === "group" && (!match.day || !match.startTime)
       );
 
       if (pendingMatches.length === 0) {
@@ -796,7 +796,7 @@ export default function CalendarPage() {
                                 {getCategoryName(match.categoryId)}
                               </Badge>
                               <span className="text-sm text-gray-500">
-                                {match.stage === "groups"
+                                {match.stage === "group"
                                   ? "Fase de Grupos"
                                   : match.stage === "quarterfinal"
                                   ? "Cuartos de Final"

@@ -1093,7 +1093,7 @@ export async function deleteAllGroupMatches(categoryId: string): Promise<void> {
     .from("matches")
     .delete()
     .eq("category_id", categoryId)
-    .eq("stage", "groups");
+    .eq("stage", "group");
 
   if (error) {
     console.error("Error deleting all group matches:", error);
@@ -2078,9 +2078,13 @@ export async function createCourt(
   tournamentId: string,
   name: string
 ): Promise<Court> {
+  // Generar un ID único para la cancha
+  const courtId = crypto.randomUUID();
+
   const { data, error } = await supabase
     .from("courts")
     .insert({
+      id: courtId, // ✅ Especificar el ID explícitamente
       tournament_id: tournamentId,
       name: name,
     })
@@ -2089,10 +2093,16 @@ export async function createCourt(
 
   if (error) {
     console.error("Error creating court:", error);
+    console.error("Error details:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
     throw error;
   }
 
-  console.log(`✅ Cancha creada: ${name}`);
+  console.log(`✅ Cancha creada: ${name} con ID: ${courtId}`);
 
   return {
     id: data.id,

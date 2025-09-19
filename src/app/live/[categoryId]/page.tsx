@@ -94,38 +94,14 @@ export default function LiveCategoryView() {
           getAllGroupStandings(currentCategory.id),
         ]);
 
-        // Cargar canchas - crear automáticamente si no existen
+        // Cargar canchas reales del calendario
         let courtsData: any[] = [];
         try {
           courtsData = await getCourts(currentCategory.tournamentId);
-
-          // Si no hay canchas, crear canchas por defecto
-          if (courtsData.length === 0) {
-            console.log("Creating default courts...");
-            const { createCourt } = await import("@/lib/supabase-queries");
-            await createCourt(currentCategory.tournamentId, "Cancha 1");
-            await createCourt(currentCategory.tournamentId, "Cancha 2");
-            await createCourt(currentCategory.tournamentId, "Cancha 3");
-            courtsData = await getCourts(currentCategory.tournamentId);
-          }
-
           setCourts(courtsData);
         } catch (courtsError) {
           console.warn("Could not load courts:", courtsError);
-          // Fallback: crear canchas virtuales
-          courtsData = [
-            {
-              id: "court-1",
-              name: "Cancha 1",
-              tournamentId: currentCategory.tournamentId,
-            },
-            {
-              id: "court-2",
-              name: "Cancha 2",
-              tournamentId: currentCategory.tournamentId,
-            },
-          ];
-          setCourts(courtsData);
+          setCourts([]);
         }
 
         console.log("✅ Data loaded:", {
@@ -369,13 +345,28 @@ export default function LiveCategoryView() {
   const getCourtName = (courtId: string) => {
     if (!courtId) return "Sin cancha";
 
-    // Buscar cancha real primero
+    // Buscar cancha real del calendario
     const court = courts.find((c) => c.id === courtId);
     if (court && court.name) {
       return court.name;
     }
 
-    // Fallback simple y confiable
+    // Si no encuentra la cancha, es porque no está creada todavía
+    // Buscar en los partidos para ver qué canchas se usan
+    const allScheduledMatches = [...groupMatches, ...eliminationMatches];
+    const matchWithCourt = allScheduledMatches.find(
+      (m) => m.courtId === courtId
+    );
+
+    if (matchWithCourt) {
+      // Usar un nombre basado en el número de orden de aparición
+      const uniqueCourtIds = [
+        ...new Set(allScheduledMatches.map((m) => m.courtId).filter(Boolean)),
+      ];
+      const courtIndex = uniqueCourtIds.indexOf(courtId);
+      return `Cancha ${courtIndex + 1}`;
+    }
+
     return "Cancha 1";
   };
 

@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "MiTorneo - Gestión de Torneos de Pádel",
   description:
     "Aplicación completa para la gestión de torneos de pádel con generación automática de grupos, calendario y asignación de canchas.",
+  other: {
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+    Pragma: "no-cache",
+    Expires: "0",
+  },
 };
 
 export default function RootLayout({

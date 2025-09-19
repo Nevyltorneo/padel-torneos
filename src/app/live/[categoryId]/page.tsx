@@ -124,6 +124,12 @@ export default function LiveCategoryView() {
           "🏟️ Courts debug:",
           courtsData.map((c) => ({ id: c.id.slice(0, 8), name: c.name }))
         );
+        console.log(
+          "🕒 Page loaded at:",
+          new Date().toISOString(),
+          "Cache buster:",
+          Math.random()
+        );
 
         setPairs(pairsData);
         setGroups(groupsData);

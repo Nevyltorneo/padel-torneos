@@ -484,10 +484,10 @@ export default function CalendarPage() {
         schedule[dayString] = {};
 
         const timeSlots = getTimeSlotsForDay(dayConfig);
-        timeSlots.forEach((slot) => {
-          schedule[dayString][slot.time] = {};
+        timeSlots.forEach((timeSlot) => {
+          schedule[dayString][timeSlot] = {};
           courts.forEach((court) => {
-            schedule[dayString][slot.time][court.id] = true; // Disponible
+            schedule[dayString][timeSlot][court.id] = true; // Disponible
           });
         });
 
@@ -977,7 +977,7 @@ export default function CalendarPage() {
                                   ? "Programado"
                                   : match.status === "playing"
                                   ? "Jugando"
-                                  : match.status === "finished"
+                                  : match.status === "completed"
                                   ? "Finalizado"
                                   : "Pendiente"}
                               </Badge>
@@ -987,9 +987,9 @@ export default function CalendarPage() {
                               <span className="text-sm text-gray-500">
                                 {match.stage === "group"
                                   ? "Fase de Grupos"
-                                  : match.stage === "quarterfinal"
+                                  : match.stage === "quarterfinals"
                                   ? "Cuartos de Final"
-                                  : match.stage === "semifinal"
+                                  : match.stage === "semifinals"
                                   ? "Semifinal"
                                   : match.stage === "final"
                                   ? "Final"

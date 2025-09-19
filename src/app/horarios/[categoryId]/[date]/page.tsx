@@ -169,7 +169,7 @@ export default function HorariosPage() {
     // MAPEO FIJO DE EMERGENCIA - FUNCIONA EN TODOS LOS NAVEGADORES
     const emergencyCourtMappings: Record<string, string> = {
       "a6c12988-c2bc-4f2d-9516-a25e3907992d": "cancha 1",
-      "1eb8bb2-e8c5-429f-b377-6de3f40b9309": "cancha 2",
+      "1eb08bb2-e8c5-429f-b377-6de3f40b9309": "cancha 2",
       "8e2eb8e2-fdab-4d92-b5e1-8aa56d6c56ed": "cancha 3",
     };
 
@@ -187,6 +187,9 @@ export default function HorariosPage() {
         emergencyCourtMappings[matchCourtId]
       );
       return emergencyCourtMappings[matchCourtId];
+    } else {
+      console.log("🚨 COURT ID NOT FOUND IN MAPPING:", matchCourtId);
+      console.log("🚨 Please add this ID to emergencyCourtMappings!");
     }
 
     // ESTRATEGIA 2: Buscar por ID exacto con for loop (Safari compatible)
@@ -205,7 +208,7 @@ export default function HorariosPage() {
       return foundCourt.name;
     }
 
-    // ESTRATEGIA 3: Hash simple para generar nombre consistente
+    // ESTRATEGIA 3: Hash dinámico basado en el número de canchas disponibles
     if (matchCourtId && matchCourtId.length > 0) {
       let hash = 0;
       for (let i = 0; i < Math.min(matchCourtId.length, 8); i++) {
@@ -213,9 +216,40 @@ export default function HorariosPage() {
         hash = hash + charCode;
       }
 
-      const courtNumber = (hash % 5) + 1; // 1-5
+      // USAR EL NÚMERO REAL DE CANCHAS DISPONIBLES (escalable)
+      if (courts.length > 0) {
+        // Si hay canchas, usar una de las disponibles por hash
+        const courtIndex = hash % courts.length;
+        const selectedCourt = courts[courtIndex];
+        if (selectedCourt && selectedCourt.name) {
+          console.log(
+            "✅ Using hash-selected real court:",
+            selectedCourt.name,
+            "from index:",
+            courtIndex,
+            "of",
+            courts.length,
+            "available courts"
+          );
+          return selectedCourt.name;
+        }
+      }
+
+      // Fallback con número dinámico (mínimo 3, máximo 20 para ser razonable)
+      const maxCourts = Math.max(courts.length || 3, 3);
+      const limitedMaxCourts = Math.min(maxCourts, 20); // Máximo razonable
+      const courtNumber = (hash % limitedMaxCourts) + 1;
       const fallbackName = "Cancha " + courtNumber.toString();
-      console.log("✅ Using hash fallback:", fallbackName);
+
+      console.log(
+        "✅ Using dynamic hash fallback:",
+        fallbackName,
+        "from",
+        limitedMaxCourts,
+        "possible courts (courts array:",
+        courts.length,
+        ")"
+      );
       return fallbackName;
     }
 

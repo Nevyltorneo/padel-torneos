@@ -1,6 +1,7 @@
 import { createClient } from "./supabase";
 import {
   Tournament,
+  TournamentConfig,
   User,
   Category,
   Pair,
@@ -1720,20 +1721,25 @@ export async function updateMatchSchedule(
     updateData.status = "pending";
   }
 
+  // 🐛 LOG CRÍTICO: Verificar qué datos se están enviando
+  console.log(
+    `🔄 updateMatchSchedule - Partido ${matchId}: ${day} ${startTime}`
+  );
+
   const { error } = await supabase
     .from("matches")
     .update(updateData)
     .eq("id", matchId);
 
   if (error) {
-    console.error("Error updating match schedule:", error);
+    console.error("❌ Error updating match schedule:", error);
     throw error;
   }
 
+  console.log(`   ✅ BD actualizada: ${day} ${startTime}`);
+
   if (day && startTime && courtId) {
-    console.log(
-      `✅ Partido programado: ${day} ${startTime} en cancha ${courtId}`
-    );
+    console.log(`✅ Programado: ${day} ${startTime} cancha ${courtId}`);
   } else {
     console.log(`🗑️ Horario limpiado para partido: ${matchId}`);
   }
@@ -3130,7 +3136,8 @@ export async function getTopPairsFromGroups(
 export async function generateEliminationMatches(
   categoryId: string,
   tournamentId: string,
-  topPairs: Pair[]
+  topPairs: Pair[],
+  tournamentConfig?: TournamentConfig
 ): Promise<Match[]> {
   try {
     console.log(
@@ -3487,7 +3494,10 @@ function createEliminationBracket(
 }
 
 // Función para calcular las fases de eliminatorias
-function calculateEliminationPhases(pairCount: number): Array<{
+function calculateEliminationPhases(
+  pairCount: number,
+  includeThirdPlace: boolean = true
+): Array<{
   stage: "quarterfinals" | "semifinals" | "final" | "third_place";
   matches: number;
 }> {
@@ -3500,23 +3510,29 @@ function calculateEliminationPhases(pairCount: number): Array<{
     // Solo final
     phases.push({ stage: "final", matches: 1 });
   } else if (pairCount <= 4) {
-    // Semifinales + final + tercer lugar
+    // Semifinales + final + (tercer lugar opcional)
     phases.push({ stage: "semifinals", matches: 2 });
     phases.push({ stage: "final", matches: 1 });
-    phases.push({ stage: "third_place", matches: 1 });
+    if (includeThirdPlace) {
+      phases.push({ stage: "third_place", matches: 1 });
+    }
   } else if (pairCount <= 8) {
-    // Cuartos + semifinales + final + tercer lugar
+    // Cuartos + semifinales + final + (tercer lugar opcional)
     phases.push({ stage: "quarterfinals", matches: 4 });
     phases.push({ stage: "semifinals", matches: 2 });
     phases.push({ stage: "final", matches: 1 });
-    phases.push({ stage: "third_place", matches: 1 });
+    if (includeThirdPlace) {
+      phases.push({ stage: "third_place", matches: 1 });
+    }
   } else {
     // Para más de 8 parejas, usar cuartos de final
     const quarterFinals = Math.ceil(pairCount / 2);
     phases.push({ stage: "quarterfinals", matches: quarterFinals });
     phases.push({ stage: "semifinals", matches: Math.ceil(quarterFinals / 2) });
     phases.push({ stage: "final", matches: 1 });
-    phases.push({ stage: "third_place", matches: 1 });
+    if (includeThirdPlace) {
+      phases.push({ stage: "third_place", matches: 1 });
+    }
   }
 
   return phases;
@@ -3539,11 +3555,33 @@ export async function createEliminationMatches(
       return [];
     }
 
+    // 🔧 OBTENER CONFIGURACIÓN DEL TORNEO
+    const { data: tournamentData, error: tournamentError } = await supabase
+      .from("tournaments")
+      .select("config")
+      .eq("id", tournamentId)
+      .single();
+
+    if (tournamentError || !tournamentData) {
+      console.error(
+        "❌ Error obteniendo configuración del torneo:",
+        tournamentError
+      );
+      throw new Error("No se pudo obtener la configuración del torneo");
+    }
+
+    const tournamentConfig = tournamentData.config as TournamentConfig;
+    console.log(
+      `⚙️ Configuración torneo - Incluir 3er lugar:`,
+      tournamentConfig.knockout.thirdPlace
+    );
+
     // Generar los partidos
     const matches = await generateEliminationMatches(
       categoryId,
       tournamentId,
-      topPairs
+      topPairs,
+      tournamentConfig
     );
 
     if (matches.length === 0) {
@@ -3973,23 +4011,48 @@ async function generateFinalAndThirdPlace(
     matches.push(finalMatch);
     console.log(`⚽ Final: ${winners[0]} vs ${winners[1]}`);
 
-    // Crear tercer lugar
-    const thirdPlaceMatch: Match = {
-      id: uuidv4(),
-      tournamentId,
-      categoryId,
-      stage: "third_place",
-      pairAId: losers[0],
-      pairBId: losers[1],
-      status: "pending",
-    };
-    matches.push(thirdPlaceMatch);
-    console.log(`🥉 Tercer lugar: ${losers[0]} vs ${losers[1]}`);
+    // 🔧 OBTENER CONFIGURACIÓN DEL TORNEO PARA VERIFICAR 3ER LUGAR
+    const { data: tournamentData, error: tournamentError } = await supabase
+      .from("tournaments")
+      .select("config")
+      .eq("id", tournamentId)
+      .single();
+
+    if (tournamentError) {
+      console.error(
+        "❌ Error obteniendo configuración del torneo:",
+        tournamentError
+      );
+    }
+
+    const tournamentConfig = tournamentData?.config as TournamentConfig;
+    const includeThirdPlace = tournamentConfig?.knockout?.thirdPlace ?? true; // default true para retrocompatibilidad
+
+    console.log(`⚙️ Configuración - Incluir 3er lugar: ${includeThirdPlace}`);
+
+    // Solo crear tercer lugar si está habilitado en la configuración
+    if (includeThirdPlace) {
+      const thirdPlaceMatch: Match = {
+        id: uuidv4(),
+        tournamentId,
+        categoryId,
+        stage: "third_place",
+        pairAId: losers[0],
+        pairBId: losers[1],
+        status: "pending",
+      };
+      matches.push(thirdPlaceMatch);
+      console.log(`⚽ 3er Lugar: ${losers[0]} vs ${losers[1]}`);
+    } else {
+      console.log(`🚫 3er lugar DESHABILITADO en configuración del torneo`);
+    }
 
     // Crear partidos en la base de datos
     const createdMatches = await createMatches(matches);
     console.log(
-      `✅ Creados ${createdMatches.length} partidos (final y tercer lugar)`
+      `✅ Creados ${createdMatches.length} partidos de final${
+        includeThirdPlace ? " y tercer lugar" : ""
+      }`
     );
     return createdMatches;
   } catch (error) {

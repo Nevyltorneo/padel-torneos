@@ -32,6 +32,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Trophy,
+  Filter,
+  Send,
+  Eraser,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, addDays, isSameDay } from "date-fns";
@@ -39,6 +43,7 @@ import { es } from "date-fns/locale";
 
 import { useCurrentTournament } from "@/stores/tournament-store";
 import { Match, Pair, Category, Court, DaySchedule } from "@/types";
+import { createClient } from "@/lib/supabase";
 import {
   getCategories,
   getPairs,
@@ -52,6 +57,7 @@ import {
 
 export default function CalendarPage() {
   const currentTournament = useCurrentTournament();
+  const supabase = createClient();
   const [categories, setCategories] = useState<Category[]>([]);
   const [allPairs, setAllPairs] = useState<Pair[]>([]);
   const [allMatches, setAllMatches] = useState<Match[]>([]);
@@ -83,6 +89,20 @@ export default function CalendarPage() {
     startDate: "",
     startTime: "09:00",
     daySpacing: 1, // días entre etapas
+  });
+
+  // 🆕 NUEVOS ESTADOS PARA CONTROLES GRANULARES
+  const [selectedCategoryFilter, setSelectedCategoryFilter] =
+    useState<string>("all");
+  const [showCleanDialog, setShowCleanDialog] = useState(false);
+  const [showNotifyDialog, setShowNotifyDialog] = useState(false);
+  const [cleanForm, setCleanForm] = useState({
+    targetDate: "",
+    categoryId: "all",
+  });
+  const [notifyForm, setNotifyForm] = useState({
+    targetDate: "",
+    categoryId: "all",
   });
 
   useEffect(() => {
@@ -440,6 +460,12 @@ export default function CalendarPage() {
     startTime: string,
     daySpacing: number
   ) => {
+    // 🐛 DEBUG CRÍTICO: Ver exactamente qué fecha recibimos
+    console.log(`🔍 PARÁMETROS RECIBIDOS:`);
+    console.log(`   startDate (raw): "${startDate}"`);
+    console.log(`   startDate type:`, typeof startDate);
+    console.log(`   startTime: "${startTime}"`);
+    console.log(`   daySpacing: ${daySpacing}`);
     if (
       !currentTournament ||
       tournamentDays.length === 0 ||
@@ -454,12 +480,28 @@ export default function CalendarPage() {
         id: "auto-schedule-eliminations",
       });
 
+      // 🔧 OBTENER CONFIGURACIÓN DEL TORNEO
+      const { data: tournamentData, error: tournamentError } = await supabase
+        .from("tournaments")
+        .select("config")
+        .eq("id", currentTournament.id)
+        .single();
+
+      let allowedStages = ["quarterfinals", "semifinals", "final"];
+
+      if (tournamentData?.config?.knockout?.thirdPlace !== false) {
+        allowedStages.push("third_place");
+        console.log("⚙️ Incluyendo tercer lugar en programación");
+      } else {
+        console.log(
+          "🚫 Excluyendo tercer lugar de programación (deshabilitado)"
+        );
+      }
+
       // Obtener partidos de ELIMINATORIAS pendientes (sin programar)
       const eliminationMatches = allMatches.filter(
         (match) =>
-          ["quarterfinals", "semifinals", "final", "third_place"].includes(
-            match.stage
-          ) &&
+          allowedStages.includes(match.stage) &&
           (!match.day || !match.startTime)
       );
 
@@ -511,9 +553,23 @@ export default function CalendarPage() {
         `📅 Iniciando programación desde: ${startDate} a las ${startTime}`
       );
 
-      // Generar fechas futuras para eliminatorias
-      const baseDate = new Date(startDate);
+      // 🗓️ PARSEAR FECHA DE FORMA ROBUSTA (evitar problemas de zona horaria)
+      console.log(`🗓️ Fecha base recibida: "${startDate}"`);
+
+      // Parsear la fecha manualmente para evitar problemas de zona horaria
+      const [year, month, day] = startDate.split("-").map(Number);
+      const baseDate = new Date(year, month - 1, day); // month es 0-indexed
+
+      console.log(`📅 Fecha parseada manualmente:`, {
+        year,
+        month: month - 1,
+        day,
+        resultado: baseDate,
+        formateada: baseDate.toISOString().split("T")[0],
+      });
+
       const eliminationDays: string[] = [];
+      console.log(`📊 Espaciado entre días: ${daySpacing}`);
 
       // Crear fechas con espaciado: startDate, startDate+daySpacing, startDate+2*daySpacing...
       for (let i = 0; i < 4; i++) {
@@ -521,9 +577,18 @@ export default function CalendarPage() {
         const dayDate = addDaysDate(baseDate, i * daySpacing);
         const dayString = formatDate(dayDate, "yyyy-MM-dd");
         eliminationDays.push(dayString);
+
+        console.log(
+          `   📅 Día ${i}: ${dayString} (base + ${i * daySpacing} días)`
+        );
+        console.log(`      📆 Fecha objeto:`, dayDate);
+        console.log(
+          `      📝 Día semana:`,
+          dayDate.toLocaleDateString("es-ES", { weekday: "long" })
+        );
       }
 
-      console.log(`📆 Fechas para eliminatorias:`, eliminationDays);
+      console.log(`📆 FECHAS FINALES para eliminatorias:`, eliminationDays);
 
       // Crear estructura de horarios para fechas futuras
       const schedule: {
@@ -536,12 +601,18 @@ export default function CalendarPage() {
 
         // Generar slots de tiempo desde startTime
         const slots = generateTimeSlotsFromStart(startTime);
+        console.log(`🕐 Horarios generados para ${dayString}:`, slots);
+
         slots.forEach((timeSlot) => {
           schedule[dayString][timeSlot] = {};
           courts.forEach((court) => {
             schedule[dayString][timeSlot][court.id] = true; // Disponible
           });
         });
+
+        console.log(
+          `✅ Programación creada para ${dayString}: ${slots.length} slots x ${courts.length} canchas`
+        );
       });
 
       // Verificar conflictos con partidos ya programados
@@ -591,20 +662,31 @@ export default function CalendarPage() {
           for (const match of stageMatches) {
             let scheduled = false;
 
-            // Buscar primer slot disponible
-            for (const day of Object.keys(schedule)) {
+            // 🎯 CRÍTICO: Buscar slot disponible EN ORDEN CRONOLÓGICO
+            for (const day of eliminationDays) {
+              // ✅ Usar eliminationDays en lugar de Object.keys(schedule)
               if (scheduled) break;
 
-              for (const time of Object.keys(schedule[day])) {
+              // 🕐 ORDENAR HORARIOS CRONOLÓGICAMENTE
+              const sortedTimes = Object.keys(schedule[day]).sort();
+              for (const time of sortedTimes) {
                 if (scheduled) break;
 
                 for (const courtId of Object.keys(schedule[day][time])) {
                   if (schedule[day][time][courtId]) {
                     console.log(
-                      `   ✅ Programando ${stage} en ${day} ${time} - ${courtId}`
+                      `   ✅ Programando ${stage} - Partido ${match.id}`
                     );
+                    console.log(`      📅 Fecha: ${day}`);
+                    console.log(`      🕐 Hora: ${time}`);
+                    console.log(`      🏟️ Cancha: ${courtId}`);
 
                     await updateMatchSchedule(match.id, day, time, courtId);
+
+                    // 🐛 VERIFICAR QUE SE GUARDÓ CORRECTAMENTE
+                    console.log(
+                      `      ✅ updateMatchSchedule llamado para partido ${match.id}`
+                    );
 
                     // Marcar como ocupado
                     schedule[day][time][courtId] = false;
@@ -662,6 +744,147 @@ export default function CalendarPage() {
     } catch (error) {
       console.error("Error in elimination scheduling:", error);
       toast.error("Error al programar eliminatorias");
+    }
+  };
+
+  // 🧹 NUEVA FUNCIÓN: Limpiar horarios por día y categoría específicos
+  const handleCleanSchedulesByDay = async () => {
+    if (!cleanForm.targetDate) {
+      toast.error("Por favor selecciona una fecha");
+      return;
+    }
+
+    try {
+      toast.loading("Limpiando horarios...", { id: "clean-schedules" });
+
+      // Filtrar partidos del día y categoría específicos
+      let matchesToClean = allMatches.filter((match) => {
+        const matchDate = match.day;
+        const dateMatches = matchDate === cleanForm.targetDate;
+        const categoryMatches =
+          cleanForm.categoryId === "all" ||
+          match.categoryId === cleanForm.categoryId;
+        return (
+          dateMatches &&
+          categoryMatches &&
+          (match.day || match.startTime || match.courtId)
+        );
+      });
+
+      console.log(
+        `🧹 Limpiando ${matchesToClean.length} partidos para ${cleanForm.targetDate}`
+      );
+
+      // Limpiar cada partido
+      for (const match of matchesToClean) {
+        await updateMatchSchedule(match.id, "", "", "");
+      }
+
+      await loadData();
+
+      const categoryName =
+        cleanForm.categoryId === "all"
+          ? "todas las categorías"
+          : allCategories.find((c) => c.id === cleanForm.categoryId)?.name ||
+            "categoría";
+
+      toast.success(
+        `¡Horarios limpiados! ${
+          matchesToClean.length
+        } partidos de ${categoryName} del ${format(
+          parseISO(cleanForm.targetDate),
+          "dd/MM/yyyy"
+        )}`,
+        { id: "clean-schedules" }
+      );
+
+      setShowCleanDialog(false);
+    } catch (error) {
+      console.error("Error limpiando horarios:", error);
+      toast.error("Error al limpiar horarios", { id: "clean-schedules" });
+    }
+  };
+
+  // 📧 NUEVA FUNCIÓN: Enviar horarios por día y categoría
+  const handleNotifyPlayersByDay = async () => {
+    if (!notifyForm.targetDate) {
+      toast.error("Por favor selecciona una fecha");
+      return;
+    }
+
+    try {
+      toast.loading("Generando enlaces elegantes...", { id: "notify-players" });
+
+      // Filtrar partidos programados del día y categoría
+      const scheduledMatches = allMatches.filter((match) => {
+        const matchDate = match.day;
+        const dateMatches = matchDate === notifyForm.targetDate;
+        const categoryMatches =
+          notifyForm.categoryId === "all" ||
+          match.categoryId === notifyForm.categoryId;
+        const isScheduled = match.day && match.startTime && match.courtId;
+        return dateMatches && categoryMatches && isScheduled;
+      });
+
+      if (scheduledMatches.length === 0) {
+        toast.warning("No hay partidos programados para generar enlaces", {
+          id: "notify-players",
+        });
+        return;
+      }
+
+      console.log(
+        `🔗 Generando ${scheduledMatches.length} enlaces para ${notifyForm.targetDate}`
+      );
+
+      // 🔗 Generar enlaces únicos por categoría
+      const categoriesWithMatches = new Set(
+        scheduledMatches.map((m) => m.categoryId)
+      );
+      const baseUrl = window.location.origin;
+      const links: string[] = [];
+
+      if (notifyForm.categoryId === "all") {
+        // Generar enlaces para todas las categorías
+        categoriesWithMatches.forEach((catId) => {
+          const link = `${baseUrl}/horarios/${catId}/${notifyForm.targetDate}`;
+          links.push(link);
+        });
+      } else {
+        // Generar enlace para categoría específica
+        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/${notifyForm.targetDate}`;
+        links.push(link);
+      }
+
+      // Copiar enlaces al portapapeles
+      const linksText = links.join("\n");
+      await navigator.clipboard.writeText(linksText);
+
+      const categoryName =
+        notifyForm.categoryId === "all"
+          ? "todas las categorías"
+          : allCategories.find((c) => c.id === notifyForm.categoryId)?.name ||
+            "categoría";
+
+      toast.success(
+        `¡Enlaces generados! ${
+          links.length
+        } enlaces copiados al portapapeles para ${categoryName} del ${format(
+          parseISO(notifyForm.targetDate),
+          "dd/MM/yyyy"
+        )}`,
+        {
+          id: "notify-players",
+          duration: 5000,
+        }
+      );
+
+      console.log("🔗 Enlaces generados:", links);
+
+      setShowNotifyDialog(false);
+    } catch (error) {
+      console.error("Error generando enlaces:", error);
+      toast.error("Error al generar enlaces", { id: "notify-players" });
     }
   };
 
@@ -800,7 +1023,35 @@ export default function CalendarPage() {
 
   const getMatchesForDay = (date: Date): Match[] => {
     const dateString = format(date, "yyyy-MM-dd");
-    return allMatches.filter((match) => match.day === dateString);
+
+    // 🎯 FILTRO MEJORADO: Por día y categoría
+    const filteredMatches = allMatches.filter((match) => {
+      // Si no tiene día asignado, no mostrar
+      if (!match.day) return false;
+
+      // Filtro por día
+      const dayMatches = match.day === dateString;
+
+      // Filtro por categoría
+      const categoryMatches =
+        selectedCategoryFilter === "all" ||
+        match.categoryId === selectedCategoryFilter;
+
+      return dayMatches && categoryMatches;
+    });
+
+    // 🐛 DEBUG TEMPORAL: Verificar fechas disponibles
+    if (filteredMatches.length === 0) {
+      const uniqueDays = [
+        ...new Set(allMatches.map((m) => m.day).filter(Boolean)),
+      ];
+      console.log(`📋 Días con partidos en BD:`, uniqueDays);
+      console.log(
+        `📅 Buscando para: ${dateString}, categoría: ${selectedCategoryFilter}`
+      );
+    }
+
+    return filteredMatches;
   };
 
   const getCategoryName = (categoryId: string): string => {
@@ -963,29 +1214,63 @@ export default function CalendarPage() {
             </div>
           )}
 
-          <div className="mt-4 flex gap-2">
-            <Button
-              onClick={handleAutoScheduleMatches}
-              className="flex items-center gap-2"
-            >
-              <Clock className="h-4 w-4" />
-              Programar Fase de Grupos
-            </Button>
-            <Button
-              onClick={() => setShowEliminationDialog(true)}
-              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
-            >
-              <Trophy className="h-4 w-4" />
-              Programar Eliminatorias
-            </Button>
-            <Button
-              onClick={handleClearAllSchedules}
-              variant="outline"
-              className="flex items-center gap-2"
-            >
-              <Trash2 className="h-4 w-4" />
-              Limpiar Horarios
-            </Button>
+          {/* 🎨 CONTROLES MODERNOS Y ELEGANTES */}
+          <div className="mt-6 space-y-4">
+            {/* Programación Automática */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <Button
+                onClick={handleAutoScheduleMatches}
+                className="flex items-center justify-center gap-2 h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+              >
+                <Clock className="h-5 w-5" />
+                <span>Programar Fase de Grupos</span>
+              </Button>
+              <Button
+                onClick={() => setShowEliminationDialog(true)}
+                className="flex items-center justify-center gap-2 h-12 bg-purple-600 hover:bg-purple-700 text-white font-medium rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+              >
+                <Trophy className="h-5 w-5" />
+                <span>Programar Eliminatorias</span>
+              </Button>
+              <Button
+                onClick={() => setShowNotifyDialog(true)}
+                className="flex items-center justify-center gap-2 h-12 bg-green-600 hover:bg-green-700 text-white font-medium rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
+              >
+                <Send className="h-5 w-5" />
+                <span>Generar Enlaces</span>
+              </Button>
+            </div>
+
+            {/* Control Granular */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <Button
+                onClick={() => setShowCleanDialog(true)}
+                variant="outline"
+                className="flex items-center justify-center gap-2 h-12 border-2 border-red-200 hover:border-red-300 hover:bg-red-50 text-red-700 font-medium rounded-lg transition-all duration-200"
+              >
+                <Eraser className="h-5 w-5" />
+                <span>Limpiar por Día</span>
+              </Button>
+              <div className="flex items-center gap-2">
+                <Filter className="h-5 w-5 text-gray-500" />
+                <Select
+                  value={selectedCategoryFilter}
+                  onValueChange={setSelectedCategoryFilter}
+                >
+                  <SelectTrigger className="h-12 rounded-lg border-2 font-medium">
+                    <SelectValue placeholder="Filtrar categoría" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">📊 Todas las categorías</SelectItem>
+                    {allCategories.map((category) => (
+                      <SelectItem key={category.id} value={category.id}>
+                        🏆 {category.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -1402,6 +1687,158 @@ export default function CalendarPage() {
                 Programar Eliminatorias
               </Button>
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 🧹 Diálogo para limpiar horarios por día */}
+      <Dialog open={showCleanDialog} onOpenChange={setShowCleanDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-red-700">
+              <Eraser className="h-5 w-5" />
+              🧹 Limpiar Horarios por Día
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="cleanDate">📅 Fecha a limpiar</Label>
+              <Input
+                id="cleanDate"
+                type="date"
+                value={cleanForm.targetDate}
+                onChange={(e) =>
+                  setCleanForm({
+                    ...cleanForm,
+                    targetDate: e.target.value,
+                  })
+                }
+                min={new Date().toISOString().split("T")[0]}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Se limpiarán los horarios de todos los partidos de esta fecha
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="cleanCategory">🏆 Categoría</Label>
+              <Select
+                value={cleanForm.categoryId}
+                onValueChange={(value) =>
+                  setCleanForm({
+                    ...cleanForm,
+                    categoryId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">📊 Todas las categorías</SelectItem>
+                  {allCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      🏆 {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowCleanDialog(false)}
+              className="flex-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleCleanSchedulesByDay}
+              className="flex-1 bg-red-600 hover:bg-red-700"
+            >
+              <Eraser className="h-4 w-4 mr-2" />
+              Limpiar Horarios
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* 📧 Diálogo para enviar horarios */}
+      <Dialog open={showNotifyDialog} onOpenChange={setShowNotifyDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-green-700">
+              <Send className="h-5 w-5" />
+              🔗 Generar Enlaces de Horarios
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="notifyDate">📅 Fecha de partidos</Label>
+              <Input
+                id="notifyDate"
+                type="date"
+                value={notifyForm.targetDate}
+                onChange={(e) =>
+                  setNotifyForm({
+                    ...notifyForm,
+                    targetDate: e.target.value,
+                  })
+                }
+                min={new Date().toISOString().split("T")[0]}
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Se generarán enlaces elegantes con los horarios programados
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="notifyCategory">🏆 Categoría</Label>
+              <Select
+                value={notifyForm.categoryId}
+                onValueChange={(value) =>
+                  setNotifyForm({
+                    ...notifyForm,
+                    categoryId: value,
+                  })
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Seleccionar categoría" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">📊 Todas las categorías</SelectItem>
+                  {allCategories.map((category) => (
+                    <SelectItem key={category.id} value={category.id}>
+                      🏆 {category.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-2 pt-4">
+            <Button
+              variant="outline"
+              onClick={() => setShowNotifyDialog(false)}
+              className="flex-1"
+            >
+              <X className="h-4 w-4 mr-2" />
+              Cancelar
+            </Button>
+            <Button
+              onClick={handleNotifyPlayersByDay}
+              className="flex-1 bg-green-600 hover:bg-green-700"
+            >
+              <Send className="h-4 w-4 mr-2" />
+              Generar Enlaces
+            </Button>
           </div>
         </DialogContent>
       </Dialog>

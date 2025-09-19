@@ -119,6 +119,12 @@ export default function LiveCategoryView() {
           courts: courtsData.length,
         });
 
+        // Debug courts para ver qué nombres tienen
+        console.log(
+          "🏟️ Courts debug:",
+          courtsData.map((c) => ({ id: c.id.slice(0, 8), name: c.name }))
+        );
+
         setPairs(pairsData);
         setGroups(groupsData);
         setGroupMatches(matchesData.filter((m) => m.stage === "group"));
@@ -160,7 +166,13 @@ export default function LiveCategoryView() {
     loadCategoryData();
 
     // Actualizar cada 60 segundos
-    const interval = setInterval(loadCategoryData, 60000);
+    const interval = setInterval(() => {
+      console.log(
+        "🔄 Auto-refresh triggered at:",
+        new Date().toLocaleTimeString()
+      );
+      loadCategoryData();
+    }, 60000);
     return () => clearInterval(interval);
   }, [categoryId]);
 
@@ -341,25 +353,23 @@ export default function LiveCategoryView() {
     if (!courtId) return "Sin cancha asignada";
 
     const court = courts.find((c) => c.id === courtId);
-    if (court) {
+    if (court && court.name && court.name.trim() !== "") {
       return court.name;
     }
 
-    // Si no encontramos la cancha, generar un nombre basado en el ID
-    // Intentar extraer un número o identificador del final del ID
-    const matches = courtId.match(/(\w+)$/);
-    if (matches) {
-      const lastPart = matches[1];
-      // Si los últimos 4 caracteres son números/letras cortos, usarlos
-      if (lastPart.length <= 8) {
-        return `Cancha ${lastPart.toUpperCase()}`;
-      }
+    // Si no encontramos la cancha o no tiene nombre, generar uno amigable
+    // Convertir UUID a algo más legible
+    if (courtId.length >= 8) {
+      // Tomar las primeras 4 letras/números del UUID y crear un nombre amigable
+      const cleanId = courtId
+        .replace(/[^a-zA-Z0-9]/g, "")
+        .slice(0, 4)
+        .toUpperCase();
+      return `Cancha ${cleanId}`;
     }
 
-    // Fallback: usar los últimos 8 caracteres
-    const shortId =
-      courtId.length > 8 ? courtId.slice(-8).toUpperCase() : courtId;
-    return `Cancha ${shortId}`;
+    // Fallback para IDs muy cortos
+    return `Cancha ${courtId.slice(0, 4).toUpperCase()}`;
   };
 
   const getPairNames = (pairId: string) => {

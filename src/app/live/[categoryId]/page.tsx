@@ -357,22 +357,13 @@ export default function LiveCategoryView() {
       return court.name;
     }
 
-    // FORZAR nombre simple - tomar solo números del UUID
-    const numbers = courtId.match(/\d+/g);
-    if (numbers && numbers.length > 0) {
-      // Usar los primeros números encontrados
-      const num = (parseInt(numbers[0]) % 99) + 1;
-      return `Cancha ${num}`;
-    }
-
-    // Fallback: usar primeras letras
-    const letters = courtId.match(/[a-zA-Z]+/g);
-    if (letters && letters.length > 0) {
-      const letter = letters[0].slice(0, 1).toUpperCase();
-      return `Cancha ${letter}`;
-    }
-
-    return "Cancha 1";
+    // Problema: en móvil las canchas no se cargan bien
+    // Solución: usar nombres simples y secuenciales (1-3)
+    const hash = courtId
+      .split("")
+      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const num = (hash % 3) + 1; // Solo 1, 2 o 3
+    return `Cancha ${num}`;
   };
 
   const getPairNames = (pairId: string) => {

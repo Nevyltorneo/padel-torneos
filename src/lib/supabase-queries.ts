@@ -3300,15 +3300,21 @@ function createFirstRoundMatches(
 
 // 🧮 GENERADOR UNIVERSAL DE SEEDING MATEMÁTICO
 // Funciona para cualquier número de parejas usando la fórmula estándar de torneos
-function generateUniversalSeeding(numPairs: number, bracketSize: number): Array<{
+function generateUniversalSeeding(
+  numPairs: number,
+  bracketSize: number
+): Array<{
   seedA: number;
   seedB: number | null;
   bye: boolean;
 }> {
-  const matchups: Array<{ seedA: number; seedB: number | null; bye: boolean }> = [];
+  const matchups: Array<{ seedA: number; seedB: number | null; bye: boolean }> =
+    [];
   const numMatches = bracketSize / 2;
 
-  console.log(`🧮 Generando seeding universal: ${numPairs} parejas en bracket de ${bracketSize}`);
+  console.log(
+    `🧮 Generando seeding universal: ${numPairs} parejas en bracket de ${bracketSize}`
+  );
 
   for (let i = 0; i < numMatches; i++) {
     const seedA = i + 1; // Seed del mejor (1, 2, 3, 4...)

@@ -404,6 +404,188 @@ export default function CalendarPage() {
     }
   };
 
+  // 🏆 NUEVA FUNCIÓN: Programar eliminatorias automáticamente
+  const handleAutoScheduleEliminations = async () => {
+    if (
+      !currentTournament ||
+      tournamentDays.length === 0 ||
+      courts.length === 0
+    ) {
+      toast.error("Necesitas configurar días y canchas primero");
+      return;
+    }
+
+    try {
+      toast.loading("Programando eliminatorias automáticamente...", {
+        id: "auto-schedule-eliminations",
+      });
+
+      // Obtener partidos de ELIMINATORIAS pendientes (sin programar)
+      const eliminationMatches = allMatches.filter(
+        (match) =>
+          ["quarterfinals", "semifinals", "final", "third_place"].includes(
+            match.stage
+          ) &&
+          (!match.day || !match.startTime)
+      );
+
+      if (eliminationMatches.length === 0) {
+        toast.info(
+          "No hay partidos de eliminatorias pendientes por programar",
+          {
+            id: "auto-schedule-eliminations",
+          }
+        );
+        return;
+      }
+
+      console.log(
+        `🏆 Programando ELIMINATORIAS: ${eliminationMatches.length} partidos`
+      );
+
+      // Agrupar por categoría y ordenar por prioridad (categoría más baja primero)
+      const matchesByCategory = eliminationMatches.reduce((acc, match) => {
+        if (!acc[match.categoryId]) {
+          acc[match.categoryId] = [];
+        }
+        acc[match.categoryId].push(match);
+        return acc;
+      }, {} as { [categoryId: string]: Match[] });
+
+      // Ordenar categorías de la más baja a la más alta
+      const sortedCategoryIds = Object.keys(matchesByCategory).sort((a, b) => {
+        const categoryA = allCategories.find((cat) => cat.id === a);
+        const categoryB = allCategories.find((cat) => cat.id === b);
+
+        const getNumFromCategory = (name: string) => {
+          const match = name.match(/(\d+)/);
+          return match ? parseInt(match[1]) : 0;
+        };
+
+        const numA = getNumFromCategory(categoryA?.name || "");
+        const numB = getNumFromCategory(categoryB?.name || "");
+
+        return numB - numA; // Más alto = más baja categoría
+      });
+
+      // Crear estructura de horarios disponibles (empezar después de grupos)
+      const schedule: {
+        [day: string]: { [time: string]: { [courtId: string]: boolean } };
+      } = {};
+
+      // Obtener partidos YA programados para evitar conflictos
+      const scheduledMatches = allMatches.filter(
+        (match) => match.day && match.startTime && match.courtId
+      );
+
+      // Inicializar estructura de disponibilidad
+      tournamentDays.forEach((dayConfig) => {
+        const dayString = dayConfig.date;
+        schedule[dayString] = {};
+
+        const timeSlots = getTimeSlotsForDay(dayConfig);
+        timeSlots.forEach((slot) => {
+          schedule[dayString][slot.time] = {};
+          courts.forEach((court) => {
+            schedule[dayString][slot.time][court.id] = true; // Disponible
+          });
+        });
+
+        // Marcar slots ocupados por partidos ya programados
+        scheduledMatches
+          .filter((match) => match.day === dayString)
+          .forEach((match) => {
+            if (schedule[dayString][match.startTime!] && match.courtId) {
+              schedule[dayString][match.startTime!][match.courtId] = false;
+            }
+          });
+      });
+
+      // Definir orden de prioridad de etapas (final primero para mejores horarios)
+      const stageOrder = [
+        "final",
+        "third_place",
+        "semifinals",
+        "quarterfinals",
+      ];
+
+      let totalScheduledCount = 0;
+
+      // Programar por categoría (más baja primero) y luego por etapa
+      for (const categoryId of sortedCategoryIds) {
+        const category = allCategories.find((c) => c.id === categoryId);
+        const categoryMatches = matchesByCategory[categoryId];
+
+        // Ordenar partidos por etapa (finales primero)
+        const matchesByStage = stageOrder.reduce((acc, stage) => {
+          acc[stage] = categoryMatches.filter((m) => m.stage === stage);
+          return acc;
+        }, {} as { [stage: string]: Match[] });
+
+        console.log(`📊 ${category?.name}: Programando eliminatorias...`);
+
+        for (const stage of stageOrder) {
+          const stageMatches = matchesByStage[stage];
+          if (stageMatches.length === 0) continue;
+
+          console.log(`   🎯 ${stage}: ${stageMatches.length} partidos`);
+
+          for (const match of stageMatches) {
+            let scheduled = false;
+
+            // Buscar primer slot disponible
+            for (const day of Object.keys(schedule)) {
+              if (scheduled) break;
+
+              for (const time of Object.keys(schedule[day])) {
+                if (scheduled) break;
+
+                for (const courtId of Object.keys(schedule[day][time])) {
+                  if (schedule[day][time][courtId]) {
+                    console.log(
+                      `   ✅ Programando ${stage} en ${day} ${time} - ${courtId}`
+                    );
+
+                    await updateMatchSchedule(match.id, day, time, courtId);
+
+                    // Marcar como ocupado
+                    schedule[day][time][courtId] = false;
+                    totalScheduledCount++;
+                    scheduled = true;
+                    break;
+                  }
+                }
+              }
+            }
+
+            if (!scheduled) {
+              console.warn(
+                `❌ No se pudo programar partido ${match.id} (${stage})`
+              );
+            }
+          }
+        }
+      }
+
+      // Recargar datos
+      await loadData();
+
+      toast.success(
+        `¡${totalScheduledCount} partidos de eliminatorias programados exitosamente!`,
+        { id: "auto-schedule-eliminations" }
+      );
+
+      console.log(
+        `🎉 Programación de eliminatorias completada: ${totalScheduledCount} partidos`
+      );
+    } catch (error) {
+      console.error("Error in elimination scheduling:", error);
+      toast.error("Error al programar eliminatorias", {
+        id: "auto-schedule-eliminations",
+      });
+    }
+  };
+
   // Función para limpiar todos los horarios programados
   const handleClearAllSchedules = async () => {
     try {
@@ -708,7 +890,14 @@ export default function CalendarPage() {
               className="flex items-center gap-2"
             >
               <Clock className="h-4 w-4" />
-              Programar Automáticamente
+              Programar Fase de Grupos
+            </Button>
+            <Button
+              onClick={handleAutoScheduleEliminations}
+              className="flex items-center gap-2 bg-purple-600 hover:bg-purple-700"
+            >
+              <Trophy className="h-4 w-4" />
+              Programar Eliminatorias
             </Button>
             <Button
               onClick={handleClearAllSchedules}

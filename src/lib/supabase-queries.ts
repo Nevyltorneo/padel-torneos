@@ -3230,37 +3230,37 @@ function createFirstRoundMatches(
     return [];
   }
 
-  // Mezclar las parejas para evitar sesgos
-  const shuffledPairs = [...pairs].sort(() => Math.random() - 0.5);
+  // 🏆 RESPETAR EL SEEDING - NO MEZCLAR ALEATORIAMENTE
+  // Las parejas ya vienen ordenadas por rendimiento (seed 1, 2, 3, 4...)
+  const seededPairs = [...pairs]; // Mantener el orden del seeding
 
   if (stage === "final") {
     // Solo 2 parejas - van directo a la final
-    if (shuffledPairs[0] && shuffledPairs[1]) {
+    if (seededPairs[0] && seededPairs[1]) {
       matches.push({
-        pairAId: shuffledPairs[0].id,
-        pairBId: shuffledPairs[1].id,
+        pairAId: seededPairs[0].id,
+        pairBId: seededPairs[1].id,
       });
     } else {
       console.log("❌ createFirstRoundMatches: Parejas faltantes para final");
     }
   } else if (stage === "semifinals") {
-    // 3-4 parejas - van a semifinales
+    // 3-4 parejas - van a semifinales con SEEDING CORRECTO
     console.log("🏆 Creando semifinales para", pairs.length, "parejas");
     console.log(
-      "🔀 Parejas mezcladas:",
-      shuffledPairs.map((p) => p.id)
+      "🏆 Parejas seeded (en orden de rendimiento):",
+      seededPairs.map((p, i) => `Seed ${i + 1}: ${p.id}`)
     );
 
-    if (shuffledPairs[0] && shuffledPairs[1]) {
+    // SEEDING CORRECTO: 1 vs 4, 2 vs 3
+    if (seededPairs[0] && seededPairs[3]) {
       matches.push({
-        pairAId: shuffledPairs[0].id,
-        pairBId: shuffledPairs[1].id,
+        pairAId: seededPairs[0].id, // Seed 1 (mejor)
+        pairBId: seededPairs[3].id, // Seed 4 (peor)
       });
       console.log(
-        "⚽ Semifinal 1:",
-        shuffledPairs[0].id,
-        "vs",
-        shuffledPairs[1].id
+        "⚽ Semifinal 1 (Seeding correcto):",
+        `Seed 1 (${seededPairs[0].id}) vs Seed 4 (${seededPairs[3].id})`
       );
     } else {
       console.log(
@@ -3268,16 +3268,14 @@ function createFirstRoundMatches(
       );
     }
 
-    if (shuffledPairs[2] && shuffledPairs[3]) {
+    if (seededPairs[1] && seededPairs[2]) {
       matches.push({
-        pairAId: shuffledPairs[2].id,
-        pairBId: shuffledPairs[3].id,
+        pairAId: seededPairs[1].id, // Seed 2
+        pairBId: seededPairs[2].id, // Seed 3
       });
       console.log(
-        "⚽ Semifinal 2:",
-        shuffledPairs[2].id,
-        "vs",
-        shuffledPairs[3].id
+        "⚽ Semifinal 2 (Seeding correcto):",
+        `Seed 2 (${seededPairs[1].id}) vs Seed 3 (${seededPairs[2].id})`
       );
     } else {
       console.log("⚠️ No hay suficientes parejas para semifinal 2");
@@ -3285,21 +3283,45 @@ function createFirstRoundMatches(
 
     console.log("📊 Total de semifinales creadas:", matches.length);
   } else if (stage === "quarterfinals") {
-    // 5+ parejas - van a cuartos de final
-    const quarterFinals = Math.ceil(pairs.length / 2);
+    // 5+ parejas - van a cuartos de final con SEEDING CORRECTO
+    console.log("🏆 Creando cuartos de final para", pairs.length, "parejas");
+    console.log(
+      "🏆 Parejas seeded (en orden de rendimiento):",
+      seededPairs.map((p, i) => `Seed ${i + 1}: ${p.id}`)
+    );
 
-    for (let i = 0; i < quarterFinals; i++) {
-      if (shuffledPairs[i * 2 + 1]) {
+    // SEEDING DE BRACKET CORRECTO: 1 vs 8, 2 vs 7, 3 vs 6, 4 vs 5
+    const bracketMatchups = [
+      [0, 7], // Seed 1 vs Seed 8
+      [1, 6], // Seed 2 vs Seed 7
+      [2, 5], // Seed 3 vs Seed 6
+      [3, 4], // Seed 4 vs Seed 5
+    ];
+
+    for (let i = 0; i < bracketMatchups.length; i++) {
+      const [seedA, seedB] = bracketMatchups[i];
+
+      if (seededPairs[seedA] && seededPairs[seedB]) {
         matches.push({
-          pairAId: shuffledPairs[i * 2].id,
-          pairBId: shuffledPairs[i * 2 + 1].id,
+          pairAId: seededPairs[seedA].id,
+          pairBId: seededPairs[seedB].id,
         });
-      } else {
-        // Si hay número impar, la última pareja pasa directo
+        console.log(
+          `⚽ Cuarto ${i + 1} (Bracket seeding):`,
+          `Seed ${seedA + 1} (${seededPairs[seedA].id}) vs Seed ${seedB + 1} (${
+            seededPairs[seedB].id
+          })`
+        );
+      } else if (seededPairs[seedA]) {
+        // Solo una pareja disponible, pasa directo
         matches.push({
-          pairAId: shuffledPairs[i * 2].id,
-          pairBId: shuffledPairs[i * 2].id, // Mismo ID para indicar bye
+          pairAId: seededPairs[seedA].id,
+          pairBId: seededPairs[seedA].id, // BYE
         });
+        console.log(
+          `⚽ Cuarto ${i + 1} (BYE):`,
+          `Seed ${seedA + 1} (${seededPairs[seedA].id}) pasa directo`
+        );
       }
     }
   }

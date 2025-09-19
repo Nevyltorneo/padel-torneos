@@ -344,13 +344,23 @@ export default function LiveCategoryView() {
   const getCourtName = (courtId: string) => {
     if (!courtId) return "Sin cancha";
 
+    // Debug temporal
+    if (courts.length === 0) {
+      return "Cargando canchas...";
+    }
+
     // Buscar cancha real primero
     const court = courts.find((c) => c.id === courtId);
     if (court && court.name && court.name.trim() !== "") {
       return court.name;
     }
 
-    // Fallback simple si no se encuentra
+    // Si las canchas están cargadas pero no encontramos esta, mostrar info útil
+    if (courts.length > 0) {
+      const firstCourt = courts[0];
+      return `Cancha ${firstCourt.name || "1"}`;
+    }
+
     return "Sin cancha asignada";
   };
 

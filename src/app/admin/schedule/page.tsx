@@ -949,6 +949,66 @@ export default function CalendarPage() {
     setShowScheduleDialog(true);
   };
 
+  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE CANCHA
+  const handleQuickCourtChange = async (
+    matchId: string,
+    newCourtId: string
+  ) => {
+    try {
+      const match = allMatches.find((m) => m.id === matchId);
+      if (!match) return;
+
+      console.log(`🏟️ Cambiando cancha del partido ${matchId} a ${newCourtId}`);
+
+      // Mantener día y hora actuales, solo cambiar cancha
+      await updateMatchSchedule(
+        matchId,
+        match.day || "",
+        match.startTime || "",
+        newCourtId
+      );
+
+      // Recargar datos
+      await loadData();
+
+      const court = courts.find((c) => c.id === newCourtId);
+      toast.success(`Cancha actualizada a: ${court?.name || "Sin nombre"}`, {
+        id: `court-change-${matchId}`,
+      });
+    } catch (error) {
+      console.error("❌ Error updating court:", error);
+      toast.error("Error al cambiar cancha", { id: `court-change-${matchId}` });
+    }
+  };
+
+  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE HORA
+  const handleQuickTimeChange = async (matchId: string, newTime: string) => {
+    try {
+      const match = allMatches.find((m) => m.id === matchId);
+      if (!match) return;
+
+      console.log(`🕐 Cambiando hora del partido ${matchId} a ${newTime}`);
+
+      // Mantener día y cancha actuales, solo cambiar hora
+      await updateMatchSchedule(
+        matchId,
+        match.day || "",
+        newTime,
+        match.courtId || ""
+      );
+
+      // Recargar datos
+      await loadData();
+
+      toast.success(`Hora actualizada a: ${newTime}`, {
+        id: `time-change-${matchId}`,
+      });
+    } catch (error) {
+      console.error("❌ Error updating time:", error);
+      toast.error("Error al cambiar hora", { id: `time-change-${matchId}` });
+    }
+  };
+
   const handleSubmitSchedule = async () => {
     if (!selectedMatch) return;
 
@@ -1377,30 +1437,50 @@ export default function CalendarPage() {
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600">
-                              {match.startTime && (
-                                <div className="flex items-center gap-1">
-                                  <Clock className="h-4 w-4" />
-                                  {match.startTime}
-                                </div>
-                              )}
-                              {court && (
-                                <div className="flex items-center gap-1">
-                                  <MapPin className="h-4 w-4" />
-                                  {court.name}
-                                </div>
-                              )}
+                            <div className="flex items-center gap-4 mt-2 text-sm text-gray-600 flex-wrap">
+                              {/* 🆕 INPUT EDITABLE DE HORA */}
+                              <div className="flex items-center gap-2">
+                                <Clock className="h-4 w-4" />
+                                <input
+                                  type="time"
+                                  value={match.startTime || ""}
+                                  onChange={(e) =>
+                                    handleQuickTimeChange(
+                                      match.id,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="text-sm border border-gray-300 rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                                  style={{ minWidth: "100px" }}
+                                />
+                              </div>
+
+                              {/* 🆕 INPUT EDITABLE DE CANCHA */}
+                              <div className="flex items-center gap-2">
+                                <MapPin className="h-4 w-4" />
+                                <select
+                                  value={match.courtId || ""}
+                                  onChange={(e) =>
+                                    handleQuickCourtChange(
+                                      match.id,
+                                      e.target.value
+                                    )
+                                  }
+                                  className="text-sm border border-gray-300 rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors"
+                                  style={{ minWidth: "120px" }}
+                                >
+                                  <option value="">Sin cancha</option>
+                                  {courts.map((courtOption) => (
+                                    <option
+                                      key={courtOption.id}
+                                      value={courtOption.id}
+                                    >
+                                      {courtOption.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
                             </div>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => handleScheduleMatch(match)}
-                            >
-                              <Edit className="h-4 w-4 mr-1" />
-                              {match.startTime ? "Editar" : "Programar"}
-                            </Button>
                           </div>
                         </div>
                       </div>

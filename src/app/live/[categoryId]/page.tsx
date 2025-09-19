@@ -108,9 +108,25 @@ export default function LiveCategoryView() {
           courts: (courtsData || []).length,
         });
 
-        // Force cache invalidation
+        // Force AGGRESSIVE cache invalidation for all browsers
         if (typeof window !== "undefined") {
-          document.title = `Torneo Live - ${new Date().getTime()}`;
+          const timestamp = new Date().getTime();
+          document.title = `Torneo Live - ${timestamp}`;
+          // Force reload resources in Safari, Chrome, Mozilla
+          const meta = document.createElement("meta");
+          meta.httpEquiv = "Cache-Control";
+          meta.content = "no-cache, no-store, must-revalidate";
+          document.head.appendChild(meta);
+
+          const pragma = document.createElement("meta");
+          pragma.httpEquiv = "Pragma";
+          pragma.content = "no-cache";
+          document.head.appendChild(pragma);
+
+          const expires = document.createElement("meta");
+          expires.httpEquiv = "Expires";
+          expires.content = "0";
+          document.head.appendChild(expires);
         }
 
         setPairs(pairsData);
@@ -337,12 +353,36 @@ export default function LiveCategoryView() {
     return matchesByDay;
   };
 
-  // USAR EXACTAMENTE LA MISMA LÓGICA QUE EL CALENDARIO ADMIN
+  // USAR EXACTAMENTE LA MISMA LÓGICA QUE EL CALENDARIO ADMIN + DEBUG
   const getCourtName = (courtId: string): string => {
     if (!courtId) return "Sin cancha";
 
+    // Debug para ver qué está pasando
+    console.log("🔍 getCourtName debug:", {
+      courtId,
+      courtsLength: courts.length,
+      courts: courts.map((c) => ({ id: c.id, name: c.name })),
+      foundCourt: courts.find((c) => c.id === courtId),
+    });
+
     const court = courts.find((c) => c.id === courtId);
-    return court?.name || "Cancha no encontrada";
+    if (court?.name) {
+      return court.name;
+    }
+
+    // Si no encuentra la cancha, usar los datos que SÍ están en los partidos
+    // para generar un nombre consistente
+    const allMatches = [...groupMatches, ...eliminationMatches];
+    const uniqueCourtIds = [
+      ...new Set(allMatches.map((m) => m.courtId).filter(Boolean)),
+    ];
+    const courtIndex = uniqueCourtIds.indexOf(courtId);
+
+    if (courtIndex >= 0) {
+      return `Cancha ${courtIndex + 1}`;
+    }
+
+    return "Cancha no encontrada";
   };
 
   const getPairNames = (pairId: string) => {

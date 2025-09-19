@@ -131,6 +131,11 @@ export default function LiveCategoryView() {
           Math.random()
         );
 
+        // Force cache invalidation
+        if (typeof window !== "undefined") {
+          document.title = `Torneo - ${new Date().getTime()}`;
+        }
+
         setPairs(pairsData);
         setGroups(groupsData);
         setGroupMatches(matchesData.filter((m) => m.stage === "group"));
@@ -356,24 +361,22 @@ export default function LiveCategoryView() {
   };
 
   const getCourtName = (courtId: string) => {
-    console.log("🏟️ getCourtName called with:", courtId);
-
     if (!courtId) return "Sin cancha asignada";
 
     const court = courts.find((c) => c.id === courtId);
-    console.log("🔍 Found court:", court);
 
     if (court && court.name && court.name.trim() !== "") {
-      console.log("✅ Using court name:", court.name);
       return court.name;
     }
 
-    // Si no encontramos la cancha o no tiene nombre, generar uno amigable
-    // Forzar a tomar solo 2 caracteres para que sea más corto
-    const shortId = courtId.slice(0, 2).toUpperCase();
-    const result = `Cancha ${shortId}`;
-    console.log("🔧 Generated court name:", result, "from", courtId);
-    return result;
+    // Generar un nombre numérico simple basado en el hash del ID
+    const hash = courtId.split("").reduce((a, b) => {
+      a = (a << 5) - a + b.charCodeAt(0);
+      return a & a;
+    }, 0);
+
+    const courtNumber = Math.abs(hash % 99) + 1;
+    return `Cancha ${courtNumber}`;
   };
 
   const getPairNames = (pairId: string) => {

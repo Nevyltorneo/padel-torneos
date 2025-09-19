@@ -134,6 +134,7 @@ export default function LiveCategoryView() {
         // Force cache invalidation
         if (typeof window !== "undefined") {
           document.title = `Torneo - ${new Date().getTime()}`;
+          console.log("💥 FORCED CACHE BREAK - Version:", new Date().getTime());
         }
 
         setPairs(pairsData);
@@ -361,22 +362,33 @@ export default function LiveCategoryView() {
   };
 
   const getCourtName = (courtId: string) => {
+    console.log("🏟️ getCourtName called with:", courtId);
+
     if (!courtId) return "Sin cancha asignada";
 
     const court = courts.find((c) => c.id === courtId);
+    console.log("🔍 Found court:", court);
 
     if (court && court.name && court.name.trim() !== "") {
+      console.log("✅ Using real court name:", court.name);
       return court.name;
     }
 
-    // Generar un nombre numérico simple basado en el hash del ID
-    const hash = courtId.split("").reduce((a, b) => {
-      a = (a << 5) - a + b.charCodeAt(0);
-      return a & a;
-    }, 0);
+    // Algoritmo simple y confiable: usar los primeros caracteres alfanuméricos
+    const cleanId = courtId.replace(/[^a-zA-Z0-9]/g, "");
 
-    const courtNumber = Math.abs(hash % 99) + 1;
-    return `Cancha ${courtNumber}`;
+    if (cleanId.length >= 2) {
+      // Usar los primeros 2 caracteres
+      const shortName = cleanId.slice(0, 2).toUpperCase();
+      const result = `Cancha ${shortName}`;
+      console.log("🔧 Generated court name:", result, "from", courtId);
+      return result;
+    }
+
+    // Fallback: usar número basado en posición
+    const fallback = `Cancha ${courtId.length}`;
+    console.log("⚠️ Using fallback:", fallback);
+    return fallback;
   };
 
   const getPairNames = (pairId: string) => {
@@ -1087,7 +1099,13 @@ export default function LiveCategoryView() {
                                       <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full">
                                         <MapPin className="h-4 w-4 text-green-600" />
                                         <span className="font-medium text-green-800">
-                                          {getCourtName(match.courtId)}
+                                          {(() => {
+                                            console.log(
+                                              "🚨 INLINE COURT NAME CALL:",
+                                              match.courtId
+                                            );
+                                            return getCourtName(match.courtId);
+                                          })()}
                                         </span>
                                       </div>
                                     )}

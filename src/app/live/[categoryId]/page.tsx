@@ -356,26 +356,24 @@ export default function LiveCategoryView() {
   };
 
   const getCourtName = (courtId: string) => {
+    console.log("🏟️ getCourtName called with:", courtId);
+
     if (!courtId) return "Sin cancha asignada";
 
     const court = courts.find((c) => c.id === courtId);
+    console.log("🔍 Found court:", court);
+
     if (court && court.name && court.name.trim() !== "") {
+      console.log("✅ Using court name:", court.name);
       return court.name;
     }
 
     // Si no encontramos la cancha o no tiene nombre, generar uno amigable
-    // Convertir UUID a algo más legible
-    if (courtId.length >= 8) {
-      // Tomar las primeras 4 letras/números del UUID y crear un nombre amigable
-      const cleanId = courtId
-        .replace(/[^a-zA-Z0-9]/g, "")
-        .slice(0, 4)
-        .toUpperCase();
-      return `Cancha ${cleanId}`;
-    }
-
-    // Fallback para IDs muy cortos
-    return `Cancha ${courtId.slice(0, 4).toUpperCase()}`;
+    // Forzar a tomar solo 2 caracteres para que sea más corto
+    const shortId = courtId.slice(0, 2).toUpperCase();
+    const result = `Cancha ${shortId}`;
+    console.log("🔧 Generated court name:", result, "from", courtId);
+    return result;
   };
 
   const getPairNames = (pairId: string) => {

@@ -119,22 +119,9 @@ export default function LiveCategoryView() {
           courts: courtsData.length,
         });
 
-        // Debug courts para ver qué nombres tienen
-        console.log(
-          "🏟️ Courts debug:",
-          courtsData.map((c) => ({ id: c.id.slice(0, 8), name: c.name }))
-        );
-        console.log(
-          "🕒 Page loaded at:",
-          new Date().toISOString(),
-          "Cache buster:",
-          Math.random()
-        );
-
         // Force cache invalidation
         if (typeof window !== "undefined") {
-          document.title = `Torneo - ${new Date().getTime()}`;
-          console.log("💥 FORCED CACHE BREAK - Version:", new Date().getTime());
+          document.title = `Torneo Live - ${new Date().getTime()}`;
         }
 
         setPairs(pairsData);
@@ -362,33 +349,30 @@ export default function LiveCategoryView() {
   };
 
   const getCourtName = (courtId: string) => {
-    console.log("🏟️ getCourtName called with:", courtId);
+    if (!courtId) return "Sin cancha";
 
-    if (!courtId) return "Sin cancha asignada";
-
+    // Buscar cancha real primero
     const court = courts.find((c) => c.id === courtId);
-    console.log("🔍 Found court:", court);
-
     if (court && court.name && court.name.trim() !== "") {
-      console.log("✅ Using real court name:", court.name);
       return court.name;
     }
 
-    // Algoritmo simple y confiable: usar los primeros caracteres alfanuméricos
-    const cleanId = courtId.replace(/[^a-zA-Z0-9]/g, "");
-
-    if (cleanId.length >= 2) {
-      // Usar los primeros 2 caracteres
-      const shortName = cleanId.slice(0, 2).toUpperCase();
-      const result = `Cancha ${shortName}`;
-      console.log("🔧 Generated court name:", result, "from", courtId);
-      return result;
+    // FORZAR nombre simple - tomar solo números del UUID
+    const numbers = courtId.match(/\d+/g);
+    if (numbers && numbers.length > 0) {
+      // Usar los primeros números encontrados
+      const num = (parseInt(numbers[0]) % 99) + 1;
+      return `Cancha ${num}`;
     }
 
-    // Fallback: usar número basado en posición
-    const fallback = `Cancha ${courtId.length}`;
-    console.log("⚠️ Using fallback:", fallback);
-    return fallback;
+    // Fallback: usar primeras letras
+    const letters = courtId.match(/[a-zA-Z]+/g);
+    if (letters && letters.length > 0) {
+      const letter = letters[0].slice(0, 1).toUpperCase();
+      return `Cancha ${letter}`;
+    }
+
+    return "Cancha 1";
   };
 
   const getPairNames = (pairId: string) => {
@@ -1099,13 +1083,7 @@ export default function LiveCategoryView() {
                                       <div className="flex items-center gap-1 bg-green-50 px-3 py-1 rounded-full">
                                         <MapPin className="h-4 w-4 text-green-600" />
                                         <span className="font-medium text-green-800">
-                                          {(() => {
-                                            console.log(
-                                              "🚨 INLINE COURT NAME CALL:",
-                                              match.courtId
-                                            );
-                                            return getCourtName(match.courtId);
-                                          })()}
+                                          {getCourtName(match.courtId)}
                                         </span>
                                       </div>
                                     )}

@@ -496,6 +496,41 @@ export default function HorariosPage() {
             <span className="text-2xl">🌟</span>
           </div>
         </div>
+
+        {/* 🎨 PATROCINADORES ELEGANTES */}
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-200">
+            <h3 className="text-center text-lg font-semibold text-gray-800 mb-6">
+              🤝 Patrocinadores Oficiales
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto bg-blue-500 rounded-lg flex items-center justify-center mb-2">
+                  <span className="text-white font-bold">🏢</span>
+                </div>
+                <p className="text-xs font-medium">Club Deportivo</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto bg-green-500 rounded-lg flex items-center justify-center mb-2">
+                  <span className="text-white font-bold">🥤</span>
+                </div>
+                <p className="text-xs font-medium">Bebidas Sport</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto bg-orange-500 rounded-lg flex items-center justify-center mb-2">
+                  <span className="text-white font-bold">🎾</span>
+                </div>
+                <p className="text-xs font-medium">Raquetas Pro</p>
+              </div>
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto bg-purple-500 rounded-lg flex items-center justify-center mb-2">
+                  <span className="text-white font-bold">👕</span>
+                </div>
+                <p className="text-xs font-medium">Ropa Deportiva</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

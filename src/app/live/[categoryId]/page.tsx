@@ -728,48 +728,322 @@ export default function LiveCategoryView() {
                 </CardHeader>
                 <CardContent className="p-6">
                   <div className="space-y-4">
-                    {eliminationMatches.map((match) => (
-                      <div
-                        key={match.id}
-                        className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow"
-                      >
-                        <div className="flex items-center justify-between">
-                          <div className="flex-1">
-                            <div className="flex items-center gap-3 mb-2">
-                              <Badge variant="outline" className="text-sm">
+                    {eliminationMatches.map((match) => {
+                      // Función para formatear resultado detallado
+                      const getDetailedScore = (match: Match) => {
+                        if (match.status !== "completed" || !match.score) {
+                          return { scoreA: "0", scoreB: "0", winner: null };
+                        }
+
+                        const scoreA = match.score.pairA;
+                        const scoreB = match.score.pairB;
+
+                        if (!scoreA || !scoreB) {
+                          return { scoreA: "0", scoreB: "0", winner: null };
+                        }
+
+                        let resultA = "";
+                        let resultB = "";
+                        let setsWonA = 0;
+                        let setsWonB = 0;
+
+                        // Set 1
+                        if (
+                          scoreA.set1 !== undefined &&
+                          scoreB.set1 !== undefined
+                        ) {
+                          resultA = `${scoreA.set1}`;
+                          resultB = `${scoreB.set1}`;
+                          if (scoreA.set1 > scoreB.set1) setsWonA++;
+                          else setsWonB++;
+                        }
+
+                        // Set 2
+                        if (
+                          scoreA.set2 !== undefined &&
+                          scoreB.set2 !== undefined
+                        ) {
+                          resultA += `-${scoreA.set2}`;
+                          resultB += `-${scoreB.set2}`;
+                          if (scoreA.set2 > scoreB.set2) setsWonA++;
+                          else setsWonB++;
+                        }
+
+                        // Set 3 o Super Death
+                        if (
+                          scoreA.set3 !== undefined &&
+                          scoreB.set3 !== undefined
+                        ) {
+                          const isSD = scoreA.set3 >= 10 || scoreB.set3 >= 10;
+                          resultA += `-${scoreA.set3}${isSD ? "SD" : ""}`;
+                          resultB += `-${scoreB.set3}${isSD ? "SD" : ""}`;
+                          if (scoreA.set3 > scoreB.set3) setsWonA++;
+                          else setsWonB++;
+                        }
+
+                        const winner = setsWonA > setsWonB ? "A" : "B";
+                        return {
+                          scoreA: resultA || "0",
+                          scoreB: resultB || "0",
+                          winner,
+                        };
+                      };
+
+                      const { scoreA, scoreB, winner } =
+                        getDetailedScore(match);
+                      const pairAName = getPairName(match.pairAId);
+                      const pairBName = getPairName(match.pairBId);
+
+                      return (
+                        <div
+                          key={match.id}
+                          className={`rounded-lg p-4 border-2 transition-all ${
+                            match.status === "completed"
+                              ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-300"
+                              : "bg-white border-gray-200 hover:shadow-md"
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-3">
+                              <Badge
+                                variant="outline"
+                                className="text-sm font-semibold"
+                              >
                                 {match.stage === "quarterfinals" && "Cuartos"}
                                 {match.stage === "semifinals" && "Semifinal"}
                                 {match.stage === "final" && "Final"}
                                 {match.stage === "third_place" && "3er Lugar"}
                               </Badge>
                             </div>
-                            <div className="text-lg font-semibold">
-                              {getPairName(match.pairAId)} vs{" "}
-                              {getPairName(match.pairBId)}
+                            <div className="text-right">
+                              {match.status === "completed" ? (
+                                <Badge
+                                  variant="default"
+                                  className="bg-green-600 text-white"
+                                >
+                                  ✅ Finalizado
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline">
+                                  {match.status === "pending"
+                                    ? "Pendiente"
+                                    : "En Juego"}
+                                </Badge>
+                              )}
                             </div>
                           </div>
-                          <div className="text-right">
-                            {match.status === "completed" ? (
-                              <Badge variant="default" className="bg-green-600">
-                                Finalizado
-                              </Badge>
-                            ) : (
-                              <Badge variant="outline">
-                                {match.status === "pending"
-                                  ? "Pendiente"
-                                  : "En Juego"}
-                              </Badge>
-                            )}
+
+                          <div className="space-y-3">
+                            {/* Pareja A */}
+                            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                              <div className="flex items-center gap-3">
+                                {match.status === "completed" &&
+                                  winner === "A" && (
+                                    <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs font-bold">
+                                        👑
+                                      </span>
+                                    </div>
+                                  )}
+                                <div>
+                                  <p
+                                    className={`text-lg font-semibold ${
+                                      match.status === "completed" &&
+                                      winner === "A"
+                                        ? "text-green-700 font-bold"
+                                        : "text-gray-700"
+                                    }`}
+                                  >
+                                    {pairAName}
+                                  </p>
+                                  {match.status === "completed" &&
+                                    scoreA !== "0" && (
+                                      <p className="text-lg font-bold text-blue-700 mt-2 bg-blue-50 px-3 py-1 rounded-lg">
+                                        📊 {scoreA}
+                                      </p>
+                                    )}
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* VS */}
+                            <div className="text-center">
+                              <div className="inline-flex items-center justify-center w-10 h-10 bg-gray-200 rounded-full">
+                                <span className="text-sm font-bold text-gray-600">
+                                  VS
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Pareja B */}
+                            <div className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-200">
+                              <div className="flex items-center gap-3">
+                                {match.status === "completed" &&
+                                  winner === "B" && (
+                                    <div className="w-6 h-6 bg-yellow-500 rounded-full flex items-center justify-center">
+                                      <span className="text-white text-xs font-bold">
+                                        👑
+                                      </span>
+                                    </div>
+                                  )}
+                                <div>
+                                  <p
+                                    className={`text-lg font-semibold ${
+                                      match.status === "completed" &&
+                                      winner === "B"
+                                        ? "text-green-700 font-bold"
+                                        : "text-gray-700"
+                                    }`}
+                                  >
+                                    {pairBName}
+                                  </p>
+                                  {match.status === "completed" &&
+                                    scoreB !== "0" && (
+                                      <p className="text-lg font-bold text-blue-700 mt-2 bg-blue-50 px-3 py-1 rounded-lg">
+                                        📊 {scoreB}
+                                      </p>
+                                    )}
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </CardContent>
               </Card>
             </div>
           )}
         </div>
+
+        {/* 🎨 SECCIÓN DE PATROCINADORES ELEGANTE */}
+        <div className="mt-12 mb-8">
+          <div className="bg-gradient-to-r from-gray-50 to-blue-50 rounded-2xl p-8 border border-gray-200 shadow-sm">
+            <div className="text-center mb-6">
+              <h3 className="text-lg font-semibold text-gray-800 mb-2">
+                🤝 Gracias a Nuestros Patrocinadores
+              </h3>
+              <p className="text-sm text-gray-600">
+                Hacen posible este torneo profesional
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 items-center">
+              {/* Patrocinador 1 */}
+              <div className="text-center group cursor-pointer transition-all duration-300 hover:scale-105">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-2">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">🏢</span>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-gray-700">
+                  Club Deportivo
+                </p>
+                <p className="text-xs text-gray-500">Patrocinador Principal</p>
+              </div>
+
+              {/* Patrocinador 2 */}
+              <div className="text-center group cursor-pointer transition-all duration-300 hover:scale-105">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-2">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-green-500 to-green-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">🥤</span>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-gray-700">
+                  Bebidas Sport
+                </p>
+                <p className="text-xs text-gray-500">Hidratación Oficial</p>
+              </div>
+
+              {/* Patrocinador 3 */}
+              <div className="text-center group cursor-pointer transition-all duration-300 hover:scale-105">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-2">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">🎾</span>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-gray-700">
+                  Raquetas Pro
+                </p>
+                <p className="text-xs text-gray-500">Equipamiento</p>
+              </div>
+
+              {/* Patrocinador 4 */}
+              <div className="text-center group cursor-pointer transition-all duration-300 hover:scale-105">
+                <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mb-2">
+                  <div className="w-16 h-16 mx-auto bg-gradient-to-br from-purple-500 to-purple-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">👕</span>
+                  </div>
+                </div>
+                <p className="text-xs font-medium text-gray-700">
+                  Ropa Deportiva
+                </p>
+                <p className="text-xs text-gray-500">Vestimenta Oficial</p>
+              </div>
+            </div>
+
+            {/* Mensaje de agradecimiento */}
+            <div className="text-center mt-8 pt-6 border-t border-gray-200">
+              <p className="text-sm text-gray-600 italic">
+                "Un torneo de calidad profesional gracias a nuestros aliados"
+              </p>
+            </div>
+          </div>
+        </div>
+
+        {/* 🏆 FOOTER PROFESIONAL */}
+        <footer className="mt-16 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-2xl overflow-hidden">
+          <div className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+              {/* Información del Torneo */}
+              <div className="text-center md:text-left">
+                <h4 className="text-xl font-bold mb-3 flex items-center gap-2 justify-center md:justify-start">
+                  <Trophy className="h-6 w-6 text-yellow-400" />
+                  {category?.name || "Torneo Profesional"}
+                </h4>
+                <p className="text-gray-300 text-sm leading-relaxed">
+                  Sistema profesional de gestión de torneos con tecnología
+                  avanzada para una experiencia única.
+                </p>
+                <p className="text-gray-400 text-xs mt-3">
+                  Actualización en tiempo real cada 60 segundos
+                </p>
+              </div>
+
+              {/* Redes Sociales */}
+              <div className="text-center md:text-right">
+                <h4 className="text-lg font-semibold mb-3 text-gray-200">
+                  Síguenos
+                </h4>
+                <div className="flex justify-center md:justify-end gap-3 mb-3">
+                  <div className="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer hover:bg-blue-700 transition-colors">
+                    <span className="text-white text-sm font-bold">f</span>
+                  </div>
+                  <div className="w-10 h-10 bg-gradient-to-r from-pink-500 to-purple-600 rounded-full flex items-center justify-center cursor-pointer hover:from-pink-600 hover:to-purple-700 transition-colors">
+                    <span className="text-white text-sm font-bold">📷</span>
+                  </div>
+                  <div className="w-10 h-10 bg-black rounded-full flex items-center justify-center cursor-pointer hover:bg-gray-800 transition-colors">
+                    <span className="text-white text-sm font-bold">🎵</span>
+                  </div>
+                </div>
+                <div className="text-xs text-gray-400 space-y-1">
+                  <p>Facebook • Instagram • TikTok</p>
+                  <p>¡Síguenos para más torneos!</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Copyright */}
+            <div className="border-t border-gray-700 mt-8 pt-6 text-center">
+              <p className="text-gray-400 text-sm">
+                © 2024 Sistema de Torneos Profesional •
+                <span className="text-blue-400 ml-1">by NevylDev</span> • Todos
+                los derechos reservados
+              </p>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   );

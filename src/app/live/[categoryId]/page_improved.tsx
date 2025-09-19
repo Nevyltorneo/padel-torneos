@@ -95,8 +95,13 @@ export default function LiveCategoryView() {
   };
 
   const getGroupStandings = (groupId: string) => {
-    const groupPairs = pairs.filter((p) => p.groupId === groupId);
+    // Obtener parejas del grupo basándose en los partidos
     const groupMatchesData = groupMatches.filter((m) => m.groupId === groupId);
+    const groupPairIds = new Set([
+      ...groupMatchesData.map((m) => m.pairAId),
+      ...groupMatchesData.map((m) => m.pairBId),
+    ]);
+    const groupPairs = pairs.filter((p) => groupPairIds.has(p.id));
 
     return groupPairs
       .map((pair) => {
@@ -588,16 +593,7 @@ export default function LiveCategoryView() {
                                 <div className="flex items-center justify-between">
                                   <div className="flex-1">
                                     <div className="flex items-center justify-between">
-                                      <div
-                                        className={`flex items-center gap-2 ${
-                                          match.winnerId === match.pairAId
-                                            ? "font-bold text-green-700"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        {match.winnerId === match.pairAId && (
-                                          <Crown className="h-4 w-4 text-yellow-500" />
-                                        )}
+                                      <div className="flex items-center gap-2 text-gray-600">
                                         {pairA?.player1.name} /{" "}
                                         {pairA?.player2.name}
                                       </div>
@@ -606,16 +602,7 @@ export default function LiveCategoryView() {
                                       </div>
                                     </div>
                                     <div className="flex items-center justify-between mt-2">
-                                      <div
-                                        className={`flex items-center gap-2 ${
-                                          match.winnerId === match.pairBId
-                                            ? "font-bold text-green-700"
-                                            : "text-gray-600"
-                                        }`}
-                                      >
-                                        {match.winnerId === match.pairBId && (
-                                          <Crown className="h-4 w-4 text-yellow-500" />
-                                        )}
+                                      <div className="flex items-center gap-2 text-gray-600">
                                         {pairB?.player1.name} /{" "}
                                         {pairB?.player2.name}
                                       </div>
@@ -763,14 +750,57 @@ export default function LiveCategoryView() {
                     {eliminationMatches.map((match) => {
                       const pairA = pairs.find((p) => p.id === match.pairAId);
                       const pairB = pairs.find((p) => p.id === match.pairBId);
-                      const scoreA =
-                        typeof match.scorePairA === "number"
-                          ? match.scorePairA
-                          : match.scorePairA?.set1 || 0;
-                      const scoreB =
-                        typeof match.scorePairB === "number"
-                          ? match.scorePairB
-                          : match.scorePairB?.set1 || 0;
+                      // Función para formatear resultado detallado
+                      const getDetailedScore = (match: Match) => {
+                        if (match.status !== "completed" || !match.score) {
+                          return { scoreA: "0", scoreB: "0" };
+                        }
+
+                        const scoreA = match.score.pairA;
+                        const scoreB = match.score.pairB;
+
+                        if (!scoreA || !scoreB) {
+                          return { scoreA: "0", scoreB: "0" };
+                        }
+
+                        let resultA = "";
+                        let resultB = "";
+
+                        // Set 1
+                        if (
+                          scoreA.set1 !== undefined &&
+                          scoreB.set1 !== undefined
+                        ) {
+                          resultA = `${scoreA.set1}`;
+                          resultB = `${scoreB.set1}`;
+                        }
+
+                        // Set 2
+                        if (
+                          scoreA.set2 !== undefined &&
+                          scoreB.set2 !== undefined
+                        ) {
+                          resultA += `-${scoreA.set2}`;
+                          resultB += `-${scoreB.set2}`;
+                        }
+
+                        // Set 3 o Super Death
+                        if (
+                          scoreA.set3 !== undefined &&
+                          scoreB.set3 !== undefined
+                        ) {
+                          const isSD = scoreA.set3 >= 10 || scoreB.set3 >= 10;
+                          resultA += `-${scoreA.set3}${isSD ? "SD" : ""}`;
+                          resultB += `-${scoreB.set3}${isSD ? "SD" : ""}`;
+                        }
+
+                        return {
+                          scoreA: resultA || "0",
+                          scoreB: resultB || "0",
+                        };
+                      };
+
+                      const { scoreA, scoreB } = getDetailedScore(match);
 
                       const getStageInfo = (stage: string) => {
                         switch (stage) {
@@ -839,30 +869,68 @@ export default function LiveCategoryView() {
                           <div className="space-y-4">
                             {/* Pareja A */}
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-                              <div
-                                className={`flex items-center gap-3 ${
-                                  match.winnerId === match.pairAId
-                                    ? "font-bold text-green-700"
-                                    : "text-gray-700"
-                                }`}
-                              >
-                                {match.winnerId === match.pairAId && (
-                                  <Crown className="h-5 w-5 text-yellow-500" />
-                                )}
+                              <div className="flex items-center gap-3 text-gray-700">
                                 <div>
                                   <p className="text-lg font-semibold">
                                     {pairA?.player1.name} /{" "}
                                     {pairA?.player2.name}
                                   </p>
-                                  {match.winnerId === match.pairAId && (
-                                    <p className="text-sm text-green-600 font-medium">
-                                      🏆 Ganador
-                                    </p>
-                                  )}
+                                  {match.status === "completed" &&
+                                    scoreA !== "0" && (
+                                      <p className="text-sm text-blue-600 font-medium mt-1">
+                                        📊 {scoreA}
+                                      </p>
+                                    )}
                                 </div>
                               </div>
                               <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
-                                {scoreA}
+                                {match.status === "completed"
+                                  ? // Mostrar sets ganados para partidos completados
+                                    (() => {
+                                      const setsA = scoreA.split("-").length;
+                                      const setsB = scoreB.split("-").length;
+                                      let setsWonA = 0;
+                                      let setsWonB = 0;
+
+                                      if (
+                                        match.score?.pairA &&
+                                        match.score?.pairB
+                                      ) {
+                                        if (
+                                          (match.score.pairA.set1 || 0) >
+                                          (match.score.pairB.set1 || 0)
+                                        )
+                                          setsWonA++;
+                                        else setsWonB++;
+                                        if (
+                                          match.score.pairA.set2 !==
+                                            undefined &&
+                                          match.score.pairB.set2 !== undefined
+                                        ) {
+                                          if (
+                                            match.score.pairA.set2 >
+                                            match.score.pairB.set2
+                                          )
+                                            setsWonA++;
+                                          else setsWonB++;
+                                        }
+                                        if (
+                                          match.score.pairA.set3 !==
+                                            undefined &&
+                                          match.score.pairB.set3 !== undefined
+                                        ) {
+                                          if (
+                                            match.score.pairA.set3 >
+                                            match.score.pairB.set3
+                                          )
+                                            setsWonA++;
+                                          else setsWonB++;
+                                        }
+                                      }
+
+                                      return setsWonA;
+                                    })()
+                                  : "0"}
                               </div>
                             </div>
 
@@ -877,30 +945,66 @@ export default function LiveCategoryView() {
 
                             {/* Pareja B */}
                             <div className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-200">
-                              <div
-                                className={`flex items-center gap-3 ${
-                                  match.winnerId === match.pairBId
-                                    ? "font-bold text-green-700"
-                                    : "text-gray-700"
-                                }`}
-                              >
-                                {match.winnerId === match.pairBId && (
-                                  <Crown className="h-5 w-5 text-yellow-500" />
-                                )}
+                              <div className="flex items-center gap-3 text-gray-700">
                                 <div>
                                   <p className="text-lg font-semibold">
                                     {pairB?.player1.name} /{" "}
                                     {pairB?.player2.name}
                                   </p>
-                                  {match.winnerId === match.pairBId && (
-                                    <p className="text-sm text-green-600 font-medium">
-                                      🏆 Ganador
-                                    </p>
-                                  )}
+                                  {match.status === "completed" &&
+                                    scoreB !== "0" && (
+                                      <p className="text-sm text-blue-600 font-medium mt-1">
+                                        📊 {scoreB}
+                                      </p>
+                                    )}
                                 </div>
                               </div>
                               <div className="text-3xl font-bold text-gray-800 bg-gray-100 px-4 py-2 rounded-lg">
-                                {scoreB}
+                                {match.status === "completed"
+                                  ? // Mostrar sets ganados para partidos completados
+                                    (() => {
+                                      let setsWonA = 0;
+                                      let setsWonB = 0;
+
+                                      if (
+                                        match.score?.pairA &&
+                                        match.score?.pairB
+                                      ) {
+                                        if (
+                                          (match.score.pairA.set1 || 0) >
+                                          (match.score.pairB.set1 || 0)
+                                        )
+                                          setsWonA++;
+                                        else setsWonB++;
+                                        if (
+                                          match.score.pairA.set2 !==
+                                            undefined &&
+                                          match.score.pairB.set2 !== undefined
+                                        ) {
+                                          if (
+                                            match.score.pairA.set2 >
+                                            match.score.pairB.set2
+                                          )
+                                            setsWonA++;
+                                          else setsWonB++;
+                                        }
+                                        if (
+                                          match.score.pairA.set3 !==
+                                            undefined &&
+                                          match.score.pairB.set3 !== undefined
+                                        ) {
+                                          if (
+                                            match.score.pairA.set3 >
+                                            match.score.pairB.set3
+                                          )
+                                            setsWonA++;
+                                          else setsWonB++;
+                                        }
+                                      }
+
+                                      return setsWonB;
+                                    })()
+                                  : "0"}
                               </div>
                             </div>
                           </div>

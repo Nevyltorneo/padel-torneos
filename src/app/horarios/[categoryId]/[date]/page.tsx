@@ -66,11 +66,20 @@ export default function HorariosPage() {
       if (scheduledMatches.length > 0) {
         try {
           const tournamentId = scheduledMatches[0].tournamentId;
+          console.log(
+            "🏟️ Loading courts and categories for tournament:",
+            tournamentId
+          );
+
           const [courtsData, categoriesData] = await Promise.all([
             getCourts(tournamentId),
             getCategories(tournamentId),
           ]);
-          setCourts(courtsData);
+
+          console.log("🏟️ Courts loaded:", courtsData);
+          console.log("📂 Categories loaded:", categoriesData);
+
+          setCourts(courtsData || []);
 
           // Obtener información real de la categoría
           const realCategory = categoriesData.find(
@@ -78,7 +87,9 @@ export default function HorariosPage() {
           );
           if (realCategory) {
             setCategory(realCategory);
+            console.log("✅ Category found:", realCategory.name);
           } else {
+            console.warn("⚠️ Category not found, using fallback");
             // Fallback si no se encuentra
             setCategory({
               id: categoryId,
@@ -90,7 +101,7 @@ export default function HorariosPage() {
             });
           }
         } catch (error) {
-          console.error("Error loading courts and categories:", error);
+          console.error("❌ Error loading courts and categories:", error);
           // Fallback si hay error
           setCategory({
             id: categoryId,
@@ -152,7 +163,22 @@ export default function HorariosPage() {
   };
 
   const getCourtName = (court: Court | undefined): string => {
-    return court?.name || "Cancha TBD";
+    if (court?.name) {
+      return court.name;
+    }
+
+    // Si no hay cancha definida, generar un nombre basado en el ID
+    if (court?.id) {
+      // Crear un hash simple del UUID para generar números consistentes
+      const hashCode = court.id.split("").reduce((a, b) => {
+        a = (a << 5) - a + b.charCodeAt(0);
+        return a & a;
+      }, 0);
+      const courtNumber = Math.abs(hashCode % 10) + 1; // Números del 1-10
+      return `Cancha ${courtNumber}`;
+    }
+
+    return "Sin cancha asignada";
   };
 
   const formatTime = (time: string): string => {
@@ -289,8 +315,13 @@ export default function HorariosPage() {
                     const pairB = getPairById(match.pairBId);
                     const court = getCourtById(match.courtId || "");
 
-                    // 🔍 DEBUG: Verificar datos de parejas
+                    // 🔍 DEBUG: Verificar datos de parejas y canchas
                     console.log(`🎾 Partido ${index + 1}:`, {
+                      matchCourtId: match.courtId,
+                      courtFound: court,
+                      courtName: court?.name || "NO NAME",
+                      totalCourtsInArray: courts.length,
+                      allCourtIds: courts.map((c) => c.id),
                       pairAId: match.pairAId,
                       pairBId: match.pairBId,
                       pairA: pairA,

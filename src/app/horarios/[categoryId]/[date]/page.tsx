@@ -146,10 +146,6 @@ export default function HorariosPage() {
     return pairs.find((p) => p.id === pairId);
   };
 
-  const getCourtById = (courtId: string): Court | undefined => {
-    return courts.find((c) => c.id === courtId);
-  };
-
   const getPairName = (pair: Pair): string => {
     return `${pair.player1.name} / ${pair.player2.name}`;
   };
@@ -162,23 +158,46 @@ export default function HorariosPage() {
     return `Pareja ${pairId.substring(0, 8)}...`;
   };
 
-  const getCourtName = (court: Court | undefined): string => {
+  const getCourtName = (matchCourtId: string | undefined): string => {
+    console.log("🏟️ getCourtName called with:", matchCourtId);
+    console.log("🏟️ Available courts:", courts);
+
+    if (!matchCourtId) {
+      console.log("❌ No matchCourtId provided");
+      return "Sin cancha asignada";
+    }
+
+    // Buscar por ID exacto
+    const court = courts.find((c) => c.id === matchCourtId);
+    console.log("🔍 Court found by exact ID:", court);
+
     if (court?.name) {
+      console.log("✅ Using court name:", court.name);
       return court.name;
     }
 
-    // Si no hay cancha definida, generar un nombre basado en el ID
-    if (court?.id) {
-      // Crear un hash simple del UUID para generar números consistentes
-      const hashCode = court.id.split("").reduce((a, b) => {
-        a = (a << 5) - a + b.charCodeAt(0);
-        return a & a;
-      }, 0);
-      const courtNumber = Math.abs(hashCode % 10) + 1; // Números del 1-10
-      return `Cancha ${courtNumber}`;
+    // Si no encuentra por ID, buscar por nombre parcial
+    const courtByName = courts.find(
+      (c) =>
+        c.name &&
+        (c.name.toLowerCase().includes("cancha") ||
+          c.name.toLowerCase().includes("court"))
+    );
+
+    if (courtByName?.name) {
+      console.log("✅ Using fallback court name:", courtByName.name);
+      return courtByName.name;
     }
 
-    return "Sin cancha asignada";
+    // Si hay canchas disponibles, usar la primera
+    if (courts.length > 0) {
+      const fallbackCourt = courts[0];
+      console.log("✅ Using first available court:", fallbackCourt.name);
+      return fallbackCourt.name || "Cancha Principal";
+    }
+
+    console.log("❌ No courts available, using fallback");
+    return "Cancha por confirmar";
   };
 
   const formatTime = (time: string): string => {
@@ -313,15 +332,13 @@ export default function HorariosPage() {
                   .map((match, index) => {
                     const pairA = getPairById(match.pairAId);
                     const pairB = getPairById(match.pairBId);
-                    const court = getCourtById(match.courtId || "");
 
                     // 🔍 DEBUG: Verificar datos de parejas y canchas
                     console.log(`🎾 Partido ${index + 1}:`, {
                       matchCourtId: match.courtId,
-                      courtFound: court,
-                      courtName: court?.name || "NO NAME",
                       totalCourtsInArray: courts.length,
                       allCourtIds: courts.map((c) => c.id),
+                      allCourtNames: courts.map((c) => c.name),
                       pairAId: match.pairAId,
                       pairBId: match.pairBId,
                       pairA: pairA,
@@ -392,7 +409,7 @@ export default function HorariosPage() {
                                   Cancha
                                 </div>
                                 <div className="text-lg font-bold text-orange-800">
-                                  {getCourtName(court)}
+                                  {getCourtName(match.courtId)}
                                 </div>
                               </div>
                             </div>

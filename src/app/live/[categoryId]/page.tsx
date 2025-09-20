@@ -915,6 +915,223 @@ export default function LiveCategoryView() {
               </Card>
             </div>
           )}
+
+          {/* 🏆 FELICITACIONES A LOS GANADORES */}
+          {eliminationMatches.length > 0 && (
+            <div className="space-y-4 sm:space-y-6">
+              <Card className="shadow-2xl border-4 border-yellow-200 bg-gradient-to-br from-yellow-50 via-orange-50 to-red-50">
+                <CardHeader className="text-center bg-gradient-to-r from-yellow-100 to-orange-100 rounded-t-lg p-6 sm:p-8">
+                  <div className="flex items-center justify-center gap-3 mb-4">
+                    <Trophy className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-600" />
+                    <CardTitle className="text-2xl sm:text-3xl lg:text-4xl font-bold text-gray-800">
+                      ¡Felicitaciones a los Campeones! 🏆
+                    </CardTitle>
+                    <Trophy className="h-8 w-8 sm:h-10 sm:w-10 text-yellow-600" />
+                  </div>
+                  <CardDescription className="text-base sm:text-lg text-gray-600 font-medium">
+                    Resultados finales del torneo - ¡Gracias por su
+                    participación!
+                  </CardDescription>
+                </CardHeader>
+
+                <CardContent className="p-6 sm:p-8">
+                  {/* Encontrar el ganador de la final */}
+                  {(() => {
+                    const finalMatch = eliminationMatches.find(
+                      (m) => m.stage === "final" && m.status === "completed"
+                    );
+                    const thirdPlaceMatch = eliminationMatches.find(
+                      (m) =>
+                        m.stage === "third_place" && m.status === "completed"
+                    );
+                    const semi1 = eliminationMatches.find(
+                      (m) =>
+                        m.stage === "semifinals" && m.status === "completed"
+                    );
+                    const semi2 = eliminationMatches.find(
+                      (m) =>
+                        m.stage === "semifinals" && m.status === "completed"
+                    );
+
+                    if (!finalMatch) {
+                      return (
+                        <div className="text-center py-8">
+                          <p className="text-gray-600 text-lg">
+                            ⏳ La final aún no se ha jugado
+                          </p>
+                        </div>
+                      );
+                    }
+
+                    const winnerPairId =
+                      finalMatch.score?.winner ||
+                      (finalMatch.score?.pairA && finalMatch.score?.pairB
+                        ? finalMatch.score.pairA.set1 +
+                            (finalMatch.score.pairA.set2 || 0) +
+                            (finalMatch.score.pairA.set3 || 0) >
+                          finalMatch.score.pairB.set1 +
+                            (finalMatch.score.pairB.set2 || 0) +
+                            (finalMatch.score.pairB.set3 || 0)
+                          ? finalMatch.pairAId
+                          : finalMatch.pairBId
+                        : null);
+
+                    const winnerPairName = winnerPairId
+                      ? getPairName(winnerPairId)
+                      : "Pendiente";
+                    const loserPairId =
+                      winnerPairId === finalMatch.pairAId
+                        ? finalMatch.pairBId
+                        : finalMatch.pairAId;
+                    const loserPairName = getPairName(loserPairId);
+
+                    // Encontrar perdedores de semifinales para tercer lugar
+                    const semiLosers = [];
+                    if (semi1) {
+                      const semi1Loser =
+                        semi1.score?.winner === semi1.pairAId
+                          ? semi1.pairBId
+                          : semi1.pairAId;
+                      semiLosers.push(getPairName(semi1Loser));
+                    }
+                    if (semi2) {
+                      const semi2Loser =
+                        semi2.score?.winner === semi2.pairAId
+                          ? semi2.pairBId
+                          : semi2.pairAId;
+                      semiLosers.push(getPairName(semi2Loser));
+                    }
+
+                    return (
+                      <div className="space-y-6">
+                        {/* PODIUM - DINÁMICO */}
+                        <div
+                          className={`grid gap-4 sm:gap-6 ${
+                            thirdPlaceMatch
+                              ? "grid-cols-1 md:grid-cols-3"
+                              : "grid-cols-1 md:grid-cols-2 max-w-4xl mx-auto"
+                          }`}
+                        >
+                          {/* 2do LUGAR - SUBCAMPEÓN */}
+                          <div
+                            className={`text-center ${
+                              thirdPlaceMatch ? "md:order-2" : "md:order-2"
+                            }`}
+                          >
+                            <div className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-4 sm:p-6 border-2 border-gray-300 shadow-lg">
+                              <div className="flex items-center justify-center mb-3">
+                                <Medal className="h-8 w-8 sm:h-10 sm:w-10 text-gray-400" />
+                                <span className="ml-2 text-lg sm:text-xl font-bold text-gray-700">
+                                  2°
+                                </span>
+                              </div>
+                              <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
+                                Subcampeones
+                              </h3>
+                              <p className="text-gray-700 font-medium text-sm sm:text-base">
+                                {loserPairName}
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-500 mt-2">
+                                ¡Excelente participación!
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 1er LUGAR - CAMPEONES */}
+                          <div
+                            className={`text-center ${
+                              thirdPlaceMatch ? "md:order-1" : "md:order-1"
+                            }`}
+                          >
+                            <div className="bg-gradient-to-br from-yellow-50 to-orange-100 rounded-2xl p-4 sm:p-6 border-4 border-yellow-400 shadow-2xl relative">
+                              <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
+                                <div className="bg-yellow-500 text-white px-4 py-1 rounded-full">
+                                  <Crown className="h-4 w-4 inline mr-1" />
+                                  <span className="text-sm font-bold">
+                                    CAMPEONES
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="flex items-center justify-center mb-3 mt-2">
+                                <Trophy className="h-10 w-10 sm:h-12 sm:w-12 text-yellow-600" />
+                              </div>
+                              <h3 className="text-xl sm:text-2xl font-bold text-gray-800 mb-2">
+                                🏆 CAMPEONES 🏆
+                              </h3>
+                              <p className="text-gray-800 font-bold text-base sm:text-lg">
+                                {winnerPairName}
+                              </p>
+                              <p className="text-xs sm:text-sm text-gray-600 mt-2">
+                                ¡Felicitaciones por el excelente torneo!
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* 3er LUGAR - SOLO SI EXISTE PARTIDO POR TERCER LUGAR */}
+                          {thirdPlaceMatch && (
+                            <div className="text-center md:order-3">
+                              <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 sm:p-6 border-2 border-amber-400 shadow-lg">
+                                <div className="flex items-center justify-center mb-3">
+                                  <Medal className="h-8 w-8 sm:h-10 sm:w-10 text-amber-600" />
+                                  <span className="ml-2 text-lg sm:text-xl font-bold text-amber-700">
+                                    3°
+                                  </span>
+                                </div>
+                                <h3 className="text-lg sm:text-xl font-bold text-gray-800 mb-2">
+                                  Tercer Lugar
+                                </h3>
+                                <p className="text-gray-700 font-medium text-sm sm:text-base">
+                                  {semiLosers.length > 0
+                                    ? semiLosers[0]
+                                    : "Por definir"}
+                                </p>
+                                <p className="text-xs sm:text-sm text-gray-500 mt-2">
+                                  ¡Gran desempeño!
+                                </p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* MENSAJES MOTIVACIONALES */}
+                        <div className="text-center space-y-4 py-6">
+                          <div className="bg-white rounded-xl p-6 border border-gray-200 shadow-sm">
+                            <h4 className="text-lg sm:text-xl font-bold text-gray-800 mb-3 flex items-center justify-center gap-2">
+                              <Star className="h-5 w-5 text-yellow-500" />
+                              Mensaje para Todos los Participantes
+                              <Star className="h-5 w-5 text-yellow-500" />
+                            </h4>
+                            <div className="space-y-2 text-sm sm:text-base text-gray-700">
+                              <p className="font-medium">
+                                🎉 ¡Gracias a todos por participar en este
+                                torneo!
+                              </p>
+                              <p className="text-gray-600">
+                                Cada partido fue una demostración de talento,
+                                deportividad y pasión por el pádel.
+                              </p>
+                              <p className="text-gray-600">
+                                Los invitamos a seguir participando en futuros
+                                torneos y continuar mejorando.
+                              </p>
+                            </div>
+                          </div>
+
+                          <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                            <p className="text-blue-800 font-medium text-sm sm:text-base">
+                              💪 "El verdadero campeonato no se mide solo en
+                              victorias, sino en el espíritu deportivo y la
+                              mejora personal"
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
 
         {/* 🎨 SECCIÓN DE PATROCINADORES ELEGANTE */}

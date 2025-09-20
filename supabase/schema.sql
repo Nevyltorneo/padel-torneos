@@ -106,11 +106,24 @@ create table public.matches (
 create table public.tournament_permissions (
   id uuid primary key default gen_random_uuid(),
   tournament_id uuid references public.tournaments(id) on delete cascade not null,
-  user_id uuid references public.users(id) on delete cascade not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
   role text check (role in ('owner','admin','referee','viewer')) not null,
   created_at timestamptz default now(),
   unique(tournament_id, user_id)
 );
+
+-- Script para eliminar usuario completamente
+-- Eliminar roles del usuario
+DELETE FROM public.user_roles WHERE user_id = '72740151-42d5-4fae-b778-e5c6adf19dec';
+
+-- Eliminar permisos de torneos del usuario
+DELETE FROM public.tournament_permissions WHERE user_id = '72740151-42d5-4fae-b778-e5c6adf19dec';
+
+-- Eliminar perfil del usuario
+DELETE FROM public.user_profiles WHERE id = '72740151-42d5-4fae-b778-e5c6adf19dec';
+
+-- Finalmente eliminar de auth.users (esto debe hacerse manualmente en Supabase Dashboard)
+-- o usando la API de admin con la service role key
 
 -- Audit log for important changes
 create table public.match_logs (

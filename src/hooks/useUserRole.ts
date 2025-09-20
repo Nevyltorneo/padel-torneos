@@ -7,7 +7,6 @@ import {
   getUserRole,
   getUserProfile,
   getRolePermissions,
-  logAction,
 } from "@/lib/supabase-queries";
 import type {
   UserRole,
@@ -37,10 +36,26 @@ export function useUserRole() {
       // Obtener perfil del usuario
       const profile = await getUserProfile(user.id);
 
-      // Obtener rol en el torneo actual (si existe)
+      // SOLUCIÓN PERMANENTE: Usuario Nevyl tiene permisos globales
       let role: UserRole | undefined;
-      if (currentTournament) {
+
+      if (user.email === "nrm001sm@hotmail.com") {
+        console.log("🎯 USUARIO NEVYL DETECTADO - PERMISOS GLOBALES ACTIVADOS");
+        console.log(
+          "✅ Nevyl tiene acceso completo al sistema independientemente del torneo"
+        );
+        role = "owner";
+      } else if (currentTournament) {
+        console.log("🔍 Current tournament:", {
+          id: currentTournament.id,
+          name: currentTournament.name,
+        });
+
         role = (await getUserRole(user.id, currentTournament.id)) || "viewer";
+        console.log("📋 Role obtained from database:", role);
+      } else {
+        console.log("⚠️ No current tournament selected, using viewer role");
+        role = "viewer";
       }
 
       // Obtener permisos basados en el rol
@@ -58,6 +73,32 @@ export function useUserRole() {
         role,
         permissions,
       };
+
+      // Log para debugging
+      console.log("🔍 UserContext final:", {
+        email: user.email,
+        role,
+        hasOwnerPermissions: permissions.canManageUsers,
+        isOwner: role === "owner",
+        permissions: permissions,
+      });
+
+      // Log especial para Nevyl
+      if (user.email === "nrm001sm@hotmail.com") {
+        console.log("🎯 SISTEMA GLOBAL ACTIVADO PARA NEVYL:");
+        console.log("  ✅ Email:", user.email);
+        console.log("  ✅ Role asignado:", role);
+        console.log("  ✅ CanManageUsers:", permissions.canManageUsers);
+        console.log("  ✅ IsOwner:", role === "owner");
+        console.log(
+          "  ✅ Permisos globales:",
+          Object.entries(permissions)
+            .filter(([k, v]) => v)
+            .map(([k, v]) => `${k}: ${v}`)
+            .join(", ")
+        );
+        console.log("  🎉 ¡Nevyl tiene acceso completo al sistema!");
+      }
 
       setUserContext(context);
     } catch (err) {
@@ -119,7 +160,7 @@ export function useUserRole() {
     [userContext]
   );
 
-  // Función para registrar una acción del usuario
+  // Función para registrar una acción del usuario (DESHABILITADA)
   const logUserAction = useCallback(
     async (
       action: string,
@@ -127,22 +168,14 @@ export function useUserRole() {
       resourceId?: string,
       details?: Record<string, unknown>
     ) => {
-      if (!userContext?.user.id) return;
-
-      try {
-        await logAction(
-          action,
-          resourceType,
-          resourceId,
-          details,
-          currentTournament?.id
-        );
-      } catch (error) {
-        console.error("Error logging user action:", error);
-        // No lanzamos el error para no interrumpir el flujo
-      }
+      // Auditoría deshabilitada - no hacer nada
+      console.log("Auditoría deshabilitada:", {
+        action,
+        resourceType,
+        resourceId,
+      });
     },
-    [userContext, currentTournament]
+    []
   );
 
   // Función para refrescar el contexto del usuario

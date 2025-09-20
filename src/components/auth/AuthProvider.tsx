@@ -3,6 +3,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { User } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase";
+import { createUserProfile } from "@/lib/supabase-queries";
 
 interface AuthContextType {
   user: User | null;
@@ -51,16 +52,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signUp = async (email: string, password: string, name: string) => {
-    const { error } = await supabase.auth.signUp({
+    console.log("🔄 Iniciando registro de usuario:", { email, name });
+
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         data: {
-          name,
+          full_name: name, // Usar full_name como indica el schema
         },
       },
     });
-    if (error) throw error;
+
+    if (error) {
+      console.error("❌ Error en supabase.auth.signUp:", error);
+      console.error("❌ Detalles del error:", {
+        message: error.message,
+        status: error.status,
+        name: error.name,
+      });
+      throw error;
+    }
+
+    console.log(
+      "✅ Usuario registrado exitosamente en auth.users:",
+      data.user?.id
+    );
+
+    // Crear perfil manualmente como respaldo por si el trigger falla
+    if (data.user) {
+      try {
+        console.log("🔄 Intentando crear perfil manualmente...");
+        await createUserProfile({
+          id: data.user.id,
+          email: data.user.email,
+          user_metadata: data.user.user_metadata || {},
+        });
+        console.log("✅ Perfil de usuario creado exitosamente (manual)");
+      } catch (profileError) {
+        console.error("⚠️ Error creando perfil manualmente:", profileError);
+        // No lanzar error para no interrumpir el flujo si el trigger ya funcionó
+        console.log(
+          "ℹ️  Continuando sin perfil manual - quizás el trigger automático ya lo creó"
+        );
+      }
+    }
   };
 
   const signOut = async () => {

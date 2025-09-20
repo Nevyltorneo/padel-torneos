@@ -268,11 +268,6 @@ export default function AdminDashboard() {
                 <p className="text-sm text-gray-500">
                   {userContext.user.email}
                 </p>
-                {userContext.user.profile?.organization && (
-                  <p className="text-sm text-gray-500">
-                    {userContext.user.profile.organization}
-                  </p>
-                )}
               </div>
             </div>
           </CardContent>

@@ -46,7 +46,6 @@ export function UserInfo({ compact = false }: { compact?: boolean }) {
     return (
       <div className="flex items-center gap-2">
         <Avatar className="h-6 w-6">
-          <AvatarImage src={userContext.user.profile?.avatarUrl} />
           <AvatarFallback className="text-xs">
             {userContext.user.profile?.fullName?.charAt(0) ||
               userContext.user.email?.charAt(0).toUpperCase() ||
@@ -65,7 +64,6 @@ export function UserInfo({ compact = false }: { compact?: boolean }) {
   return (
     <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
       <Avatar>
-        <AvatarImage src={userContext.user.profile?.avatarUrl} />
         <AvatarFallback>
           {userContext.user.profile?.fullName?.charAt(0) ||
             userContext.user.email?.charAt(0).toUpperCase() ||
@@ -87,12 +85,14 @@ export function UserInfo({ compact = false }: { compact?: boolean }) {
 
         <div className="text-sm text-gray-500 space-y-1">
           <p className="truncate">{userContext.user.email}</p>
-          {userContext.user.profile?.organization && (
-            <p className="truncate">{userContext.user.profile.organization}</p>
-          )}
           {userContext.currentTournament && (
             <p className="truncate text-blue-600">
               Torneo: {userContext.currentTournament.name}
+            </p>
+          )}
+          {userContext.user.email === "nrm001sm@hotmail.com" && (
+            <p className="truncate text-green-600 font-medium">
+              👑 Permisos globales de Owner
             </p>
           )}
         </div>

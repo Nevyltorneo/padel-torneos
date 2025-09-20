@@ -76,14 +76,26 @@ export interface Match {
   id: ID;
   tournamentId: ID;
   categoryId: ID;
-  stage: "group" | "quarterfinals" | "semifinals" | "final" | "third_place";
+  stage:
+    | "group"
+    | "quarterfinals"
+    | "semifinals"
+    | "final"
+    | "third_place"
+    | "quarterfinal"
+    | "semifinal"
+    | "groups"; // aliases para compatibilidad
   groupId?: ID; // si es fase de grupos
   pairAId: ID;
   pairBId: ID;
   day?: string; // YYYY-MM-DD
   startTime?: string; // HH:mm (puede ser nulo hasta asignar)
   courtId?: string; // asignación dinámica
-  status: "pending" | "scheduled" | "playing" | "completed";
+  status: "pending" | "scheduled" | "playing" | "completed" | "finished"; // "finished" para compatibilidad
+  // Campos opcionales para bracket (solo para compatibilidad TypeScript)
+  matchNumber?: number;
+  bracketPosition?: string;
+  roundNumber?: number;
   scorePairA?: {
     set1: number;
     set2: number;
@@ -293,27 +305,10 @@ export interface UserRoleAssignment {
 
 export interface UserProfile {
   id: string;
+  email?: string;
   fullName?: string;
-  avatarUrl?: string;
-  phone?: string;
-  organization?: string;
-  bio?: string;
-  isVerified: boolean;
   createdAt: string;
   updatedAt: string;
-}
-
-export interface AuditLog {
-  id: string;
-  userId: string;
-  tournamentId?: string;
-  action: string;
-  resourceType?: string;
-  resourceId?: string;
-  details?: Record<string, unknown>;
-  ipAddress?: string;
-  userAgent?: string;
-  createdAt: string;
 }
 
 // Permisos por rol
@@ -328,7 +323,6 @@ export interface RolePermissions {
   canManageSchedule: boolean;
   canViewReports: boolean;
   canManageUsers: boolean;
-  canViewAuditLogs: boolean;
   canManageSettings: boolean;
 }
 

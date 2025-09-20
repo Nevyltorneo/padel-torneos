@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,8 +21,6 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Separator } from "@/components/ui/separator";
 import {
   Users,
   UserPlus,
@@ -34,21 +32,20 @@ import {
   Eye,
   Gavel,
   Search,
-  Mail,
-  Phone,
-  Building,
   Calendar,
   AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useUserRole } from "@/hooks/useUserRole";
 import { useTournamentStore } from "@/stores/tournament-store";
+// Importar desde el archivo separado de funciones de roles
 import {
   getTournamentUsers,
   assignRole,
   revokeRole,
   updateUserProfile,
-} from "@/lib/supabase-queries";
+  findUserByEmail,
+} from "@/lib/user-roles";
 import type { UserRole, UserRoleAssignment, UserProfile } from "@/types";
 
 interface UserWithProfile extends UserRoleAssignment {
@@ -83,7 +80,7 @@ const roleConfig = {
 };
 
 export function UserManagement() {
-  const { userContext, logUserAction, hasPermission } = useUserRole();
+  const { userContext, hasPermission } = useUserRole();
   const { currentTournament } = useTournamentStore();
   const [users, setUsers] = useState<UserWithProfile[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -99,39 +96,59 @@ export function UserManagement() {
   // Estados para edición de perfil
   const [profileForm, setProfileForm] = useState({
     fullName: "",
-    phone: "",
-    organization: "",
-    bio: "",
+    email: "",
   });
 
   const canManageUsers = hasPermission("canManageUsers");
 
   // Cargar usuarios del torneo
-  const loadUsers = async () => {
-    if (!currentTournament) return;
+  const loadUsers = useCallback(async () => {
+    if (!currentTournament) {
+      console.log("⚠️ loadUsers: No hay torneo actual");
+      return;
+    }
+
+    console.log(
+      "🔄 loadUsers: Iniciando carga de usuarios para torneo:",
+      currentTournament.id
+    );
 
     try {
       setIsLoading(true);
+      console.log("📡 loadUsers: Llamando getTournamentUsers...");
       const tournamentUsers = await getTournamentUsers(currentTournament.id);
+      console.log(
+        "✅ loadUsers: Usuarios cargados exitosamente:",
+        tournamentUsers.length
+      );
       setUsers(tournamentUsers);
     } catch (error) {
-      console.error("Error loading users:", error);
-      toast.error("Error al cargar usuarios");
+      console.error("❌ loadUsers: Error cargando usuarios:", error);
+      console.error("❌ loadUsers: Error details:", {
+        message: error instanceof Error ? error.message : "Unknown error",
+        stack: error instanceof Error ? error.stack : undefined,
+        tournamentId: currentTournament.id,
+      });
+
+      // Mostrar mensaje más específico al usuario
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      toast.error(`Error al cargar usuarios: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentTournament]);
 
   useEffect(() => {
     loadUsers();
-  }, [currentTournament]);
+  }, [currentTournament, loadUsers]);
 
   // Filtrar usuarios por búsqueda
   const filteredUsers = users.filter((user) => {
     const searchLower = searchTerm.toLowerCase();
     return (
       user.profile?.fullName?.toLowerCase().includes(searchLower) ||
-      user.profile?.organization?.toLowerCase().includes(searchLower) ||
+      user.profile?.email?.toLowerCase().includes(searchLower) ||
       user.role.toLowerCase().includes(searchLower)
     );
   });
@@ -141,32 +158,49 @@ export function UserManagement() {
     if (!currentTournament || !userContext?.user.id || !newUserEmail) return;
 
     try {
-      // Por ahora simulamos que el usuario existe
-      // En una implementación real, buscarías el usuario por email
-      const mockUserId = "mock-user-id"; // Esto debería venir de una búsqueda real
+      console.log(
+        "🔄 handleAssignRole: Iniciando asignación de rol para:",
+        newUserEmail
+      );
 
+      // Buscar al usuario por email
+      const user = await findUserByEmail(newUserEmail);
+
+      if (!user) {
+        console.error(
+          "❌ handleAssignRole: Usuario no encontrado:",
+          newUserEmail
+        );
+        toast.error(
+          "Usuario no encontrado. Verifica que el email sea correcto."
+        );
+        return;
+      }
+
+      console.log("✅ handleAssignRole: Usuario encontrado:", user.id);
+
+      // Asignar el rol
       await assignRole(
-        mockUserId,
+        user.id,
         currentTournament.id,
         newUserRole,
         userContext.user.id
       );
 
-      await logUserAction("user_role_assigned", "user_role", mockUserId, {
-        targetUserEmail: newUserEmail,
-        assignedRole: newUserRole,
-      });
+      console.log("✅ Rol asignado:", newUserRole, "a", newUserEmail);
 
       toast.success(
-        `Rol ${roleConfig[newUserRole].label} asignado correctamente`
+        `Rol ${roleConfig[newUserRole].label} asignado correctamente a ${newUserEmail}`
       );
       setIsAssignDialogOpen(false);
       setNewUserEmail("");
       setNewUserRole("viewer");
       loadUsers();
     } catch (error) {
-      console.error("Error assigning role:", error);
-      toast.error("Error al asignar rol");
+      console.error("❌ handleAssignRole: Error asignando rol:", error);
+      const errorMessage =
+        error instanceof Error ? error.message : "Error desconocido";
+      toast.error(`Error al asignar rol: ${errorMessage}`);
     }
   };
 
@@ -177,10 +211,7 @@ export function UserManagement() {
     try {
       await revokeRole(user.userId, currentTournament.id);
 
-      await logUserAction("user_role_revoked", "user_role", user.id, {
-        targetUserId: user.userId,
-        revokedRole: user.role,
-      });
+      console.log("✅ Rol revocado:", user.role, "de", user.userId);
 
       toast.success("Rol revocado correctamente");
       loadUsers();
@@ -195,9 +226,7 @@ export function UserManagement() {
     setSelectedUser(user);
     setProfileForm({
       fullName: user.profile?.fullName || "",
-      phone: user.profile?.phone || "",
-      organization: user.profile?.organization || "",
-      bio: user.profile?.bio || "",
+      email: user.profile?.email || "",
     });
     setIsEditProfileOpen(true);
   };
@@ -209,14 +238,7 @@ export function UserManagement() {
     try {
       await updateUserProfile(selectedUser.userId, profileForm);
 
-      await logUserAction(
-        "user_profile_updated",
-        "user_profile",
-        selectedUser.userId,
-        {
-          updatedFields: Object.keys(profileForm),
-        }
-      );
+      console.log("✅ Perfil actualizado para:", selectedUser.userId);
 
       toast.success("Perfil actualizado correctamente");
       setIsEditProfileOpen(false);
@@ -345,10 +367,24 @@ export function UserManagement() {
                 className="pl-10"
               />
             </div>
-            <Badge variant="secondary">
-              {filteredUsers.length} usuario
-              {filteredUsers.length !== 1 ? "s" : ""}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={loadUsers}
+                variant="outline"
+                size="sm"
+                disabled={isLoading}
+                className="flex items-center gap-2"
+              >
+                <Users
+                  className={`h-4 w-4 ${isLoading ? "animate-spin" : ""}`}
+                />
+                {isLoading ? "Cargando..." : "Actualizar"}
+              </Button>
+              <Badge variant="secondary">
+                {filteredUsers.length} usuario
+                {filteredUsers.length !== 1 ? "s" : ""}
+              </Badge>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -364,12 +400,40 @@ export function UserManagement() {
               </div>
             </CardContent>
           </Card>
+        ) : users.length === 0 && !isLoading ? (
+          <Card>
+            <CardContent className="flex items-center justify-center py-8">
+              <div className="text-center">
+                <AlertTriangle className="h-12 w-12 mx-auto mb-4 text-red-400" />
+                <p className="text-red-600 font-medium mb-2">
+                  Error al cargar usuarios
+                </p>
+                <p className="text-sm text-gray-500">
+                  No se pudieron cargar los usuarios del torneo. Verifica tu
+                  conexión e intenta nuevamente.
+                </p>
+                <Button
+                  onClick={loadUsers}
+                  variant="outline"
+                  className="mt-4"
+                  size="sm"
+                >
+                  Reintentar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
         ) : filteredUsers.length === 0 ? (
           <Card>
             <CardContent className="flex items-center justify-center py-8">
               <div className="text-center">
                 <Users className="h-12 w-12 mx-auto mb-4 text-gray-400" />
                 <p className="text-gray-600">No se encontraron usuarios</p>
+                <p className="text-sm text-gray-500 mt-2">
+                  {searchTerm
+                    ? "Prueba con otros términos de búsqueda"
+                    : "No hay usuarios con roles activos en este torneo"}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -384,7 +448,6 @@ export function UserManagement() {
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-4">
                       <Avatar>
-                        <AvatarImage src={user.profile?.avatarUrl} />
                         <AvatarFallback>
                           {user.profile?.fullName?.charAt(0) || "?"}
                         </AvatarFallback>
@@ -395,26 +458,9 @@ export function UserManagement() {
                           <h3 className="font-medium">
                             {user.profile?.fullName || "Sin nombre"}
                           </h3>
-                          {user.profile?.isVerified && (
-                            <Badge variant="secondary" className="text-xs">
-                              Verificado
-                            </Badge>
-                          )}
                         </div>
 
                         <div className="flex items-center gap-4 text-sm text-gray-500">
-                          {user.profile?.organization && (
-                            <div className="flex items-center gap-1">
-                              <Building className="h-3 w-3" />
-                              {user.profile.organization}
-                            </div>
-                          )}
-                          {user.profile?.phone && (
-                            <div className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {user.profile.phone}
-                            </div>
-                          )}
                           <div className="flex items-center gap-1">
                             <Calendar className="h-3 w-3" />
                             {new Date(user.grantedAt).toLocaleDateString()}
@@ -479,40 +525,21 @@ export function UserManagement() {
               />
             </div>
             <div>
-              <Label htmlFor="phone">Teléfono</Label>
+              <Label htmlFor="email">Email</Label>
               <Input
-                id="phone"
-                value={profileForm.phone}
+                id="email"
+                type="email"
+                value={profileForm.email}
                 onChange={(e) =>
-                  setProfileForm((prev) => ({ ...prev, phone: e.target.value }))
+                  setProfileForm((prev) => ({ ...prev, email: e.target.value }))
                 }
+                disabled // No se puede editar el email
+                className="bg-gray-50"
               />
+              <p className="text-xs text-gray-500 mt-1">
+                El email no se puede cambiar
+              </p>
             </div>
-            <div>
-              <Label htmlFor="organization">Organización</Label>
-              <Input
-                id="organization"
-                value={profileForm.organization}
-                onChange={(e) =>
-                  setProfileForm((prev) => ({
-                    ...prev,
-                    organization: e.target.value,
-                  }))
-                }
-              />
-            </div>
-            <div>
-              <Label htmlFor="bio">Biografía</Label>
-              <Textarea
-                id="bio"
-                value={profileForm.bio}
-                onChange={(e) =>
-                  setProfileForm((prev) => ({ ...prev, bio: e.target.value }))
-                }
-                rows={3}
-              />
-            </div>
-            <Separator />
             <div className="flex gap-2">
               <Button
                 variant="outline"

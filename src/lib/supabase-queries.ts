@@ -11,7 +11,6 @@ import {
   UserRole,
   UserRoleAssignment,
   UserProfile,
-  AuditLog,
   RolePermissions,
 } from "@/types";
 
@@ -221,26 +220,70 @@ export async function getCurrentUser(): Promise<User | null> {
 }
 
 export async function createUserProfile(authUser: any): Promise<User> {
+  console.log(
+    "🔄 createUserProfile - Intentando crear perfil para:",
+    authUser.id
+  );
+
+  // Verificar si el perfil ya existe
+  const { data: existingProfile, error: checkError } = await supabase
+    .from("user_profiles")
+    .select("*")
+    .eq("id", authUser.id)
+    .single();
+
+  if (checkError && checkError.code !== "PGRST116") {
+    console.error("❌ Error verificando perfil existente:", checkError);
+    throw checkError;
+  }
+
+  if (existingProfile) {
+    console.log(
+      "ℹ️  Perfil ya existe, retornando existente:",
+      existingProfile.id
+    );
+    return {
+      id: existingProfile.id,
+      name: existingProfile.full_name,
+      email: authUser.email,
+      role: "admin", // Por defecto admin para el MVP
+    };
+  }
+
+  // Crear nuevo perfil
   const { data, error } = await supabase
-    .from("users")
+    .from("user_profiles")
     .insert({
       id: authUser.id,
-      name:
+      email: authUser.email,
+      full_name:
+        authUser.user_metadata?.full_name ||
         authUser.user_metadata?.name ||
         authUser.email?.split("@")[0] ||
         "Usuario",
-      email: authUser.email,
-      role: "admin", // Por defecto admin para el MVP
     })
     .select("*")
     .single();
 
   if (error) {
-    console.error("Error creating user profile:", error);
+    console.error("❌ Error en createUserProfile:", error);
+    console.error("❌ Detalles del error:", {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code,
+    });
     throw error;
   }
 
-  return data;
+  console.log("✅ createUserProfile - Perfil creado exitosamente:", data.id);
+
+  return {
+    id: data.id,
+    name: data.full_name,
+    email: authUser.email,
+    role: "admin", // Por defecto admin para el MVP
+  };
 }
 
 // ============================================================================
@@ -2676,12 +2719,25 @@ export async function getUserRole(
   userId: string,
   tournamentId: string
 ): Promise<UserRole | null> {
+  console.log("🔍 getUserRole called with:", { userId, tournamentId });
+
   // Si no hay tournamentId, retornar null sin hacer consulta
   if (!tournamentId) {
+    console.log("❌ getUserRole: No tournamentId provided");
     return null;
   }
 
   try {
+    // Primero, ver todos los roles del usuario para debugging
+    const { data: allRoles, error: allRolesError } = await supabase
+      .from("user_roles")
+      .select("role, tournament_id, is_active")
+      .eq("user_id", userId);
+
+    if (!allRolesError && allRoles) {
+      console.log("📋 All roles for user:", allRoles);
+    }
+
     const { data, error } = await supabase
       .from("user_roles")
       .select("role")
@@ -2693,12 +2749,17 @@ export async function getUserRole(
     if (error) {
       // Si no se encuentra el rol, no es un error crítico
       if (error.code === "PGRST116") {
+        console.log(
+          "⚠️ getUserRole: No role found for tournament:",
+          tournamentId
+        );
         return null;
       }
       console.error("Error getting user role:", error);
       return null;
     }
 
+    console.log("✅ getUserRole: Found role:", data?.role);
     return (data?.role as UserRole) || null;
   } catch (error) {
     console.error("Unexpected error in getUserRole:", error);
@@ -2732,19 +2793,6 @@ export async function assignRole(
     throw error;
   }
 
-  // Registrar la acción en audit logs
-  await logAction(
-    "role_assigned",
-    "user_role",
-    data.id,
-    {
-      targetUserId: userId,
-      role,
-      expiresAt,
-    },
-    tournamentId
-  );
-
   return convertUserRoleFromDb(data);
 }
 
@@ -2763,17 +2811,6 @@ export async function revokeRole(
     console.error("Error revoking role:", error);
     throw error;
   }
-
-  // Registrar la acción en audit logs
-  await logAction(
-    "role_revoked",
-    "user_role",
-    undefined,
-    {
-      targetUserId: userId,
-    },
-    tournamentId
-  );
 }
 
 // Obtener todos los usuarios con roles en un torneo
@@ -2827,10 +2864,15 @@ export async function getUserProfile(
     .from("user_profiles")
     .select("*")
     .eq("id", userId)
-    .single();
+    .maybeSingle(); // Cambiado de .single() a .maybeSingle()
 
   if (error) {
     console.error("Error getting user profile:", error);
+    return null;
+  }
+
+  if (!data) {
+    console.log("No user profile found for user:", userId);
     return null;
   }
 
@@ -2846,10 +2888,7 @@ export async function updateUserProfile(
     .from("user_profiles")
     .update({
       full_name: updates.fullName,
-      avatar_url: updates.avatarUrl,
-      phone: updates.phone,
-      organization: updates.organization,
-      bio: updates.bio,
+      email: updates.email,
     })
     .eq("id", userId)
     .select("*")
@@ -2861,53 +2900,6 @@ export async function updateUserProfile(
   }
 
   return convertUserProfileFromDb(data);
-}
-
-// Registrar acción en audit logs
-export async function logAction(
-  action: string,
-  resourceType?: string,
-  resourceId?: string,
-  details?: Record<string, unknown>,
-  tournamentId?: string
-): Promise<void> {
-  const { error } = await supabase.from("audit_logs").insert({
-    action,
-    resource_type: resourceType,
-    resource_id: resourceId,
-    details,
-    tournament_id: tournamentId,
-  });
-
-  if (error) {
-    console.error("Error logging action:", error);
-    // No lanzamos error para no interrumpir el flujo principal
-  }
-}
-
-// Obtener logs de auditoría
-export async function getAuditLogs(
-  tournamentId?: string,
-  limit: number = 50
-): Promise<AuditLog[]> {
-  let query = supabase
-    .from("audit_logs")
-    .select("*")
-    .order("created_at", { ascending: false })
-    .limit(limit);
-
-  if (tournamentId) {
-    query = query.eq("tournament_id", tournamentId);
-  }
-
-  const { data, error } = await query;
-
-  if (error) {
-    console.error("Error getting audit logs:", error);
-    throw error;
-  }
-
-  return data.map(convertAuditLogFromDb);
 }
 
 // Obtener permisos basados en el rol
@@ -2923,7 +2915,6 @@ export function getRolePermissions(role: UserRole): RolePermissions {
     canManageSchedule: false,
     canViewReports: false,
     canManageUsers: false,
-    canViewAuditLogs: false,
     canManageSettings: false,
   };
 
@@ -2941,7 +2932,6 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         canManageSchedule: true,
         canViewReports: true,
         canManageUsers: true,
-        canViewAuditLogs: true,
         canManageSettings: true,
       };
 
@@ -2955,7 +2945,7 @@ export function getRolePermissions(role: UserRole): RolePermissions {
         canUpdateScores: true,
         canManageSchedule: true,
         canViewReports: true,
-        canViewAuditLogs: true,
+
         canManageSettings: true,
       };
 
@@ -2996,29 +2986,10 @@ function convertUserRoleFromDb(
 function convertUserProfileFromDb(data: Record<string, unknown>): UserProfile {
   return {
     id: data.id as string,
+    email: data.email as string | undefined,
     fullName: data.full_name as string | undefined,
-    avatarUrl: data.avatar_url as string | undefined,
-    phone: data.phone as string | undefined,
-    organization: data.organization as string | undefined,
-    bio: data.bio as string | undefined,
-    isVerified: data.is_verified as boolean,
     createdAt: data.created_at as string,
     updatedAt: data.updated_at as string,
-  };
-}
-
-function convertAuditLogFromDb(data: Record<string, unknown>): AuditLog {
-  return {
-    id: data.id as string,
-    userId: data.user_id as string,
-    tournamentId: data.tournament_id as string | undefined,
-    action: data.action as string,
-    resourceType: data.resource_type as string | undefined,
-    resourceId: data.resource_id as string | undefined,
-    details: data.details as Record<string, unknown> | undefined,
-    ipAddress: data.ip_address as string | undefined,
-    userAgent: data.user_agent as string | undefined,
-    createdAt: data.created_at as string,
   };
 }
 
@@ -3276,7 +3247,8 @@ function createFirstRoundMatches(
   for (let i = 0; i < matchups.length; i++) {
     const matchup = matchups[i];
     const pairA = seededPairs[matchup.seedA - 1]; // seedA es 1-based, array es 0-based
-    const pairB = matchup.bye ? null : seededPairs[matchup.seedB - 1];
+    const pairB =
+      matchup.bye || !matchup.seedB ? null : seededPairs[matchup.seedB - 1];
 
     if (pairA && pairB) {
       // Partido normal

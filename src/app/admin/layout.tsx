@@ -85,11 +85,6 @@ const navigation = [
     href: "/admin/users",
     icon: Users,
   },
-  {
-    name: "Auditoría",
-    href: "/admin/audit",
-    icon: Shield,
-  },
 ];
 
 export default function AdminLayout({

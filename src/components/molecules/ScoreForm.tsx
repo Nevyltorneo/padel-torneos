@@ -30,10 +30,40 @@ export function ScoreForm({
   isLoading = false,
   className,
 }: ScoreFormProps) {
-  const [sets, setSets] = useState<ScoreSet[]>(
-    match.score?.sets || [{ a: 0, b: 0 }]
-  );
-  const [notes, setNotes] = useState(match.score?.notes || "");
+  // Convertir la estructura del score del match a ScoreSet[]
+  const convertScoreToSets = (score: any): ScoreSet[] => {
+    if (!score) return [{ a: 0, b: 0 }];
+
+    const sets: ScoreSet[] = [];
+
+    // Convertir pairA scores a sets
+    if (score.pairA) {
+      const pairAScores = [score.pairA.set1, score.pairA.set2];
+      if (score.pairA.set3 !== undefined) pairAScores.push(score.pairA.set3);
+      if (score.pairA.superDeath !== undefined)
+        pairAScores.push(score.pairA.superDeath);
+
+      // Convertir pairB scores a sets
+      const pairBScores = [score.pairB.set1, score.pairB.set2];
+      if (score.pairB.set3 !== undefined) pairBScores.push(score.pairB.set3);
+      if (score.pairB.superDeath !== undefined)
+        pairBScores.push(score.pairB.superDeath);
+
+      // Crear sets con los puntajes disponibles
+      const maxSets = Math.max(pairAScores.length, pairBScores.length);
+      for (let i = 0; i < maxSets; i++) {
+        sets.push({
+          a: pairAScores[i] || 0,
+          b: pairBScores[i] || 0,
+        });
+      }
+    }
+
+    return sets.length > 0 ? sets : [{ a: 0, b: 0 }];
+  };
+
+  const [sets, setSets] = useState<ScoreSet[]>(convertScoreToSets(match.score));
+  const [notes, setNotes] = useState("");
 
   const addSet = () => {
     if (sets.length < 5) {

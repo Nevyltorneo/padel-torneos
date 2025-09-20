@@ -19,6 +19,7 @@ import {
   Clock,
   Bell,
   Shield,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useCurrentTournament } from "@/stores/tournament-store";
@@ -65,9 +66,9 @@ const navigation = [
     icon: BarChart3,
   },
   {
-    name: "Tiempo Real",
+    name: "Progreso",
     href: "/admin/live",
-    icon: Clock,
+    icon: Activity,
   },
   {
     name: "Configuración",

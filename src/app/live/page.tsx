@@ -173,7 +173,7 @@ export default function LiveView() {
                   <div>
                     <p className="font-medium">Actualización Automática</p>
                     <p>
-                      Los datos se actualizan cada 30 segundos automáticamente
+                      Los datos se actualizan cada 60 segundos automáticamente
                     </p>
                   </div>
                 </div>

@@ -218,13 +218,22 @@ export default function CalendarPage() {
     return slots;
   };
 
-  // Función para distribuir automáticamente los partidos
-  const handleAutoScheduleMatches = async () => {
+  // Función para distribuir automáticamente TODOS los partidos (grupos + eliminatorias)
+  const handleAutoScheduleAllMatches = async () => {
+    console.log("🚀 INICIANDO PROGRAMACIÓN AUTOMÁTICA...");
+    console.log("📊 Estado inicial:", {
+      currentTournament: !!currentTournament,
+      tournamentDays: tournamentDays.length,
+      courts: courts.length,
+      allMatches: allMatches.length,
+    });
+
     if (
       !currentTournament ||
       tournamentDays.length === 0 ||
       courts.length === 0
     ) {
+      console.log("❌ VALIDACIÓN FALLIDA - Configuración incompleta");
       toast.error("Necesitas configurar días y canchas primero");
       return;
     }
@@ -234,24 +243,35 @@ export default function CalendarPage() {
         id: "auto-schedule",
       });
 
-      // Obtener solo partidos de FASE DE GRUPOS pendientes (sin programar)
-      const pendingMatches = allMatches.filter(
-        (match) => match.stage === "group" && (!match.day || !match.startTime)
+      // Obtener TODOS los partidos pendientes (grupos + eliminatorias)
+      const allMatchesPending = allMatches.filter(
+        (match) => !match.day || !match.startTime
       );
 
-      if (pendingMatches.length === 0) {
-        toast.info(
-          "No hay partidos de fase de grupos pendientes por programar",
-          {
-            id: "auto-schedule",
-          }
-        );
+      // Separar por tipo para mejor análisis
+      const groupMatches = allMatchesPending.filter(
+        (match) => match.stage === "group"
+      );
+      const eliminationMatches = allMatchesPending.filter(
+        (match) => match.stage !== "group"
+      );
+
+      console.log("🔍 DEBUG: Análisis de TODOS los partidos:");
+      console.log(`   📊 Total de partidos: ${allMatches.length}`);
+      console.log(`   ⏳ Partidos sin programar: ${allMatchesPending.length}`);
+      console.log(`     🎾 Grupos: ${groupMatches.length}`);
+      console.log(`     🏆 Eliminatorias: ${eliminationMatches.length}`);
+
+      if (allMatchesPending.length === 0) {
+        console.log("⚠️ No hay partidos pendientes por programar");
+        toast.info("No hay partidos pendientes por programar", {
+          id: "auto-schedule",
+        });
         return;
       }
 
-      console.log(
-        `🏆 Solo programando FASE DE GRUPOS: ${pendingMatches.length} partidos`
-      );
+      // Usar todos los partidos pendientes
+      const pendingMatches = allMatchesPending;
 
       // Agrupar partidos por categoría para programar desde la más baja (6ta) a la más alta
       const matchesByCategory = pendingMatches.reduce((acc, match) => {
@@ -451,8 +471,11 @@ export default function CalendarPage() {
       // Recargar datos
       await loadData();
 
+      const groupCount = groupMatches.length;
+      const eliminationCount = eliminationMatches.length;
+
       toast.success(
-        `¡${totalScheduledCount} partidos de FASE DE GRUPOS programados automáticamente!`,
+        `¡${totalScheduledCount} partidos programados automáticamente! (${groupCount} grupos + ${eliminationCount} eliminatorias)`,
         {
           id: "auto-schedule",
         }
@@ -1351,11 +1374,11 @@ export default function CalendarPage() {
             {/* Programación Automática */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
               <Button
-                onClick={handleAutoScheduleMatches}
+                onClick={handleAutoScheduleAllMatches}
                 className="flex items-center justify-center gap-2 h-12 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg shadow-lg transition-all duration-200 hover:shadow-xl"
               >
                 <Clock className="h-5 w-5" />
-                <span>Programar Fase de Grupos</span>
+                <span>Programar Todos los Partidos</span>
               </Button>
               <Button
                 onClick={() => setShowEliminationDialog(true)}

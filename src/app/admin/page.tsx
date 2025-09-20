@@ -93,7 +93,9 @@ export default function AdminDashboard() {
   const totalPairs = pairs.length;
   const totalMatches = matches.length;
   const totalCourts = courts.length;
-  const finishedMatches = matches.filter((m) => m.status === "finished").length;
+  const finishedMatches = matches.filter(
+    (m) => m.status === "completed"
+  ).length;
   const pendingMatches = totalMatches - finishedMatches;
 
   if (!currentTournament) {
@@ -163,10 +165,10 @@ export default function AdminDashboard() {
         />
 
         <StatCard
-          title="Partidos"
-          value={`${finishedMatches}/${totalMatches}`}
-          icon={<Calendar className="h-5 w-5" />}
-          description="Completados"
+          title="Canchas"
+          value={courts.length}
+          icon={<Trophy className="h-5 w-5" />}
+          description="Disponibles"
           href="/admin/schedule"
         />
 
@@ -250,8 +252,10 @@ export default function AdminDashboard() {
                 {userContext.role === "admin" && "⚙️ "}
                 {userContext.role === "referee" && "⚖️ "}
                 {userContext.role === "viewer" && "👀 "}
-                {userContext.role?.charAt(0).toUpperCase() +
-                  userContext.role?.slice(1) || "Sin rol"}
+                {userContext.role
+                  ? userContext.role.charAt(0).toUpperCase() +
+                    userContext.role.slice(1)
+                  : "Sin rol"}
               </Badge>
             </CardTitle>
           </CardHeader>

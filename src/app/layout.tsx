@@ -10,7 +10,44 @@ const inter = Inter({ subsets: ["latin"] });
 export const metadata: Metadata = {
   title: "MiTorneo - Gestión de Torneos de Pádel",
   description:
-    "Aplicación completa para la gestión de torneos de pádel con generación automática de grupos, calendario y asignación de canchas.",
+    "Sistema completo para organizar y gestionar torneos de pádel. Genera grupos automáticamente, administra calendarios, asigna canchas y haz seguimiento en tiempo real de todos tus torneos.",
+  keywords:
+    "torneos pádel, gestión deportiva, bracket, eliminatorias, grupos, calendario deportivo, canchas",
+  authors: [{ name: "MiTorneo" }],
+  creator: "MiTorneo",
+  publisher: "MiTorneo",
+  openGraph: {
+    title: "MiTorneo - Sistema Profesional de Torneos de Pádel",
+    description:
+      "Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, calendarios y seguimiento en vivo.",
+    url: "https://padel-torneos.com",
+    siteName: "MiTorneo",
+    images: [
+      {
+        url: "/og-image.svg",
+        width: 1200,
+        height: 630,
+        alt: "MiTorneo - Sistema de Gestión de Torneos de Pádel",
+      },
+    ],
+    locale: "es_ES",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MiTorneo - Gestión de Torneos de Pádel",
+    description:
+      "Sistema profesional para organizar torneos de pádel con grupos automáticos y seguimiento en vivo.",
+    images: ["/og-image.svg"],
+  },
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+      { url: "/favicon.ico", sizes: "any" },
+    ],
+    apple: "/favicon.svg",
+  },
+  manifest: "/manifest.json",
   other: {
     "Cache-Control": "no-cache, no-store, must-revalidate",
     Pragma: "no-cache",

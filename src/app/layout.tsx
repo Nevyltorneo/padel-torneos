@@ -78,12 +78,12 @@ export const metadata: Metadata = {
     "twitter:image:width": "1200",
     "twitter:image:height": "630",
     "twitter:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
-    // Favicon specific tags - force reload
-    "msapplication-TileImage": "/favicon.ico?v=2",
-    "msapplication-square70x70logo": "/favicon.ico?v=2",
-    "msapplication-square150x150logo": "/favicon.ico?v=2",
-    "msapplication-wide310x150logo": "/favicon.ico?v=2",
-    "msapplication-square310x310logo": "/favicon.ico?v=2",
+    // Favicon specific tags - PNG approach like Belicona
+    "msapplication-TileImage": "/mito.png",
+    "msapplication-square70x70logo": "/mito.png",
+    "msapplication-square150x150logo": "/mito.png",
+    "msapplication-wide310x150logo": "/mito.png",
+    "msapplication-square310x310logo": "/mito.png",
   },
 };
 
@@ -102,10 +102,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
 
-        {/* Favicon with multiple fallbacks */}
-        <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="apple-touch-icon" href="/favicon.svg" />
+        {/* Favicon - PNG approach like Belicona */}
+        <link rel="icon" type="image/png" href="/mito.png" />
+        <link rel="apple-touch-icon" href="/mito.png" />
+        <link rel="shortcut icon" href="/mito.png" />
         <link rel="manifest" href="/manifest.json" />
 
         {/* Force refresh meta tags */}

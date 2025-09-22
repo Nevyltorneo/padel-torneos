@@ -116,10 +116,33 @@ export default function RootLayout({
         <meta http-equiv="Pragma" content="no-cache" />
         <meta http-equiv="Expires" content="0" />
 
-        {/* GitHub specific meta tags */}
+        {/* GitHub specific meta tags - Try to force favicon */}
         <meta name="github-repo" content="Nevyltorneo/padel-torneos" />
         <meta name="twitter:site" content="@MiTorneo" />
         <meta name="twitter:creator" content="@MiTorneo" />
+        <meta name="application-name" content="MiTorneo" />
+        <meta name="apple-mobile-web-app-title" content="MiTorneo" />
+        <meta
+          name="msapplication-tooltip"
+          content="MiTorneo - Gestión de Torneos de Pádel"
+        />
+        <link rel="canonical" href="https://padel-torneos.vercel.app" />
+
+        {/* Additional favicon links for maximum compatibility */}
+        <link rel="icon" href="/mito.png" type="image/png" />
+        <link rel="alternate icon" href="/mito.png" />
+        <link rel="icon" href="/favicon.ico" type="image/x-icon" />
+        <link rel="icon" href="/favicon-github.svg" type="image/svg+xml" />
+
+        {/* Force GitHub to recognize the favicon */}
+        <meta name="robots" content="index,follow" />
+        <meta name="googlebot" content="index,follow" />
+
+        {/* OpenGraph Site Name */}
+        <meta property="og:site_name" content="MiTorneo" />
+        <meta property="og:type" content="website" />
+        <meta name="theme-color" content="#1a73e8" />
+        <meta name="msapplication-TileColor" content="#1a73e8" />
       </head>
       <body
         className={cn(

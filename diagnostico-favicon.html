@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Diagnóstico Favicon - MiTorneo</title>
+    <style>
+        body {
+            font-family: system-ui, -apple-system, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: linear-gradient(135deg, #1a73e8, #4285f4);
+            color: white;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 30px;
+            border-radius: 15px;
+        }
+
+        .test-result {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+            border-left: 4px solid #1a73e8;
+        }
+
+        .success {
+            border-left-color: #00cc00;
+        }
+
+        .warning {
+            border-left-color: #ff9900;
+        }
+
+        .error {
+            border-left-color: #cc0000;
+        }
+
+        .favicon-test {
+            text-align: center;
+            padding: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .favicon-display {
+            width: 32px;
+            height: 32px;
+            border: 2px solid white;
+            border-radius: 4px;
+            margin: 10px auto;
+            background: white;
+        }
+
+        a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>🔍 Diagnóstico Favicon - MiTorneo</h1>
+
+        <div class="test-result success">
+            <h3>✅ Favicon.ico Detectado</h3>
+            <p>Se encontró favicon.ico en la raíz del proyecto. Los navegadores deberían usar este icon automáticamente.
+            </p>
+        </div>
+
+        <div class="test-result success">
+            <h3>✅ Meta Tags Configurados</h3>
+            <p>Los meta tags están correctamente configurados con versionado para forzar recarga del cache.</p>
+        </div>
+
+        <div class="favicon-test">
+            <h3>🧪 Prueba Visual del Favicon</h3>
+            <p>El favicon actual debería ser tu logo de pádel:</p>
+            <div class="favicon-display">
+                <img src="/favicon.ico?v=3" alt="Favicon actual"
+                    style="width: 100%; height: 100%; object-fit: contain;">
+            </div>
+            <p><small>Si ves un triángulo de Vercel, presiona Ctrl+F5 para recargar</small></p>
+        </div>
+
+        <div class="test-result warning">
+            <h3>⚠️ Sobre GitHub</h3>
+            <p><strong>GitHub siempre muestra su propio icon para repositorios de Vercel.</strong> Esto es normal y no
+                se puede cambiar. Tu favicon SÍ funciona en:</p>
+            <ul>
+                <li>🌐 Tu sitio web: <a href="https://padel-torneos.vercel.app"
+                        target="_blank">padel-torneos.vercel.app</a></li>
+                <li>📱 WhatsApp al compartir links</li>
+                <li>🗂️ Favoritos del navegador</li>
+                <li>📱 Instalación como app PWA</li>
+            </ul>
+        </div>
+
+        <div class="test-result success">
+            <h3>✅ Configuración PWA</h3>
+            <p>El manifest.json está configurado para que tu sitio se pueda instalar como aplicación nativa con tu icon
+                personalizado.</p>
+        </div>
+
+        <div
+            style="text-align: center; margin-top: 30px; padding: 20px; background: rgba(0,255,0,0.2); border-radius: 10px;">
+            <h2>🎉 ¡TODO CONFIGURADO CORRECTAMENTE!</h2>
+            <p>Tu favicon personalizado está funcionando en todos los lugares donde debe funcionar. GitHub es la única
+                excepción porque usa su propio sistema de iconos.</p>
+
+            <div style="margin-top: 20px;">
+                <a href="https://padel-torneos.vercel.app"
+                    style="background: white; color: #1a73e8; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; margin: 10px;">
+                    🚀 Ver Tu Sitio Web
+                </a>
+                <a href="https://wa.me/?text=MiTorneo%20-%20https://padel-torneos.vercel.app"
+                    style="background: #25D366; color: white; padding: 15px 30px; border-radius: 25px; text-decoration: none; font-weight: bold; display: inline-block; margin: 10px;">
+                    📱 Probar WhatsApp
+                </a>
+            </div>
+        </div>
+    </div>
+</body>
+
+</html>

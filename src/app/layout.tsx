@@ -95,13 +95,31 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        {/* Force favicon reload */}
+        {/* Force favicon reload - Multiple strategies */}
         <meta name="theme-color" content="#1a73e8" />
         <meta name="msapplication-TileColor" content="#1a73e8" />
-        <link rel="icon" href="/favicon.ico?v=2" />
+        <meta name="msapplication-navbutton-color" content="#1a73e8" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+
+        {/* Favicon with multiple fallbacks */}
+        <link rel="icon" href="/favicon.ico?v=3" sizes="any" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="apple-touch-icon" href="/favicon.svg" />
         <link rel="manifest" href="/manifest.json" />
+
+        {/* Force refresh meta tags */}
+        <meta
+          http-equiv="Cache-Control"
+          content="no-cache, no-store, must-revalidate"
+        />
+        <meta http-equiv="Pragma" content="no-cache" />
+        <meta http-equiv="Expires" content="0" />
+
+        {/* GitHub specific meta tags */}
+        <meta name="github-repo" content="Nevyltorneo/padel-torneos" />
+        <meta name="twitter:site" content="@MiTorneo" />
+        <meta name="twitter:creator" content="@MiTorneo" />
       </head>
       <body
         className={cn(

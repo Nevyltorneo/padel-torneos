@@ -16,15 +16,16 @@ export const metadata: Metadata = {
   authors: [{ name: "MiTorneo" }],
   creator: "MiTorneo",
   publisher: "MiTorneo",
+  metadataBase: new URL("https://padel-torneos.vercel.app"),
   openGraph: {
-    title: "MiTorneo - Sistema Profesional de Torneos de Pádel",
+    title: "MiTorneo - Gestión de Torneos de Pádel",
     description:
-      "Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, calendarios y seguimiento en vivo.",
+      "Sistema completo para organizar y gestionar torneos de pádel. Genera grupos automáticamente, administra calendarios, asigna canchas y haz seguimiento en tiempo real de todos tus torneos.",
     url: "https://padel-torneos.vercel.app",
     siteName: "MiTorneo",
     images: [
       {
-        url: "https://padel-torneos.vercel.app/og-image.svg",
+        url: "/mito.png",
         width: 1200,
         height: 630,
         alt: "MiTorneo - Sistema de Gestión de Torneos de Pádel",
@@ -38,7 +39,9 @@ export const metadata: Metadata = {
     title: "MiTorneo - Gestión de Torneos de Pádel",
     description:
       "Sistema profesional para organizar torneos de pádel con grupos automáticos y seguimiento en vivo.",
-    images: ["https://padel-torneos.vercel.app/og-image.svg"],
+    images: ["/mito.png"],
+    creator: "@MiTorneo",
+    site: "@MiTorneo",
   },
   icons: {
     icon: [
@@ -52,6 +55,27 @@ export const metadata: Metadata = {
     "Cache-Control": "no-cache, no-store, must-revalidate",
     Pragma: "no-cache",
     Expires: "0",
+    // WhatsApp specific meta tags
+    "format-detection": "telephone=no",
+    "mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-capable": "yes",
+    "apple-mobile-web-app-status-bar-style": "default",
+    "apple-mobile-web-app-title": "MiTorneo",
+    "application-name": "MiTorneo",
+    "msapplication-TileColor": "#1a73e8",
+    "msapplication-config": "/browserconfig.xml",
+    "theme-color": "#1a73e8",
+    // OpenGraph additional tags for WhatsApp
+    "og:image:secure_url": "/mito.png",
+    "og:image:width": "1200",
+    "og:image:height": "630",
+    "og:image:type": "image/png",
+    "og:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
+    // Twitter additional tags
+    "twitter:image:src": "/mito.png",
+    "twitter:image:width": "1200",
+    "twitter:image:height": "630",
+    "twitter:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
   },
 };
 

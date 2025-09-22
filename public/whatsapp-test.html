@@ -10,10 +10,24 @@
     <meta property="og:title" content="MiTorneo - Sistema Profesional de Torneos de Pádel">
     <meta property="og:description"
         content="Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, calendarios y seguimiento en vivo.">
-    <meta property="og:image" content="https://padel-torneos.vercel.app/og-image.svg">
+    <meta property="og:image" content="/mito.png">
+    <meta property="og:image:width" content="1200">
+    <meta property="og:image:height" content="630">
+    <meta property="og:image:type" content="image/png">
     <meta property="og:url" content="https://padel-torneos.vercel.app">
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="MiTorneo">
+
+    <!-- Twitter Card (también funciona con WhatsApp) -->
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="MiTorneo - Sistema Profesional de Torneos de Pádel">
+    <meta name="twitter:description"
+        content="Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, calendarios y seguimiento en vivo.">
+    <meta name="twitter:image" content="/mito.png">
+
+    <!-- WhatsApp específicos -->
+    <meta property="og:image:secure_url" content="/mito.png">
+    <meta name="twitter:image:src" content="/mito.png">
 
     <style>
         body {
@@ -57,7 +71,7 @@
     <div class="container">
         <h1>🧪 Prueba de WhatsApp</h1>
         <p><strong>URL actual:</strong> https://padel-torneos.vercel.app</p>
-        <p><strong>Imagen:</strong> https://padel-torneos.vercel.app/og-image.svg</p>
+        <p><strong>Imagen:</strong> /mito.png</p>
 
         <h2>📱 Para probar en WhatsApp:</h2>
         <ol>
@@ -67,21 +81,47 @@
             <li>Deberías ver la imagen con el logo de pádel</li>
         </ol>
 
+        <h2>🔧 Solución si no se ve:</h2>
+        <p>Si la imagen PNG no se muestra en WhatsApp, puedes:</p>
+        <ul>
+            <li>Usar la página principal directamente</li>
+            <li>Esperar unos minutos para que se actualice el cache</li>
+            <li>Probar en un dispositivo diferente</li>
+        </ul>
+
+        <h2>📸 Crear la imagen PNG:</h2>
+        <p>Para crear el archivo PNG, puedes:</p>
+        <ol>
+            <li>Ir a <a href="https://www.htmlcsstoimage.com/" target="_blank"
+                    style="color: #1a73e8;">htmlcsstoimage.com</a></li>
+            <li>Copiar el contenido de <code>og-image.html</code></li>
+            <li>Configurar: 1200x630 pixels</li>
+            <li>Descargar como PNG</li>
+            <li>Subir el PNG a la carpeta <code>public</code> como <code>og-image.png</code></li>
+        </ol>
+
+        <div style="background: rgba(255,255,255,0.1); padding: 15px; border-radius: 10px; margin: 20px 0;">
+            <strong>⚠️ IMPORTANTE:</strong> Una vez que subas <code>og-image.png</code>, la imagen debería aparecer
+            automáticamente en WhatsApp.
+        </div>
+
         <div>
             <a href="https://padel-torneos.vercel.app" class="test-button" target="_blank">
                 🚀 Probar URL Principal
             </a>
-            <a href="https://padel-torneos.vercel.app/og-image.svg" class="test-button" target="_blank">
-                🖼️ Ver Imagen Directa
+            <a href="/mito.png" class="test-button" target="_blank">
+                🖼️ Ver Imagen PNG
             </a>
         </div>
 
         <h3>✅ Configuración actual:</h3>
         <ul>
             <li>✅ URL base: https://padel-torneos.vercel.app</li>
-            <li>✅ Imagen: https://padel-torneos.vercel.app/og-image.svg</li>
-            <li>✅ Título: MiTorneo - Sistema Profesional de Torneos de Pádel</li>
-            <li>✅ Descripción completa con características</li>
+            <li>✅ Imagen: /mito.png (1200x630 PNG)</li>
+            <li>✅ Título: MiTorneo - Gestión de Torneos de Pádel</li>
+            <li>✅ Meta tags optimizados para WhatsApp</li>
+            <li>✅ Twitter Cards configurados</li>
+            <li>✅ Favicon personalizado</li>
         </ul>
 
         <p><strong>💡 Tip:</strong> Si no ves la imagen en WhatsApp, prueba recargando la página primero.</p>

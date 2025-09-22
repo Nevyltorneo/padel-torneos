@@ -6,12 +6,21 @@
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a73e8",
+  "orientation": "portrait",
+  "categories": ["sports", "productivity"],
+  "lang": "es",
+  "scope": "/",
   "icons": [
     {
       "src": "/favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    },
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48",
+      "type": "image/x-icon"
     }
   ]
 }

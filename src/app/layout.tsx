@@ -18,14 +18,14 @@ export const metadata: Metadata = {
   publisher: "MiTorneo",
   metadataBase: new URL("https://padel-torneos.vercel.app"),
   openGraph: {
-    title: "MiTorneo - Gestión de Torneos de Pádel",
+    title: "MiTorneo – Sistema Profesional de Torneos de Pádel",
     description:
-      "Sistema completo para organizar y gestionar torneos de pádel. Genera grupos automáticamente, administra calendarios, asigna canchas y haz seguimiento en tiempo real de todos tus torneos.",
-    url: "https://padel-torneos.vercel.app",
+      "Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, estadísticas y más.",
+    url: "https://padel-torneos.vercel.app/",
     siteName: "MiTorneo",
     images: [
       {
-        url: "/mito.png",
+        url: "https://padel-torneos.vercel.app/mito.png",
         width: 1200,
         height: 630,
         alt: "MiTorneo - Sistema de Gestión de Torneos de Pádel",
@@ -36,54 +36,17 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "MiTorneo - Gestión de Torneos de Pádel",
+    title: "MiTorneo – Sistema Profesional de Torneos de Pádel",
     description:
-      "Sistema profesional para organizar torneos de pádel con grupos automáticos y seguimiento en vivo.",
-    images: ["/mito.png"],
+      "Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, estadísticas y más.",
+    images: ["https://padel-torneos.vercel.app/mito.png"],
     creator: "@MiTorneo",
     site: "@MiTorneo",
   },
   icons: {
-    icon: [
-      { url: "/favicon.ico", sizes: "any" },
-      { url: "/favicon.svg", type: "image/svg+xml" },
-    ],
-    apple: "/favicon.svg",
-    shortcut: "/favicon.ico",
-  },
-  manifest: "/manifest.json",
-  other: {
-    // Force no cache for favicon
-    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
-    Pragma: "no-cache",
-    Expires: "0",
-    // WhatsApp specific meta tags
-    "format-detection": "telephone=no",
-    "mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-capable": "yes",
-    "apple-mobile-web-app-status-bar-style": "default",
-    "apple-mobile-web-app-title": "MiTorneo",
-    "application-name": "MiTorneo",
-    "msapplication-TileColor": "#1a73e8",
-    "msapplication-config": "/browserconfig.xml",
-    "theme-color": "#1a73e8",
-    // OpenGraph additional tags for WhatsApp
-    "og:image:secure_url": "/mito.png",
-    "og:image:width": "1200",
-    "og:image:height": "630",
-    "og:image:type": "image/png",
-    "og:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
-    // Twitter additional tags
-    "twitter:image:src": "/mito.png",
-    "twitter:image:width": "1200",
-    "twitter:image:height": "630",
-    "twitter:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
-    // Favicon specific tags - PNG approach like Belicona
-    "msapplication-TileImage": "/mito.png",
-    "msapplication-square70x70logo": "/mito.png",
-    "msapplication-square150x150logo": "/mito.png",
-    "msapplication-wide310x150logo": "/mito.png",
-    "msapplication-square310x310logo": "/mito.png",
+    icon: "/mito.png",
+    apple: "/mito.png",
+    shortcut: "/mito.png",
   },
 };
 
@@ -102,11 +65,10 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
 
-        {/* Single favicon pointing to /favicon.png?v=2 */}
-        <link rel="icon" type="image/png" href="/favicon.png?v=2" />
-        <link rel="manifest" href="/manifest.json" />
+        {/* Simple favicon */}
+        <link rel="icon" href="/mito.png" />
 
-        {/* Open Graph tags for WhatsApp and social media */}
+        {/* Open Graph for WhatsApp */}
         <meta
           property="og:title"
           content="MiTorneo – Sistema Profesional de Torneos de Pádel"
@@ -117,7 +79,7 @@ export default function RootLayout({
         />
         <meta
           property="og:image"
-          content="https://padel-torneos.vercel.app/og-image.png"
+          content="https://padel-torneos.vercel.app/mito.png"
         />
         <meta property="og:url" content="https://padel-torneos.vercel.app/" />
         <meta property="og:type" content="website" />
@@ -134,7 +96,7 @@ export default function RootLayout({
         />
         <meta
           name="twitter:image"
-          content="https://padel-torneos.vercel.app/og-image.png"
+          content="https://padel-torneos.vercel.app/mito.png"
         />
 
         {/* Theme color */}

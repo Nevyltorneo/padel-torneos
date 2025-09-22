@@ -53,7 +53,8 @@ export const metadata: Metadata = {
   },
   manifest: "/manifest.json",
   other: {
-    "Cache-Control": "no-cache, no-store, must-revalidate",
+    // Force no cache for favicon
+    "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
     Pragma: "no-cache",
     Expires: "0",
     // WhatsApp specific meta tags
@@ -77,12 +78,12 @@ export const metadata: Metadata = {
     "twitter:image:width": "1200",
     "twitter:image:height": "630",
     "twitter:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
-    // Favicon specific tags
-    "msapplication-TileImage": "/favicon.ico",
-    "msapplication-square70x70logo": "/favicon.ico",
-    "msapplication-square150x150logo": "/favicon.ico",
-    "msapplication-wide310x150logo": "/favicon.ico",
-    "msapplication-square310x310logo": "/favicon.ico",
+    // Favicon specific tags - force reload
+    "msapplication-TileImage": "/favicon.ico?v=2",
+    "msapplication-square70x70logo": "/favicon.ico?v=2",
+    "msapplication-square150x150logo": "/favicon.ico?v=2",
+    "msapplication-wide310x150logo": "/favicon.ico?v=2",
+    "msapplication-square310x310logo": "/favicon.ico?v=2",
   },
 };
 
@@ -93,6 +94,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="es">
+      <head>
+        {/* Force favicon reload */}
+        <meta name="theme-color" content="#1a73e8" />
+        <meta name="msapplication-TileColor" content="#1a73e8" />
+        <link rel="icon" href="/favicon.ico?v=2" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="apple-touch-icon" href="/favicon.svg" />
+        <link rel="manifest" href="/manifest.json" />
+      </head>
       <body
         className={cn(
           inter.className,

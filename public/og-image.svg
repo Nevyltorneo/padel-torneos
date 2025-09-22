@@ -1,35 +1,28 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" fill="none">
   <!-- Background -->
-  <rect width="1200" height="630" fill="linear-gradient(135deg, #1a73e8 0%, #4285f4 100%)"/>
-
-  <!-- Decorative elements -->
-  <circle cx="100" cy="100" r="80" fill="rgba(255,255,255,0.1)"/>
-  <circle cx="1100" cy="530" r="60" fill="rgba(255,255,255,0.1)"/>
-  <circle cx="150" cy="480" r="40" fill="rgba(255,255,255,0.1)"/>
-  <circle cx="1050" cy="150" r="50" fill="rgba(255,255,255,0.1)"/>
+  <rect width="1200" height="630" fill="#1a73e8"/>
 
   <!-- Main content -->
   <g transform="translate(600, 315)">
     <!-- Logo/Padel icon -->
-    <g transform="translate(-100, -100)">
-      <circle cx="100" cy="100" r="80" fill="white" opacity="0.9"/>
-      <path d="M40 60 L160 60 L170 70 L170 130 L160 140 L40 140 L30 130 L30 70 Z" fill="#1a73e8" stroke="white" stroke-width="3"/>
-      <rect x="70" y="140" width="60" height="20" fill="#1a73e8" stroke="white" stroke-width="3"/>
-      <circle cx="130" cy="100" r="12" fill="#1a73e8"/>
-      <line x1="30" y1="50" x2="50" y2="50" stroke="white" stroke-width="4" stroke-linecap="round"/>
-      <line x1="30" y1="150" x2="50" y2="150" stroke="white" stroke-width="4" stroke-linecap="round"/>
+    <g transform="translate(-150, -120)">
+      <circle cx="150" cy="120" r="90" fill="white"/>
+      <path d="M60 70 L240 70 L255 85 L255 155 L240 170 L60 170 L45 155 L45 85 Z" fill="#1a73e8" stroke="white" stroke-width="4"/>
+      <rect x="105" y="170" width="90" height="25" fill="#1a73e8" stroke="white" stroke-width="4"/>
+      <circle cx="195" cy="120" r="15" fill="#1a73e8"/>
+      <line x1="45" y1="55" x2="75" y2="55" stroke="white" stroke-width="6" stroke-linecap="round"/>
+      <line x1="45" y1="185" x2="75" y2="185" stroke="white" stroke-width="6" stroke-linecap="round"/>
     </g>
 
     <!-- Text -->
-    <text x="120" y="-20" font-family="Arial, sans-serif" font-size="48" font-weight="bold" fill="white">MiTorneo</text>
-    <text x="120" y="30" font-family="Arial, sans-serif" font-size="28" fill="rgba(255,255,255,0.9)">Sistema de Gestión de Torneos de Pádel</text>
-    <text x="120" y="70" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.8)">• Grupos automáticos</text>
-    <text x="120" y="100" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.8)">• Calendarios inteligentes</text>
-    <text x="120" y="130" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.8)">• Seguimiento en vivo</text>
-    <text x="120" y="160" font-family="Arial, sans-serif" font-size="18" fill="rgba(255,255,255,0.8)">• Brackets profesionales</text>
+    <text x="200" y="-40" font-family="system-ui, -apple-system, sans-serif" font-size="56" font-weight="bold" fill="white">MiTorneo</text>
+    <text x="200" y="20" font-family="system-ui, -apple-system, sans-serif" font-size="32" fill="rgba(255,255,255,0.95)">Sistema de Torneos de Pádel</text>
+    <text x="200" y="70" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="rgba(255,255,255,0.9)">• Grupos automáticos</text>
+    <text x="200" y="100" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="rgba(255,255,255,0.9)">• Calendarios inteligentes</text>
+    <text x="200" y="130" font-family="system-ui, -apple-system, sans-serif" font-size="20" fill="rgba(255,255,255,0.9)">• Seguimiento en vivo</text>
   </g>
 
   <!-- Bottom decoration -->
-  <rect x="0" y="580" width="1200" height="50" fill="rgba(255,255,255,0.1)"/>
-  <text x="600" y="610" text-anchor="middle" font-family="Arial, sans-serif" font-size="16" fill="rgba(255,255,255,0.7)">padel-torneos.com</text>
+  <rect x="0" y="580" width="1200" height="50" fill="rgba(255,255,255,0.15)"/>
+  <text x="600" y="610" text-anchor="middle" font-family="system-ui, -apple-system, sans-serif" font-size="18" fill="rgba(255,255,255,0.8)">padel-torneos.vercel.app</text>
 </svg>

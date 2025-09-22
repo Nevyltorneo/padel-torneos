@@ -30,12 +30,13 @@ try {
 }
 
 console.log("\n🔗 URLs de archivos:");
-const baseUrl = "https://padel-torneos.com";
+const baseUrl = "https://padel-torneos.vercel.app";
 const files = [
   "/favicon.svg",
   "/og-image.svg",
   "/manifest.json",
   "/test-meta.html",
+  "/whatsapp-test.html",
 ];
 
 files.forEach((file) => {
@@ -49,15 +50,13 @@ console.log(
 );
 console.log(`   Imagen: ${baseUrl}/og-image.svg`);
 console.log(`   URL: ${baseUrl}`);
+console.log(`   WhatsApp Test: ${baseUrl}/whatsapp-test.html`);
 
 console.log("\n✅ Verificación completada!");
 console.log("\n💡 Para probar:");
-console.log(
-  "   1. Abre el navegador y ve a: https://padel-torneos.com/test-meta.html"
-);
+console.log(`   1. Abre el navegador y ve a: ${baseUrl}/whatsapp-test.html`);
 console.log(
   "   2. Usa herramientas como: https://opengraph.dev/ para verificar las meta tags"
 );
-console.log(
-  "   3. Comparte el link en redes sociales para ver la imagen de preview"
-);
+console.log("   3. Comparte el link en WhatsApp para ver la imagen de preview");
+console.log("   4. Si no funciona, prueba recargando la página primero");

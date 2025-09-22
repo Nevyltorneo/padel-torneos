@@ -20,11 +20,11 @@ export const metadata: Metadata = {
     title: "MiTorneo - Sistema Profesional de Torneos de Pádel",
     description:
       "Organiza torneos de pádel de manera profesional con nuestro sistema completo de gestión. Grupos automáticos, brackets, calendarios y seguimiento en vivo.",
-    url: "https://padel-torneos.com",
+    url: "https://padel-torneos.vercel.app",
     siteName: "MiTorneo",
     images: [
       {
-        url: "/og-image.svg",
+        url: "https://padel-torneos.vercel.app/og-image.svg",
         width: 1200,
         height: 630,
         alt: "MiTorneo - Sistema de Gestión de Torneos de Pádel",
@@ -38,7 +38,7 @@ export const metadata: Metadata = {
     title: "MiTorneo - Gestión de Torneos de Pádel",
     description:
       "Sistema profesional para organizar torneos de pádel con grupos automáticos y seguimiento en vivo.",
-    images: ["/og-image.svg"],
+    images: ["https://padel-torneos.vercel.app/og-image.svg"],
   },
   icons: {
     icon: [

@@ -45,10 +45,11 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: [
-      { url: "/favicon.svg", type: "image/svg+xml" },
       { url: "/favicon.ico", sizes: "any" },
+      { url: "/favicon.svg", type: "image/svg+xml" },
     ],
     apple: "/favicon.svg",
+    shortcut: "/favicon.ico",
   },
   manifest: "/manifest.json",
   other: {
@@ -76,6 +77,12 @@ export const metadata: Metadata = {
     "twitter:image:width": "1200",
     "twitter:image:height": "630",
     "twitter:image:alt": "MiTorneo - Sistema de Gestión de Torneos de Pádel",
+    // Favicon specific tags
+    "msapplication-TileImage": "/favicon.ico",
+    "msapplication-square70x70logo": "/favicon.ico",
+    "msapplication-square150x150logo": "/favicon.ico",
+    "msapplication-wide310x150logo": "/favicon.ico",
+    "msapplication-square310x310logo": "/favicon.ico",
   },
 };
 

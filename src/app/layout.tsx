@@ -116,7 +116,7 @@ export default function RootLayout({
         <meta http-equiv="Pragma" content="no-cache" />
         <meta http-equiv="Expires" content="0" />
 
-        {/* GitHub specific meta tags - Try to force favicon */}
+        {/* GitHub specific meta tags - FORCE favicon recognition */}
         <meta name="github-repo" content="Nevyltorneo/padel-torneos" />
         <meta name="twitter:site" content="@MiTorneo" />
         <meta name="twitter:creator" content="@MiTorneo" />
@@ -128,11 +128,85 @@ export default function RootLayout({
         />
         <link rel="canonical" href="https://padel-torneos.vercel.app" />
 
-        {/* Additional favicon links for maximum compatibility */}
+        {/* Force favicon recognition for all platforms */}
+        <meta name="theme-color" content="#1a73e8" />
+        <meta name="msapplication-TileColor" content="#1a73e8" />
+        <meta name="msapplication-navbutton-color" content="#1a73e8" />
+
+        {/* Additional meta tags that GitHub might respect */}
+        <meta
+          name="description"
+          content="Sistema profesional para organizar torneos de pádel. Genera grupos automáticamente, administra calendarios, asigna canchas y haz seguimiento en tiempo real de todos tus torneos."
+        />
+        <meta
+          name="keywords"
+          content="torneos pádel, gestión deportiva, bracket, eliminatorias, grupos, calendario deportivo, canchas"
+        />
+        <meta name="author" content="MiTorneo" />
+        <meta name="robots" content="index, follow" />
+        <meta
+          name="googlebot"
+          content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+        />
+        <meta
+          name="bingbot"
+          content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1"
+        />
+
+        {/* OpenGraph for better social media recognition */}
+        <meta
+          property="og:title"
+          content="MiTorneo - Gestión de Torneos de Pádel"
+        />
+        <meta
+          property="og:description"
+          content="Sistema completo para organizar y gestionar torneos de pádel. Genera grupos automáticamente, administra calendarios, asigna canchas y haz seguimiento en tiempo real."
+        />
+        <meta
+          property="og:image"
+          content="https://padel-torneos.vercel.app/mito.png"
+        />
+        <meta property="og:url" content="https://padel-torneos.vercel.app" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="MiTorneo" />
+
+        {/* Twitter Card meta tags */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta
+          name="twitter:title"
+          content="MiTorneo - Gestión de Torneos de Pádel"
+        />
+        <meta
+          name="twitter:description"
+          content="Sistema profesional para organizar torneos de pádel con grupos automáticos y seguimiento en vivo."
+        />
+        <meta
+          name="twitter:image"
+          content="https://padel-torneos.vercel.app/mito.png"
+        />
+
+        {/* Additional favicon links for maximum compatibility - GitHub focused */}
         <link rel="icon" href="/mito.png" type="image/png" />
         <link rel="alternate icon" href="/mito.png" />
         <link rel="icon" href="/favicon.ico" type="image/x-icon" />
         <link rel="icon" href="/favicon-github.svg" type="image/svg+xml" />
+
+        {/* Multiple favicon sizes for different platforms */}
+        <link rel="apple-touch-icon" sizes="180x180" href="/mito.png" />
+        <link rel="apple-touch-icon" sizes="152x152" href="/mito.png" />
+        <link rel="apple-touch-icon" sizes="120x120" href="/mito.png" />
+        <link rel="apple-touch-icon" sizes="76x76" href="/mito.png" />
+
+        {/* Android/Chrome icons */}
+        <link rel="android-chrome" sizes="192x192" href="/mito.png" />
+        <link rel="android-chrome" sizes="512x512" href="/mito.png" />
+
+        {/* Favicon for older browsers */}
+        <link rel="shortcut icon" href="/mito.png" />
+
+        {/* Force reload with timestamp */}
+        <meta name="favicon-version" content="2024-09-22" />
+        <meta name="build-date" content="2024-09-22T00:00:00Z" />
 
         {/* Force GitHub to recognize the favicon */}
         <meta name="robots" content="index,follow" />

@@ -9,11 +9,7 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MiTorneo - Gestión de Torneos de Pádel",
-  icons: {
-    icon: "/mito.png",
-    shortcut: "/favicon.ico",
-    apple: "/mito.png",
-  },
+  icons: "/mito.png",
 };
 
 export default function RootLayout({
@@ -24,12 +20,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <title>MiTorneo - Gestión de Torneos de Pádel</title>
-        <link rel="icon" href="/mito.png" type="image/png" />
-        <link rel="shortcut icon" href="/mito.png" type="image/png" />
-        <link rel="apple-touch-icon" href="/mito.png" />
-        <meta name="msapplication-TileImage" content="/mito.png" />
-        <meta name="msapplication-TileColor" content="#1a73e8" />
+        <link rel="icon" href="/mito.png" />
       </head>
       <body
         className={cn(

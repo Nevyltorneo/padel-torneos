@@ -263,9 +263,9 @@ export default function HorariosPage() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-purple-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-emerald-600 mx-auto mb-4"></div>
           <p className="text-gray-600">Cargando horarios...</p>
         </div>
       </div>
@@ -273,9 +273,9 @@ export default function HorariosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-green-50">
+    <div className="min-h-screen bg-gradient-to-br from-emerald-50 via-blue-50 to-cyan-50">
       {/* Header Hero */}
-      <div className="bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 text-white">
+      <div className="bg-gradient-to-r from-emerald-600 via-blue-600 to-cyan-600 text-white shadow-xl">
         <div className="max-w-4xl mx-auto px-4 py-16 text-center">
           <div className="flex justify-center mb-6">
             <div className="bg-white/20 backdrop-blur-sm rounded-full p-4">
@@ -283,7 +283,7 @@ export default function HorariosPage() {
             </div>
           </div>
 
-          <h1 className="text-4xl md:text-5xl font-bold mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 drop-shadow-lg">
             ¡Bienvenido al Torneo! 🏆
           </h1>
 
@@ -306,7 +306,7 @@ export default function HorariosPage() {
 
       {/* Mensaje Motivacional */}
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <Card className="bg-gradient-to-r from-yellow-50 to-orange-50 border-yellow-200 shadow-lg">
+        <Card className="bg-gradient-to-r from-emerald-100 to-blue-100 border-0 shadow-lg">
           <CardContent className="p-8">
             <div className="text-center">
               <div className="flex justify-center mb-4">
@@ -331,8 +331,8 @@ export default function HorariosPage() {
                 </div>
 
                 <div className="text-center">
-                  <div className="bg-green-100 rounded-full p-3 w-fit mx-auto mb-3">
-                    <Users className="h-6 w-6 text-green-600" />
+                  <div className="bg-emerald-100 rounded-full p-3 w-fit mx-auto mb-3">
+                    <Users className="h-6 w-6 text-emerald-600" />
                   </div>
                   <h3 className="font-semibold text-gray-800 mb-2">Respeto</h3>
                   <p className="text-gray-600 text-sm">
@@ -341,8 +341,8 @@ export default function HorariosPage() {
                 </div>
 
                 <div className="text-center">
-                  <div className="bg-purple-100 rounded-full p-3 w-fit mx-auto mb-3">
-                    <Target className="h-6 w-6 text-purple-600" />
+                  <div className="bg-cyan-100 rounded-full p-3 w-fit mx-auto mb-3">
+                    <Target className="h-6 w-6 text-cyan-600" />
                   </div>
                   <h3 className="font-semibold text-gray-800 mb-2">
                     Excelencia
@@ -359,10 +359,10 @@ export default function HorariosPage() {
 
       {/* Horarios de Partidos */}
       <div className="max-w-4xl mx-auto px-4 pb-12">
-        <Card className="shadow-xl">
-          <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100 border-b">
+        <Card className="shadow-xl border-0">
+          <CardHeader className="bg-gradient-to-r from-emerald-600 to-blue-600 text-white rounded-t-lg">
             <CardTitle className="flex items-center gap-3 text-2xl">
-              <Calendar className="h-7 w-7 text-blue-600" />
+              <Calendar className="h-7 w-7" />
               Tus Partidos del Día
             </CardTitle>
           </CardHeader>
@@ -421,7 +421,7 @@ export default function HorariosPage() {
                                 Partido {index + 1}
                               </Badge>
                               {match.stage !== "group" && (
-                                <Badge className="bg-purple-100 text-purple-700">
+                                <Badge className="bg-emerald-100 text-emerald-700">
                                   {match.stage === "semifinals" && "Semifinal"}
                                   {match.stage === "final" && "Final"}
                                   {match.stage === "third_place" && "3er Lugar"}
@@ -438,7 +438,7 @@ export default function HorariosPage() {
                                 <span className="text-gray-400 font-normal">
                                   vs
                                 </span>
-                                <span className="text-purple-600">
+                                <span className="text-emerald-600">
                                   {getPairNameSafe(match.pairBId)}
                                 </span>
                               </div>
@@ -481,7 +481,7 @@ export default function HorariosPage() {
         </Card>
 
         {/* Footer Motivacional */}
-        <div className="text-center mt-8 bg-gradient-to-r from-blue-50 to-purple-50 rounded-lg p-6">
+        <div className="text-center mt-8 bg-gradient-to-r from-emerald-100 to-blue-100 rounded-lg p-6 shadow-lg">
           <h3 className="text-xl font-bold text-gray-800 mb-2">
             ¡Que tengas un excelente torneo! 🌟
           </h3>
@@ -499,7 +499,7 @@ export default function HorariosPage() {
 
         {/* 🎨 PATROCINADORES ELEGANTES */}
         <div className="max-w-4xl mx-auto px-4 py-8">
-          <div className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border border-blue-200">
+          <div className="bg-gradient-to-r from-blue-100 to-cyan-100 rounded-2xl p-6 border-0 shadow-lg">
             <h3 className="text-center text-lg font-semibold text-gray-800 mb-6">
               🤝 Patrocinadores Oficiales
             </h3>
@@ -511,7 +511,7 @@ export default function HorariosPage() {
                 <p className="text-xs font-medium">Club Deportivo</p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 mx-auto bg-green-500 rounded-lg flex items-center justify-center mb-2">
+                <div className="w-12 h-12 mx-auto bg-emerald-500 rounded-lg flex items-center justify-center mb-2">
                   <span className="text-white font-bold">🥤</span>
                 </div>
                 <p className="text-xs font-medium">Bebidas Sport</p>
@@ -523,7 +523,7 @@ export default function HorariosPage() {
                 <p className="text-xs font-medium">Raquetas Pro</p>
               </div>
               <div className="text-center">
-                <div className="w-12 h-12 mx-auto bg-purple-500 rounded-lg flex items-center justify-center mb-2">
+                <div className="w-12 h-12 mx-auto bg-cyan-500 rounded-lg flex items-center justify-center mb-2">
                   <span className="text-white font-bold">👕</span>
                 </div>
                 <p className="text-xs font-medium">Ropa Deportiva</p>

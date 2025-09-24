@@ -171,6 +171,7 @@ export default function HorariosPage() {
       "a6c12988-c2bc-4f2d-9516-a25e3907992d": "cancha 1",
       "1eb08bb2-e8c5-429f-b377-6de3f40b9309": "cancha 2",
       "8e2eb8e2-fdab-4d92-b5e1-8aa56d6c56ed": "cancha 3",
+      "878dd404-f66b-423e-98b5-984e1d2399b7": "cancha 3", // ID que estaba fallando
     };
 
     console.log("🔍 Emergency mappings:", emergencyCourtMappings);
@@ -190,6 +191,18 @@ export default function HorariosPage() {
     } else {
       console.log("🚨 COURT ID NOT FOUND IN MAPPING:", matchCourtId);
       console.log("🚨 Please add this ID to emergencyCourtMappings!");
+
+      // 🆕 AUTO-DETECCIÓN: Si hay canchas disponibles, usar la primera como fallback inteligente
+      if (courts.length > 0) {
+        const firstCourt = courts[0];
+        if (firstCourt && firstCourt.name) {
+          console.log(
+            "🔄 Using first available court as intelligent fallback:",
+            firstCourt.name
+          );
+          return firstCourt.name;
+        }
+      }
     }
 
     // ESTRATEGIA 2: Buscar por ID exacto con for loop (Safari compatible)

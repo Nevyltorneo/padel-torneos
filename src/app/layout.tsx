@@ -30,24 +30,24 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/mito.png?v=999" type="image/png" />
-        <link rel="shortcut icon" href="/mito.ico?v=999" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=999" />
+        <link rel="icon" href="/mito.png?v=1000" type="image/png" />
+        <link rel="shortcut icon" href="/mito.ico?v=1000" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=1000" />
         <link
           rel="icon"
           type="image/png"
           sizes="32x32"
-          href="/favicon-32x32.png?v=999"
+          href="/favicon-32x32.png?v=1000"
         />
         <link
           rel="icon"
           type="image/png"
           sizes="16x16"
-          href="/favicon-16x16.png?v=999"
+          href="/favicon-16x16.png?v=1000"
         />
         <meta
           name="msapplication-TileImage"
-          content="/mstile-144x144.png?v=999"
+          content="/mstile-144x144.png?v=1000"
         />
         <meta name="theme-color" content="#ffffff" />
       </head>

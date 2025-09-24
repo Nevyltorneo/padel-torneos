@@ -111,6 +111,7 @@ export default function CalendarPage() {
     [matchId: string]: {
       startTime?: string;
       courtId?: string;
+      day?: string;
     };
   }>({});
 
@@ -1011,6 +1012,21 @@ export default function CalendarPage() {
     }));
   };
 
+  // 🆕 HANDLER PARA CAMBIO RÁPIDO DE DÍA (Solo actualiza estado local)
+  const handleQuickDayChange = (matchId: string, newDay: string) => {
+    console.log(
+      `📅 Preparando cambio de día del partido ${matchId} a ${newDay}`
+    );
+
+    setPendingChanges((prev) => ({
+      ...prev,
+      [matchId]: {
+        ...prev[matchId],
+        day: newDay,
+      },
+    }));
+  };
+
   // 🆕 FUNCIÓN PARA GUARDAR TODOS LOS CAMBIOS PENDIENTES
   const handleSavePendingChanges = async () => {
     try {
@@ -1037,15 +1053,18 @@ export default function CalendarPage() {
             : match.startTime || "";
         const finalCourtId =
           changes.courtId !== undefined ? changes.courtId : match.courtId || "";
+        const finalDay =
+          changes.day !== undefined ? changes.day : match.day || "";
 
         console.log(`  💾 Guardando partido ${matchId}:`, {
+          dia: finalDay,
           hora: finalStartTime,
           cancha: finalCourtId,
         });
 
         await updateMatchSchedule(
           matchId,
-          match.day || "",
+          finalDay,
           finalStartTime,
           finalCourtId
         );
@@ -1594,6 +1613,31 @@ export default function CalendarPage() {
                                     </option>
                                   ))}
                                 </select>
+                              </div>
+
+                              {/* 🆕 INPUT EDITABLE DE DÍA */}
+                              <div className="flex items-center gap-2">
+                                <Calendar className="h-4 w-4" />
+                                <input
+                                  type="date"
+                                  value={
+                                    pendingChanges[match.id]?.day !== undefined
+                                      ? pendingChanges[match.id].day
+                                      : match.day || ""
+                                  }
+                                  onChange={(e) =>
+                                    handleQuickDayChange(
+                                      match.id,
+                                      e.target.value
+                                    )
+                                  }
+                                  className={`text-sm border rounded px-2 py-1 bg-white hover:border-blue-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition-colors ${
+                                    pendingChanges[match.id]?.day !== undefined
+                                      ? "border-orange-400 bg-orange-50"
+                                      : "border-gray-300"
+                                  }`}
+                                  style={{ minWidth: "140px" }}
+                                />
                               </div>
                             </div>
                           </div>

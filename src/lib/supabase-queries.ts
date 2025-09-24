@@ -524,6 +524,7 @@ export async function getPairs(categoryId: string): Promise<Pair[]> {
       console.log("getPairs: Raw data from DB:", data[0]);
       console.log("getPairs: player1 structure:", data[0].player1);
       console.log("getPairs: player2 structure:", data[0].player2);
+      console.log("getPairs: seed from DB:", data[0].seed);
     }
 
     // Convertir snake_case a camelCase para TypeScript
@@ -539,10 +540,15 @@ export async function getPairs(categoryId: string): Promise<Pair[]> {
         name: pair.player2?.name || "",
         phone: pair.player2?.phone || "",
       },
-      seed: index + 1, // Asignar ranking basado en el orden de creación
+      seed: pair.seed, // Usar el seed de la BD directamente
       createdAt: pair.created_at,
       updatedAt: pair.updated_at,
     }));
+
+    // Debug: Verificar el seed después de la conversión
+    if (pairs.length > 0) {
+      console.log("getPairs: Converted pairs seed:", pairs[0].seed);
+    }
 
     return pairs;
   } catch (error) {
@@ -589,7 +595,7 @@ export async function createPair(
       name: pair.player2.name.trim(),
       phone: pair.player2.phone?.trim() || null,
     },
-    // seed: pair.seed || null, // Comentado porque la columna no existe en la BD real
+    seed: pair.seed || null, // Incluir el seed en la inserción
   };
 
   console.log("createPair: Inserting data:", insertData);
@@ -603,10 +609,10 @@ export async function createPair(
   if (error) {
     console.error("Error creating pair:", error);
     console.error("Error details:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
+      message: error.message || "Unknown error",
+      details: error.details || "No details available",
+      hint: error.hint || "No hint available",
+      code: error.code || "No code available",
     });
     throw error;
   }
@@ -624,7 +630,7 @@ export async function createPair(
       name: data.player2?.name || "",
       phone: data.player2?.phone || "",
     },
-    seed: nextRanking, // Usar el ranking calculado basado en el número de parejas existentes
+    seed: data.seed || pair.seed || nextRanking, // Usar el seed de la BD, proporcionado o calculado
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };
@@ -644,10 +650,10 @@ export async function deletePair(id: string): Promise<void> {
   if (error) {
     console.error("Error deleting pair:", error);
     console.error("Error details:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
+      message: error.message || "Unknown error",
+      details: error.details || "No details available",
+      hint: error.hint || "No hint available",
+      code: error.code || "No code available",
     });
     throw error;
   }
@@ -684,7 +690,7 @@ export async function updatePair(
       name: pair.player2.name.trim(),
       phone: pair.player2.phone?.trim() || null,
     },
-    // seed: pair.seed || null, // Comentado porque la columna no existe en la BD real
+    seed: pair.seed || null, // Incluir el seed en la actualización
   };
 
   console.log("updatePair: Updating pair with ID:", id, "Data:", updateData);
@@ -699,10 +705,10 @@ export async function updatePair(
   if (error) {
     console.error("Error updating pair:", error);
     console.error("Error details:", {
-      message: error.message,
-      details: error.details,
-      hint: error.hint,
-      code: error.code,
+      message: error.message || "Unknown error",
+      details: error.details || "No details available",
+      hint: error.hint || "No hint available",
+      code: error.code || "No code available",
     });
     throw error;
   }
@@ -720,7 +726,7 @@ export async function updatePair(
       name: data.player2?.name || "",
       phone: data.player2?.phone || "",
     },
-    seed: pair.seed || 1, // Usar el valor proporcionado o 1 por defecto
+    seed: data.seed || pair.seed || 1, // Usar el seed de la BD o el proporcionado
     createdAt: data.created_at,
     updatedAt: data.updated_at,
   };

@@ -405,7 +405,7 @@ function PairCard({ pair, pairNumber, onEdit, onDelete }: PairCardProps) {
               Pareja #{pairNumber}
             </CardTitle>
           </div>
-          <Badge variant="outline">Ranking {pairNumber}</Badge>
+          <Badge variant="outline">Ranking {pair.seed}</Badge>
         </div>
       </CardHeader>
 

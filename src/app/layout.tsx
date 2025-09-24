@@ -9,7 +9,6 @@ const inter = Inter({ subsets: ["latin"] });
 
 export const metadata: Metadata = {
   title: "MiTorneo - Gestión de Torneos de Pádel",
-  icons: "/mito.png",
 };
 
 export default function RootLayout({
@@ -20,7 +19,7 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/mito.png" />
+        <link rel="icon" href="/mito.png" type="image/png" />
       </head>
       <body
         className={cn(

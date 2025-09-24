@@ -1434,6 +1434,7 @@ export default function CalendarPage() {
                     <SelectValue placeholder="Filtrar categoría" />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="all">📊 Todas las categorías</SelectItem>
                     {allCategories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         🏆 {category.name}

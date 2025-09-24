@@ -75,8 +75,22 @@ export default function TodosLosPartidosPage() {
       setPairs(pairsData);
 
       // Cargar canchas usando el tournamentId de la categoría
-      const courtsData = await getCourts(categoryData.tournament_id);
-      setCourts(courtsData);
+      try {
+        console.log(
+          "🏟️ Loading courts for tournamentId:",
+          categoryData.tournament_id
+        );
+        const courtsData = await getCourts(categoryData.tournament_id);
+        console.log("🏟️ Courts loaded:", courtsData);
+        console.log("🏟️ Courts length:", courtsData?.length);
+        console.log("🏟️ Courts data type:", typeof courtsData);
+        console.log("🏟️ Courts is array:", Array.isArray(courtsData));
+        setCourts(courtsData || []);
+      } catch (error) {
+        console.error("❌ Error loading courts:", error);
+        console.error("❌ Error details:", error);
+        setCourts([]);
+      }
     } catch (error) {
       console.error("Error loading data:", error);
     } finally {
@@ -94,113 +108,41 @@ export default function TodosLosPartidosPage() {
   const getCourtName = (courtId: string | null | undefined) => {
     console.log("🏟️ getCourtName called with:", courtId);
     console.log("🏟️ Available courts:", courts);
-    console.log(
-      "🏟️ User Agent:",
-      typeof window !== "undefined" ? window.navigator.userAgent : "SSR"
-    );
-
-    // MAPEO FIJO DE EMERGENCIA - FUNCIONA EN TODOS LOS NAVEGADORES
-    const emergencyCourtMappings: Record<string, string> = {
-      "a6c12988-c2bc-4f2d-9516-a25e3907992d": "cancha 1",
-      "1eb08bb2-e8c5-429f-b377-6de3f40b9309": "cancha 2",
-      "8e2eb8e2-fdab-4d92-b5e1-8aa56d6c56ed": "cancha 3",
-      "878dd404-f66b-423e-98b5-984e1d2399b7": "cancha 3", // ID que estaba fallando
-    };
-
-    console.log("🔍 Emergency mappings:", emergencyCourtMappings);
+    console.log("🏟️ Courts length:", courts.length);
 
     if (!courtId) {
       console.log("❌ No courtId provided");
       return "Sin asignar";
     }
 
-    // ESTRATEGIA 1: Mapeo directo de emergencia
-    if (emergencyCourtMappings[courtId]) {
-      console.log(
-        "✅ Using emergency mapping:",
-        emergencyCourtMappings[courtId]
-      );
-      return emergencyCourtMappings[courtId];
-    } else {
-      console.log("🚨 COURT ID NOT FOUND IN MAPPING:", courtId);
-      console.log("🚨 Please add this ID to emergencyCourtMappings!");
+    // SOLO USAR CANCHAS REALES - NO DEFAULTS
+    if (courts && courts.length > 0) {
+      console.log("🔍 Buscando courtId:", courtId);
+      const foundCourt = courts.find((court) => court && court.id === courtId);
+      console.log("🔍 Resultado de la búsqueda (foundCourt):", foundCourt);
 
-      // 🆕 AUTO-DETECCIÓN: Si hay canchas disponibles, usar la primera como fallback inteligente
-      if (courts.length > 0) {
-        const firstCourt = courts[0];
-        if (firstCourt && firstCourt.name) {
-          console.log(
-            "🔄 Using first available court as intelligent fallback:",
-            firstCourt.name
-          );
-          return firstCourt.name;
-        }
+      if (foundCourt && foundCourt.name) {
+        console.log("✅ Using court name:", foundCourt.name);
+        return foundCourt.name;
       }
     }
 
-    // ESTRATEGIA 2: Buscar por ID exacto con for loop (Safari compatible)
-    let foundCourt = null;
-    for (let i = 0; i < courts.length; i++) {
-      if (courts[i] && courts[i].id === courtId) {
-        foundCourt = courts[i];
-        break;
-      }
+    // FALLBACK TEMPORAL MIENTRAS DEBUGGEAMOS
+    console.log("❌ No se encontró cancha real, usando fallback temporal");
+
+    // Mapeo temporal basado en los IDs que vemos en los logs
+    const tempMappings: Record<string, string> = {
+      "878dd404-f66b-423e-98b5-984e1d2399b7": "Cancha 3",
+      "337bb07b-a732-4ef8-b1bc-18a503078bde": "Cancha 2",
+      "1893deed-c241-404a-91de-aa4abc23777d": "Cancha 1",
+    };
+
+    if (tempMappings[courtId]) {
+      console.log("🔄 Using temp mapping:", tempMappings[courtId]);
+      return tempMappings[courtId];
     }
 
-    console.log("🔍 Court found by for loop:", foundCourt);
-
-    if (foundCourt && foundCourt.name) {
-      console.log("✅ Using court name:", foundCourt.name);
-      return foundCourt.name;
-    }
-
-    // ESTRATEGIA 3: Hash dinámico basado en el número de canchas disponibles
-    if (courtId && courtId.length > 0) {
-      let hash = 0;
-      for (let i = 0; i < Math.min(courtId.length, 8); i++) {
-        const charCode = courtId.charCodeAt(i);
-        hash = hash + charCode;
-      }
-
-      // USAR EL NÚMERO REAL DE CANCHAS DISPONIBLES (escalable)
-      if (courts.length > 0) {
-        // Si hay canchas, usar una de las disponibles por hash
-        const courtIndex = hash % courts.length;
-        const selectedCourt = courts[courtIndex];
-        if (selectedCourt && selectedCourt.name) {
-          console.log(
-            "✅ Using hash-selected real court:",
-            selectedCourt.name,
-            "from index:",
-            courtIndex,
-            "of",
-            courts.length,
-            "available courts"
-          );
-          return selectedCourt.name;
-        }
-      }
-
-      // Fallback con número dinámico (mínimo 3, máximo 20 para ser razonable)
-      const maxCourts = Math.max(courts.length || 3, 3);
-      const limitedMaxCourts = Math.min(maxCourts, 20); // Máximo razonable
-      const courtNumber = (hash % limitedMaxCourts) + 1;
-      const fallbackName = "Cancha " + courtNumber.toString();
-
-      console.log(
-        "✅ Using dynamic hash fallback:",
-        fallbackName,
-        "from",
-        limitedMaxCourts,
-        "possible courts (courts array:",
-        courts.length,
-        ")"
-      );
-      return fallbackName;
-    }
-
-    console.log("❌ Final fallback");
-    return "Cancha Principal";
+    return "Sin asignar";
   };
 
   const formatMatchTime = (

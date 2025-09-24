@@ -541,6 +541,7 @@ export async function getPairs(categoryId: string): Promise<Pair[]> {
         phone: pair.player2?.phone || "",
       },
       seed: pair.seed, // Usar el seed de la BD directamente
+      groupId: pair.group_id, // Incluir el groupId
       createdAt: pair.created_at,
       updatedAt: pair.updated_at,
     }));
@@ -661,6 +662,61 @@ export async function deletePair(id: string): Promise<void> {
   console.log("deletePair: Successfully deleted pair with ID:", id);
 }
 
+export async function updateGroup(
+  id: string,
+  group: Omit<Group, "id" | "createdAt" | "updatedAt">
+): Promise<Group> {
+  if (!id || id.trim() === "") {
+    throw new Error("ID de grupo es requerido");
+  }
+
+  // Validar datos requeridos
+  if (!group.categoryId || !group.name) {
+    throw new Error("categoryId y name son requeridos");
+  }
+
+  // Preparar datos para actualizar
+  const updateData = {
+    category_id: group.categoryId,
+    name: group.name.trim(),
+    pair_ids: group.pairIds,
+  };
+
+  console.log("updateGroup: Updating group with ID:", id, "Data:", updateData);
+
+  const { data, error } = await supabase
+    .from("groups")
+    .update(updateData)
+    .eq("id", id)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error("Error updating group:", error);
+    console.error("Error details:", {
+      message: error.message || "No message",
+      details: error.details || "No details",
+      hint: error.hint || "No hint",
+      code: error.code || "No code",
+    });
+    throw error;
+  }
+
+  console.log("updateGroup: Successfully updated group:", data);
+
+  // Convertir snake_case a camelCase para TypeScript
+  const updatedGroup: Group = {
+    id: data.id,
+    categoryId: data.category_id,
+    name: data.name,
+    pairIds: data.pair_ids || [],
+    createdAt: data.created_at,
+    updatedAt: data.updated_at,
+  };
+
+  return updatedGroup;
+}
+
 export async function updatePair(
   id: string,
   pair: Omit<Pair, "id" | "createdAt" | "updatedAt">
@@ -691,6 +747,7 @@ export async function updatePair(
       phone: pair.player2.phone?.trim() || null,
     },
     seed: pair.seed || null, // Incluir el seed en la actualización
+    group_id: pair.groupId || null, // Incluir el groupId en la actualización
   };
 
   console.log("updatePair: Updating pair with ID:", id, "Data:", updateData);

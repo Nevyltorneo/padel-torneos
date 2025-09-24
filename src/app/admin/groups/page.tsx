@@ -54,9 +54,19 @@ import {
   deleteAllGroupMatches,
   deleteAllCategoryMatches,
   deleteGroups,
+  updateGroup,
   StandingsEntry,
 } from "@/lib/supabase-queries";
 import { generateRoundRobinMatches } from "@/lib/algorithms/round-robin";
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverEvent,
+  DragOverlay,
+} from "@dnd-kit/core";
+import { DroppableGroup } from "@/components/drag-drop/DroppableGroup";
+import { DraggablePair } from "@/components/drag-drop/DraggablePair";
+import { usePairSwap } from "@/hooks/usePairSwap";
 
 export default function GroupsPage() {
   const router = useRouter();
@@ -74,6 +84,10 @@ export default function GroupsPage() {
   const [selectedGroupStandings, setSelectedGroupStandings] = useState<
     StandingsEntry[]
   >([]);
+
+  // Drag & Drop states
+  const [activePair, setActivePair] = useState<Pair | null>(null);
+  const [isDragMode, setIsDragMode] = useState(false);
   const [scoreForm, setScoreForm] = useState({
     pairA_set1: "",
     pairA_set2: "",
@@ -87,6 +101,38 @@ export default function GroupsPage() {
   });
 
   const { currentTournament } = useTournamentStore();
+
+  // Función para recargar grupos (definida antes del hook)
+  const loadGroups = async () => {
+    if (!selectedCategoryId) return;
+
+    try {
+      console.log("Reloading groups for category:", selectedCategoryId);
+
+      // Recargar solo los grupos y parejas
+      const [groupsData, pairsData] = await Promise.all([
+        getGroups(selectedCategoryId),
+        getPairs(selectedCategoryId),
+      ]);
+
+      console.log("Groups reloaded:", groupsData);
+      console.log("Pairs reloaded:", pairsData);
+
+      setGroups(groupsData);
+      setAllPairs(pairsData);
+    } catch (error) {
+      console.error("Error reloading groups:", error);
+      toast.error("Error al recargar los grupos");
+    }
+  };
+
+  // Drag & Drop hook
+  const { swapPairs, movePairToGroup, isSwapping } = usePairSwap({
+    onSwapComplete: () => {
+      loadGroups();
+      setActivePair(null);
+    },
+  });
 
   useEffect(() => {
     if (currentTournament) {
@@ -474,6 +520,68 @@ export default function GroupsPage() {
     }
   };
 
+  // Wrapper functions for DroppableGroup component
+  const handleViewMatchesWrapper = (groupId: string) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (group) {
+      handleViewMatches(group);
+    }
+  };
+
+  const handleViewStandingsWrapper = (groupId: string) => {
+    const group = groups.find((g) => g.id === groupId);
+    if (group) {
+      handleViewStandings(group);
+    }
+  };
+
+  // Drag & Drop handlers
+  const handleDragStart = (event: any) => {
+    const { active } = event;
+    const pair = allPairs.find((p) => p.id === active.id);
+    setActivePair(pair || null);
+  };
+
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+
+    if (!over) {
+      setActivePair(null);
+      return;
+    }
+
+    // Buscar la pareja directamente por el active.id
+    const draggedPair = allPairs.find((p) => p.id === active.id);
+    if (!draggedPair) {
+      setActivePair(null);
+      return;
+    }
+
+    const targetGroupId = over.id as string;
+
+    const currentGroup = groups.find((group) =>
+      group.pairIds.includes(draggedPair.id)
+    );
+
+    if (!currentGroup || currentGroup.id === targetGroupId) {
+      setActivePair(null);
+      return;
+    }
+
+    // Encontrar el grupo objetivo
+    const targetGroup = groups.find((group) => group.id === targetGroupId);
+
+    if (!targetGroup) {
+      setActivePair(null);
+      return;
+    }
+
+    // Mover la pareja al grupo objetivo
+    movePairToGroup(draggedPair, targetGroupId, groups);
+
+    setActivePair(null);
+  };
+
   if (!currentTournament) {
     return (
       <div className="groups-no-tournament p-6 max-w-7xl mx-auto">
@@ -616,22 +724,46 @@ export default function GroupsPage() {
         </div>
       </div>
 
-      {/* Groups Grid */}
-      <div className="groups-grid grid grid-cols-1 md:grid-cols-2 gap-6">
-        {groups.map((group) => {
-          const groupPairs = getPairsByIds(group.pairIds);
-
-          return (
-            <GroupCard
-              key={group.id}
-              group={group}
-              pairs={groupPairs}
-              onViewMatches={handleViewMatches}
-              onViewStandings={handleViewStandings}
-            />
-          );
-        })}
+      {/* Drag & Drop Toggle */}
+      <div className="mb-6 flex justify-between items-center">
+        <div className="flex items-center gap-4">
+          <h2 className="text-2xl font-bold">Grupos</h2>
+          <Badge variant="outline" className="text-sm">
+            {groups.length} grupos generados
+          </Badge>
+        </div>
+        <Button
+          onClick={() => setIsDragMode(!isDragMode)}
+          variant={isDragMode ? "default" : "outline"}
+          className="flex items-center gap-2"
+        >
+          {isDragMode ? "Desactivar" : "Activar"} Reorganización
+        </Button>
       </div>
+
+      {/* Groups Grid with Drag & Drop */}
+      <DndContext onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+        <div className="groups-grid grid grid-cols-1 md:grid-cols-2 gap-6">
+          {groups.map((group) => {
+            const groupPairs = getPairsByIds(group.pairIds);
+
+            return (
+              <DroppableGroup
+                key={group.id}
+                group={group}
+                pairs={groupPairs}
+                onViewMatches={handleViewMatchesWrapper}
+                onViewStandings={handleViewStandingsWrapper}
+                isDragMode={isDragMode}
+              />
+            );
+          })}
+        </div>
+
+        <DragOverlay>
+          {activePair ? <DraggablePair pair={activePair} /> : null}
+        </DragOverlay>
+      </DndContext>
 
       {/* Dialog para mostrar partidos */}
       <Dialog open={showMatchesDialog} onOpenChange={setShowMatchesDialog}>

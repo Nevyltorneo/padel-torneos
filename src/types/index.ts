@@ -61,6 +61,7 @@ export interface Pair {
   player1: Player;
   player2: Player;
   seed?: number; // opcional para siembra manual
+  groupId?: ID; // opcional para grupo asignado
 }
 
 export interface Group {

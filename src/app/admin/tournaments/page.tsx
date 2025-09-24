@@ -538,7 +538,7 @@ function CreateTournamentDialog({
               id="tournament-name"
               value={name}
               onChange={(e) => handleNameChange(e.target.value)}
-              placeholder="Ej: Abierto de Pádel Septiembre 2024"
+              placeholder="Ej: Abierto de Pádel Septiembre 2025"
             />
           </div>
 
@@ -548,7 +548,7 @@ function CreateTournamentDialog({
               id="tournament-slug"
               value={slug}
               onChange={(e) => setSlug(e.target.value)}
-              placeholder="abierto-padel-septiembre-2024"
+              placeholder="abierto-padel-septiembre-2025"
             />
             <p className="text-xs text-gray-500 mt-1">
               Esta será la URL pública: /public/t/{slug}

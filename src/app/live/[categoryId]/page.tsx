@@ -1254,7 +1254,7 @@ export default function LiveCategoryView() {
             {/* Copyright */}
             <div className="border-t border-gray-700 mt-8 pt-6 text-center">
               <p className="text-gray-400 text-sm">
-                © 2024 Sistema de Torneos Profesional •
+                © 2025 Sistema de Torneos Profesional •
                 <span className="text-blue-400 ml-1">by NevylDev</span> • Todos
                 los derechos reservados
               </p>

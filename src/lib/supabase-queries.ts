@@ -300,8 +300,7 @@ export async function getCategories(tournamentId: string): Promise<Category[]> {
 
     if (error) {
       console.error("Error fetching categories:", error);
-      // Si hay error, retornar array vacío en lugar de lanzar excepción
-      return [];
+      throw new Error(`Error fetching categories: ${error.message}`);
     }
 
     // Convertir snake_case a camelCase para TypeScript
@@ -2170,8 +2169,7 @@ export async function getCourts(tournamentId: string): Promise<Court[]> {
 
     if (error) {
       console.error("Error fetching courts:", error);
-      // Si hay error, retornar array vacío en lugar de lanzar excepción
-      return [];
+      throw new Error(`Error fetching courts: ${error.message}`);
     }
 
     return (data || []).map((row) => ({

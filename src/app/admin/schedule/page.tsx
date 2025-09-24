@@ -840,53 +840,57 @@ export default function CalendarPage() {
 
   // 📧 NUEVA FUNCIÓN: Enviar horarios por día y categoría
   const handleNotifyPlayersByDay = async () => {
-    if (!notifyForm.targetDate) {
-      toast.error("Por favor selecciona una fecha");
+    if (!notifyForm.categoryId) {
+      toast.error("Por favor selecciona una categoría");
       return;
     }
 
     try {
-      toast.loading("Generando enlaces elegantes...", { id: "notify-players" });
-
-      // Filtrar partidos programados del día y categoría
-      const scheduledMatches = allMatches.filter((match) => {
-        const matchDate = match.day;
-        const dateMatches = matchDate === notifyForm.targetDate;
-        const categoryMatches =
-          notifyForm.categoryId === "all" ||
-          match.categoryId === notifyForm.categoryId;
-        const isScheduled = match.day && match.startTime && match.courtId;
-        return dateMatches && categoryMatches && isScheduled;
+      toast.loading("Generando enlace para todos los partidos...", {
+        id: "notify-players",
       });
 
-      if (scheduledMatches.length === 0) {
-        toast.warning("No hay partidos programados para generar enlaces", {
-          id: "notify-players",
-        });
-        return;
-      }
-
-      console.log(
-        `🔗 Generando ${scheduledMatches.length} enlaces para ${notifyForm.targetDate}`
-      );
-
-      // 🔗 Generar enlaces únicos por categoría
-      const categoriesWithMatches = new Set(
-        scheduledMatches.map((m) => m.categoryId)
-      );
       const baseUrl = window.location.origin;
       const links: string[] = [];
 
       if (notifyForm.categoryId === "all") {
         // Generar enlaces para todas las categorías
-        categoriesWithMatches.forEach((catId) => {
-          const link = `${baseUrl}/horarios/${catId}/${notifyForm.targetDate}`;
-          links.push(link);
-        });
+        for (const category of allCategories) {
+          const categoryMatches = allMatches.filter((match) => {
+            const categoryMatches = match.categoryId === category.id;
+            const hasSchedule = match.day && match.startTime && match.courtId;
+            return categoryMatches && hasSchedule;
+          });
+
+          if (categoryMatches.length > 0) {
+            const link = `${baseUrl}/horarios/${category.id}/todos`;
+            links.push(link);
+          }
+        }
       } else {
-        // Generar enlace para categoría específica
-        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/${notifyForm.targetDate}`;
+        // Filtrar partidos de la categoría específica
+        const categoryMatches = allMatches.filter((match) => {
+          const categoryMatches = match.categoryId === notifyForm.categoryId;
+          const hasSchedule = match.day && match.startTime && match.courtId;
+          return categoryMatches && hasSchedule;
+        });
+
+        if (categoryMatches.length === 0) {
+          toast.warning("No hay partidos programados para esta categoría", {
+            id: "notify-players",
+          });
+          return;
+        }
+
+        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/todos`;
         links.push(link);
+      }
+
+      if (links.length === 0) {
+        toast.warning("No hay partidos programados para generar enlaces", {
+          id: "notify-players",
+        });
+        return;
       }
 
       // Copiar enlaces al portapapeles
@@ -900,12 +904,7 @@ export default function CalendarPage() {
             "categoría";
 
       toast.success(
-        `¡Enlaces generados! ${
-          links.length
-        } enlaces copiados al portapapeles para ${categoryName} del ${format(
-          parseISO(notifyForm.targetDate),
-          "dd/MM/yyyy"
-        )}`,
+        `¡Enlaces generados! ${links.length} enlace(s) copiado(s) al portapapeles para ${categoryName}`,
         {
           id: "notify-players",
           duration: 5000,
@@ -916,8 +915,8 @@ export default function CalendarPage() {
 
       setShowNotifyDialog(false);
     } catch (error) {
-      console.error("Error generando enlaces:", error);
-      toast.error("Error al generar enlaces", { id: "notify-players" });
+      console.error("Error generando enlace:", error);
+      toast.error("Error al generar enlace", { id: "notify-players" });
     }
   };
 
@@ -1435,7 +1434,6 @@ export default function CalendarPage() {
                     <SelectValue placeholder="Filtrar categoría" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">📊 Todas las categorías</SelectItem>
                     {allCategories.map((category) => (
                       <SelectItem key={category.id} value={category.id}>
                         🏆 {category.name}
@@ -2017,25 +2015,6 @@ export default function CalendarPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <div>
-              <Label htmlFor="notifyDate">📅 Fecha de partidos</Label>
-              <Input
-                id="notifyDate"
-                type="date"
-                value={notifyForm.targetDate}
-                onChange={(e) =>
-                  setNotifyForm({
-                    ...notifyForm,
-                    targetDate: e.target.value,
-                  })
-                }
-                min={new Date().toISOString().split("T")[0]}
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Se generarán enlaces elegantes con los horarios programados
-              </p>
-            </div>
-
             <div>
               <Label htmlFor="notifyCategory">🏆 Categoría</Label>
               <Select

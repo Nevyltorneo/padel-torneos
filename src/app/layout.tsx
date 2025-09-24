@@ -33,15 +33,8 @@ export const metadata: Metadata = {
     images: ["/mito.png"],
   },
   icons: {
-    icon: [
-      { url: "/mito.png", type: "image/png" },
-      { url: "/mito.ico", type: "image/x-icon" },
-      { url: "/favicon-32x32.png", sizes: "32x32", type: "image/png" },
-      { url: "/favicon-16x16.png", sizes: "16x16", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180", type: "image/png" },
-    ],
+    icon: "/mito-favicon.ico",
+    apple: "/apple-touch-icon.png",
   },
 };
 
@@ -53,31 +46,15 @@ export default function RootLayout({
   return (
     <html lang="es">
       <head>
-        <link rel="icon" href="/mito.png?v=2000" type="image/png" />
-        <link rel="shortcut icon" href="/mito.ico?v=2000" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png?v=2000" />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="32x32"
-          href="/favicon-32x32.png?v=2000"
-        />
-        <link
-          rel="icon"
-          type="image/png"
-          sizes="16x16"
-          href="/favicon-16x16.png?v=2000"
-        />
-        <meta
-          name="msapplication-TileImage"
-          content="/mstile-144x144.png?v=2000"
-        />
+        <link rel="icon" href="/mito-favicon.ico" type="image/x-icon" />
+        <link rel="shortcut icon" href="/mito-favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#ffffff" />
-        <meta property="og:image" content="/mito.png?v=2000" />
+        <meta property="og:image" content="/mito.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:type" content="image/png" />
-        <meta name="twitter:image" content="/mito.png?v=2000" />
+        <meta name="twitter:image" content="/mito.png" />
       </head>
       <body
         className={cn(

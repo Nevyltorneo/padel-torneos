@@ -845,6 +845,11 @@ export default function CalendarPage() {
       return;
     }
 
+    if (!notifyForm.targetDate) {
+      toast.error("Por favor selecciona un día");
+      return;
+    }
+
     try {
       toast.loading("Generando enlace para todos los partidos...", {
         id: "notify-players",
@@ -853,8 +858,109 @@ export default function CalendarPage() {
       const baseUrl = window.location.origin;
       const links: string[] = [];
 
-      if (notifyForm.categoryId === "all") {
-        // Generar enlaces para todas las categorías
+      if (notifyForm.categoryId === "all" && notifyForm.targetDate !== "all") {
+        // CASO ESPECIAL: Todas las categorías de un día específico
+        console.log("🔍 BUSCANDO PARTIDOS PARA EL DÍA:", notifyForm.targetDate);
+        console.log("📊 Total de partidos en BD:", allMatches.length);
+
+        // DIAGNÓSTICO COMPLETO DE TODOS LOS PARTIDOS
+        console.log("📋 DIAGNÓSTICO COMPLETO:");
+        allMatches.forEach((match, index) => {
+          console.log(`Partido ${index + 1}:`);
+          console.log(`  - ID: ${match.id}`);
+          console.log(`  - Día en BD: ${match.day}`);
+          console.log(`  - Día solicitado: ${notifyForm.targetDate}`);
+          console.log(`  - Coincide: ${match.day === notifyForm.targetDate}`);
+          console.log(`  - Horario: ${match.startTime}`);
+          console.log(`  - Cancha: ${match.courtId}`);
+          console.log(`  - Categoría: ${getCategoryName(match.categoryId)}`);
+          console.log("---");
+        });
+
+        const dayMatches = allMatches.filter((match) => {
+          const isCorrectDay = match.day === notifyForm.targetDate;
+          const hasSchedule = match.day && match.startTime && match.courtId;
+
+          if (isCorrectDay && hasSchedule) {
+            console.log(
+              `✅ PARTIDO VÁLIDO: ${match.id} - ${getCategoryName(
+                match.categoryId
+              )}`
+            );
+          } else {
+            console.log(
+              `❌ PARTIDO FILTRADO: ${match.id} - Día: ${match.day}, Horario: ${match.startTime}, Cancha: ${match.courtId}`
+            );
+          }
+
+          return isCorrectDay && hasSchedule;
+        });
+
+        console.log("✅ PARTIDOS ENCONTRADOS PARA EL DÍA:", dayMatches.length);
+
+        if (dayMatches.length === 0) {
+          toast.warning("No hay partidos programados para este día", {
+            id: "notify-players",
+          });
+          return;
+        }
+
+        // Crear enlace especial para ver todos los juegos del día
+        const link = `${baseUrl}/horarios/dia/${notifyForm.targetDate}`;
+        links.push(link);
+      } else if (
+        notifyForm.categoryId !== "all" &&
+        notifyForm.targetDate !== "all"
+      ) {
+        // CASO ESPECÍFICO: Categoría específica de un día específico
+        console.log("🔍 BUSCANDO PARTIDOS PARA CATEGORÍA Y DÍA:");
+        console.log("📊 Categoría:", notifyForm.categoryId);
+        console.log("📅 Día:", notifyForm.targetDate);
+        console.log("📊 Total de partidos en BD:", allMatches.length);
+
+        const categoryDayMatches = allMatches.filter((match) => {
+          const isCorrectCategory = match.categoryId === notifyForm.categoryId;
+          const isCorrectDay = match.day === notifyForm.targetDate;
+          const hasSchedule = match.day && match.startTime && match.courtId;
+
+          if (isCorrectCategory && isCorrectDay && hasSchedule) {
+            console.log(
+              `✅ PARTIDO VÁLIDO: ${match.id} - ${getCategoryName(
+                match.categoryId
+              )}`
+            );
+          } else {
+            console.log(
+              `❌ PARTIDO FILTRADO: ${match.id} - Categoría: ${match.categoryId}, Día: ${match.day}, Horario: ${match.startTime}, Cancha: ${match.courtId}`
+            );
+          }
+
+          return isCorrectCategory && isCorrectDay && hasSchedule;
+        });
+
+        console.log(
+          "✅ PARTIDOS ENCONTRADOS PARA CATEGORÍA Y DÍA:",
+          categoryDayMatches.length
+        );
+
+        if (categoryDayMatches.length === 0) {
+          toast.warning(
+            "No hay partidos programados para esta categoría y día",
+            {
+              id: "notify-players",
+            }
+          );
+          return;
+        }
+
+        // Crear enlace para la categoría específica del día
+        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/${notifyForm.targetDate}`;
+        links.push(link);
+      } else if (
+        notifyForm.categoryId === "all" &&
+        notifyForm.targetDate === "all"
+      ) {
+        // Todas las categorías de todos los días
         for (const category of allCategories) {
           const categoryMatches = allMatches.filter((match) => {
             const categoryMatches = match.categoryId === category.id;
@@ -868,17 +974,23 @@ export default function CalendarPage() {
           }
         }
       } else {
-        // Filtrar partidos de la categoría específica
+        // Categoría específica (con o sin día específico)
         const categoryMatches = allMatches.filter((match) => {
           const categoryMatches = match.categoryId === notifyForm.categoryId;
+          const dayMatches =
+            notifyForm.targetDate === "all" ||
+            match.day === notifyForm.targetDate;
           const hasSchedule = match.day && match.startTime && match.courtId;
-          return categoryMatches && hasSchedule;
+          return categoryMatches && dayMatches && hasSchedule;
         });
 
         if (categoryMatches.length === 0) {
-          toast.warning("No hay partidos programados para esta categoría", {
-            id: "notify-players",
-          });
+          toast.warning(
+            "No hay partidos programados para esta categoría y día",
+            {
+              id: "notify-players",
+            }
+          );
           return;
         }
 
@@ -903,8 +1015,15 @@ export default function CalendarPage() {
           : allCategories.find((c) => c.id === notifyForm.categoryId)?.name ||
             "categoría";
 
+      const dayName =
+        notifyForm.targetDate === "all"
+          ? "todos los días"
+          : format(new Date(notifyForm.targetDate), "EEEE, dd 'de' MMMM", {
+              locale: es,
+            });
+
       toast.success(
-        `¡Enlaces generados! ${links.length} enlace(s) copiado(s) al portapapeles para ${categoryName}`,
+        `¡Enlaces generados! ${links.length} enlace(s) copiado(s) al portapapeles para ${categoryName} del ${dayName}`,
         {
           id: "notify-players",
           duration: 5000,
@@ -1188,6 +1307,40 @@ export default function CalendarPage() {
     }
 
     return filteredMatches;
+  };
+
+  // 🎯 FUNCIÓN PARA OBTENER DÍAS DISPONIBLES
+  const getAvailableDays = (): string[] => {
+    // Obtener todos los días únicos de los partidos
+    const uniqueDays = [
+      ...new Set(
+        allMatches
+          .map((m) => m.day)
+          .filter((day): day is string => Boolean(day))
+      ),
+    ];
+
+    // Generar rango de días más amplio (90 días desde hoy)
+    const today = new Date();
+    const futureDays: string[] = [];
+
+    for (let i = 0; i < 90; i++) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + i);
+      const dateString = date.toISOString().split("T")[0];
+      futureDays.push(dateString);
+    }
+
+    // Combinar días de partidos con días futuros
+    const allDays = [...new Set([...uniqueDays, ...futureDays])];
+
+    // Ordenar cronológicamente
+    const sortedDays = allDays.sort((a, b) => {
+      return new Date(a).getTime() - new Date(b).getTime();
+    });
+
+    console.log("📅 Días disponibles:", sortedDays);
+    return sortedDays;
   };
 
   const getCategoryName = (categoryId: string): string => {
@@ -2039,6 +2192,53 @@ export default function CalendarPage() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            <div>
+              <Label htmlFor="notifyDate">📅 Día</Label>
+              <div className="space-y-2">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="date"
+                    id="notifyDate"
+                    value={
+                      notifyForm.targetDate === "all"
+                        ? ""
+                        : notifyForm.targetDate
+                    }
+                    onChange={(e) =>
+                      setNotifyForm({
+                        ...notifyForm,
+                        targetDate: e.target.value || "all",
+                      })
+                    }
+                    className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() =>
+                      setNotifyForm({
+                        ...notifyForm,
+                        targetDate: "all",
+                      })
+                    }
+                  >
+                    Todos los días
+                  </Button>
+                </div>
+                {notifyForm.targetDate !== "all" && notifyForm.targetDate && (
+                  <p className="text-sm text-muted-foreground">
+                    📅{" "}
+                    {format(
+                      new Date(notifyForm.targetDate + "T00:00:00"),
+                      "EEEE, dd 'de' MMMM 'de' yyyy",
+                      { locale: es }
+                    )}
+                  </p>
+                )}
+              </div>
             </div>
           </div>
 

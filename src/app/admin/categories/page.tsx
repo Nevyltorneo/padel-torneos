@@ -35,12 +35,13 @@ import {
   Edit,
   Trophy,
   ExternalLink,
+  Eye,
 } from "lucide-react";
 import { StatusBadge } from "@/components/atoms/StatusBadge";
 import { Category } from "@/types";
 import { useTournamentStore } from "@/stores/tournament-store";
 import { useCategoryStore } from "@/stores/category-store";
-import { cn } from "@/lib/utils";
+import { cn, generateCategorySlug } from "@/lib/utils";
 import { toast } from "sonner";
 import {
   getCategories,
@@ -62,6 +63,7 @@ export default function CategoriesPage() {
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [form, setForm] = useState({
     name: "",
+    slug: "",
     minPairs: "3",
     maxPairs: "8",
   });
@@ -140,6 +142,7 @@ export default function CategoriesPage() {
     // Preparar el formulario con los datos de la categoría existente
     setForm({
       name: category.name,
+      slug: category.slug || "",
       minPairs: category.minPairs.toString(),
       maxPairs: category.maxPairs.toString(),
     });
@@ -226,7 +229,7 @@ export default function CategoriesPage() {
               setIsCreateDialogOpen(open);
               if (!open) {
                 setEditingCategory(null);
-                setForm({ name: "", minPairs: "3", maxPairs: "8" });
+                setForm({ name: "", slug: "", minPairs: "3", maxPairs: "8" });
               }
             }}
             tournamentId={currentTournament.id}
@@ -396,12 +399,28 @@ function CategoryCard({
               size="sm"
               variant="ghost"
               className="h-8 w-8 p-0 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
-              onClick={() =>
-                window.open(`/public/category/${category.id}`, "_blank")
-              }
-              title="Ver horarios públicos"
+              onClick={() => {
+                const categorySlug = category.slug || category.id;
+                window.open(`/live/${categorySlug}`, "_blank");
+              }}
+              title="Ver vista en tiempo real"
             >
               <ExternalLink className="h-4 w-4" />
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-8 w-8 p-0 text-green-600 hover:text-green-700 hover:bg-green-50"
+              onClick={() => {
+                const slug = category.slug || category.id;
+                const liveUrl = `${window.location.origin}/live/${slug}`;
+                navigator.clipboard.writeText(liveUrl);
+                toast.success(`Enlace copiado: ${liveUrl}`);
+              }}
+              title="Copiar enlace de vista en tiempo real"
+            >
+              <Eye className="h-4 w-4" />
             </Button>
 
             <Button
@@ -436,10 +455,16 @@ interface CreateCategoryDialogProps {
   editingCategory?: Category | null;
   form: {
     name: string;
+    slug: string;
     minPairs: string;
     maxPairs: string;
   };
-  setForm: (form: { name: string; minPairs: string; maxPairs: string }) => void;
+  setForm: (form: {
+    name: string;
+    slug: string;
+    minPairs: string;
+    maxPairs: string;
+  }) => void;
 }
 
 function CreateCategoryDialog({
@@ -464,6 +489,7 @@ function CreateCategoryDialog({
         // Actualizar categoría existente
         await updateCategory(editingCategory.id, {
           name: form.name.trim(),
+          slug: form.slug.trim(),
           minPairs: parseInt(form.minPairs),
           maxPairs: parseInt(form.maxPairs),
         });
@@ -473,6 +499,7 @@ function CreateCategoryDialog({
         await createCategory({
           tournamentId,
           name: form.name.trim(),
+          slug: form.slug.trim(),
           minPairs: parseInt(form.minPairs),
           maxPairs: parseInt(form.maxPairs),
           status: "active",
@@ -482,7 +509,7 @@ function CreateCategoryDialog({
 
       onCategoryCreated();
       onOpenChange(false);
-      setForm({ name: "", minPairs: "3", maxPairs: "8" });
+      setForm({ name: "", slug: "", minPairs: "3", maxPairs: "8" });
     } catch (error) {
       console.error(
         `Error ${isEditing ? "updating" : "creating"} category:`,
@@ -516,9 +543,26 @@ function CreateCategoryDialog({
             <Input
               id="category-name"
               value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              onChange={(e) => {
+                const name = e.target.value;
+                const slug = generateCategorySlug(name);
+                setForm({ ...form, name, slug });
+              }}
               placeholder="Ej: 4ta Masculino, 3ra Femenino"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="category-slug">Slug (URL)</Label>
+            <Input
+              id="category-slug"
+              value={form.slug}
+              onChange={(e) => setForm({ ...form, slug: e.target.value })}
+              placeholder="ej: 4ta-masculino, 3ra-femenino"
+            />
+            <p className="text-xs text-gray-500 mt-1">
+              Se genera automáticamente. Usado para URLs como /live/femenil
+            </p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

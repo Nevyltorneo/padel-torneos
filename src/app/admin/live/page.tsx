@@ -137,7 +137,10 @@ export default function ProgresoGeneral() {
   }, []);
 
   const handleViewCategory = (categoryId: string) => {
-    router.push(`/live/${categoryId}`);
+    // Buscar la categoría para obtener su slug
+    const category = categories.find((c) => c.id === categoryId);
+    const slug = category?.slug || categoryId;
+    router.push(`/live/${slug}`);
   };
 
   const getProgressPercentage = (tournament: Tournament) => {

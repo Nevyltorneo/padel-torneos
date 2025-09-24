@@ -953,8 +953,12 @@ export default function CalendarPage() {
           return;
         }
 
-        // Crear enlace para la categoría específica del día
-        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/${notifyForm.targetDate}`;
+        // Crear enlace para la categoría específica del día usando slug
+        const category = allCategories.find(
+          (c) => c.id === notifyForm.categoryId
+        );
+        const categorySlug = category?.slug || notifyForm.categoryId;
+        const link = `${baseUrl}/horarios/${categorySlug}`;
         links.push(link);
       } else if (
         notifyForm.categoryId === "all" &&
@@ -969,7 +973,8 @@ export default function CalendarPage() {
           });
 
           if (categoryMatches.length > 0) {
-            const link = `${baseUrl}/horarios/${category.id}/todos`;
+            const categorySlug = category.slug || category.id;
+            const link = `${baseUrl}/horarios/${categorySlug}`;
             links.push(link);
           }
         }
@@ -994,7 +999,11 @@ export default function CalendarPage() {
           return;
         }
 
-        const link = `${baseUrl}/horarios/${notifyForm.categoryId}/todos`;
+        const category = allCategories.find(
+          (c) => c.id === notifyForm.categoryId
+        );
+        const categorySlug = category?.slug || notifyForm.categoryId;
+        const link = `${baseUrl}/horarios/${categorySlug}`;
         links.push(link);
       }
 

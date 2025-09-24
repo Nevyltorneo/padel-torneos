@@ -386,6 +386,7 @@ export async function createCategory(
     .insert({
       tournament_id: category.tournamentId,
       name: category.name,
+      slug: category.slug,
       min_pairs: category.minPairs,
       max_pairs: category.maxPairs,
       status: category.status,
@@ -413,12 +414,15 @@ export async function createCategory(
 
 export async function updateCategory(
   id: string,
-  updates: Partial<Pick<Category, "name" | "minPairs" | "maxPairs" | "status">>
+  updates: Partial<
+    Pick<Category, "name" | "slug" | "minPairs" | "maxPairs" | "status">
+  >
 ): Promise<Category> {
   const { data, error } = await supabase
     .from("categories")
     .update({
       name: updates.name,
+      slug: updates.slug,
       min_pairs: updates.minPairs,
       max_pairs: updates.maxPairs,
       status: updates.status,

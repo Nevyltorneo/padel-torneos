@@ -43,6 +43,7 @@ export interface Category {
   id: ID;
   tournamentId: ID;
   name: string; // ej. 4ta, Principiantes Femenil
+  slug: string; // para URL pública (ej. "femenil", "principiantes")
   minPairs: number; // por defecto 3
   maxPairs: number; // por defecto 6
   status: "active" | "grouping" | "scheduled" | "in_progress" | "finished";

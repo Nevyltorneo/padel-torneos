@@ -49,6 +49,12 @@ export default function AdminBracketPage() {
   const [pairBSet1, setPairBSet1] = useState("");
   const [pairBSet2, setPairBSet2] = useState("");
   const [pairBSet3, setPairBSet3] = useState("");
+  
+  // Estados para horario y cancha
+  const [matchDay, setMatchDay] = useState("");
+  const [matchStartTime, setMatchStartTime] = useState("");
+  const [matchCourtId, setMatchCourtId] = useState("");
+  const [isScheduleDialogOpen, setIsScheduleDialogOpen] = useState(false);
 
   // Cargar datos iniciales
   useEffect(() => {
@@ -344,6 +350,47 @@ export default function AdminBracketPage() {
     } catch (error) {
       console.error("Error updating match pairs:", error);
       toast.error("Error al actualizar las parejas");
+    }
+  };
+
+  const handleScheduleMatch = (match: Match) => {
+    setSelectedMatch(match);
+    setMatchDay(match.day || "");
+    setMatchStartTime(match.startTime || "");
+    setMatchCourtId(match.courtId || "");
+    setIsScheduleDialogOpen(true);
+  };
+
+  const handleSaveSchedule = async () => {
+    if (!selectedMatch) {
+      toast.error("No hay partido seleccionado");
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from("matches")
+        .update({
+          day: matchDay || null,
+          start_time: matchStartTime || null,
+          court_id: matchCourtId || null
+        })
+        .eq("id", selectedMatch.id);
+
+      if (error) {
+        console.error("Error updating match schedule:", error);
+        toast.error("Error al actualizar el horario");
+        return;
+      }
+
+      toast.success("¡Horario y cancha actualizados correctamente!");
+      setIsScheduleDialogOpen(false);
+      
+      // Recargar los partidos
+      await loadEliminationMatches();
+    } catch (error) {
+      console.error("Error updating match schedule:", error);
+      toast.error("Error al actualizar el horario");
     }
   };
 
@@ -669,8 +716,34 @@ export default function AdminBracketPage() {
                               </div>
                             </div>
 
+                            {/* Información de horario y cancha */}
+                            <div className="bg-gray-50 p-3 rounded-md space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">📅 Día:</span>
+                                <span className="font-medium">{match.day || "No asignado"}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">🕐 Hora:</span>
+                                <span className="font-medium">{match.startTime || "No asignado"}</span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-gray-600">🏟️ Cancha:</span>
+                                <span className="font-medium">{match.courtId || "No asignada"}</span>
+                              </div>
+                            </div>
+
                             {/* Botones de acción */}
                             <div className="space-y-2">
+                              {/* Botón para programar horario */}
+                              <Button
+                                onClick={() => handleScheduleMatch(match)}
+                                className="w-full"
+                                variant="outline"
+                              >
+                                <Calendar className="h-4 w-4 mr-2" />
+                                Programar Horario
+                              </Button>
+
                               {/* Botón para agregar resultado */}
                               {match.status !== "completed" && (
                                 <Button
@@ -871,6 +944,63 @@ export default function AdminBracketPage() {
                 </Button>
                 <Button onClick={handleSavePairs}>
                   Guardar Parejas
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog para programar horario y cancha */}
+      <Dialog open={isScheduleDialogOpen} onOpenChange={setIsScheduleDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Programar Partido</DialogTitle>
+          </DialogHeader>
+          {selectedMatch && (
+            <div className="space-y-6">
+              <div className="space-y-4">
+                {/* Día */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Día del Partido</Label>
+                  <Input
+                    type="date"
+                    value={matchDay}
+                    onChange={(e) => setMatchDay(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Hora */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Hora de Inicio</Label>
+                  <Input
+                    type="time"
+                    value={matchStartTime}
+                    onChange={(e) => setMatchStartTime(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Cancha */}
+                <div className="space-y-2">
+                  <Label className="text-base font-semibold">Cancha</Label>
+                  <Input
+                    type="text"
+                    placeholder="Ej: Cancha 1, Cancha Central, etc."
+                    value={matchCourtId}
+                    onChange={(e) => setMatchCourtId(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4">
+                <Button variant="outline" onClick={() => setIsScheduleDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleSaveSchedule}>
+                  Guardar Programación
                 </Button>
               </div>
             </div>

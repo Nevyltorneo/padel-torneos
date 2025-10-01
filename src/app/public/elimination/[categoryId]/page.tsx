@@ -344,6 +344,30 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
                               </div>
                             )}
                           </div>
+
+                          {/* Información de horario y cancha */}
+                          <div className="bg-blue-50 p-3 rounded-lg border border-blue-200 mt-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-blue-700 font-medium">📅 Día:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.day ? new Date(match.day).toLocaleDateString('es-ES') : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-blue-700 font-medium">🕐 Hora:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.startTime ? match.startTime : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-blue-700 font-medium">🏟️ Cancha:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.courtId || "Por asignar"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
                         </CardContent>
                       </Card>
                     );
@@ -418,6 +442,30 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
                                 ))}
                               </div>
                             )}
+                          </div>
+
+                          {/* Información de horario y cancha */}
+                          <div className="bg-yellow-50 p-3 rounded-lg border border-yellow-200 mt-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-yellow-700 font-medium">📅 Día:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.day ? new Date(match.day).toLocaleDateString('es-ES') : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-yellow-700 font-medium">🕐 Hora:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.startTime ? match.startTime : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-yellow-700 font-medium">🏟️ Cancha:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.courtId || "Por asignar"}
+                                </span>
+                              </div>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>

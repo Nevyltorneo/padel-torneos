@@ -1,0 +1,1528 @@
+"use client";
+
+import { useState, useEffect } from "react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Trophy,
+  Play,
+  Calendar,
+  Users,
+  Crown,
+  Medal,
+  Award,
+  Download,
+  Image as ImageIcon,
+  Camera,
+} from "lucide-react";
+import { toast } from "sonner";
+
+import { useCurrentTournament } from "@/stores/tournament-store";
+import { Match, Pair, Category, BracketMatch } from "@/types";
+import {
+  getCategories,
+  getPairs,
+  getPairsByIds,
+  generateKnockoutPhase,
+  createKnockoutMatches,
+  getKnockoutMatches,
+  updateMatchResult,
+  advanceWinnerToNextRound,
+  createNextRoundMatches,
+  getAllMatchesByCategory,
+} from "@/lib/supabase-queries";
+import { useRealtimeMatches } from "@/hooks/useRealtimeMatches";
+import { useRealtimeStandings } from "@/hooks/useRealtimeStandings";
+import { RealtimeIndicator } from "@/components/realtime/RealtimeIndicator";
+
+export default function BracketPage() {
+  const currentTournament = useCurrentTournament();
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string>("");
+  const [allPairs, setAllPairs] = useState<Pair[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Hooks de tiempo real
+  const { matches: knockoutMatches, isConnected: isMatchesConnected } =
+    useRealtimeMatches({
+      categoryId: selectedCategoryId,
+      initialMatches: [],
+    });
+
+  const {
+    standings,
+    isLoading: isStandingsLoading,
+    lastUpdate: standingsLastUpdate,
+  } = useRealtimeStandings({
+    categoryId: selectedCategoryId,
+    allPairs,
+  });
+
+  // Estados para diálogos
+  const [showScoreDialog, setShowScoreDialog] = useState(false);
+  const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
+  const [scoreForm, setScoreForm] = useState({
+    pairA_set1: "",
+    pairA_set2: "",
+    pairA_set3: "",
+    pairB_set1: "",
+    pairB_set2: "",
+    pairB_set3: "",
+    hasSuperDeath: false,
+    pairA_superDeath: "",
+    pairB_superDeath: "",
+  });
+
+  useEffect(() => {
+    if (currentTournament) {
+      fetchData();
+    }
+  }, [currentTournament]);
+
+  // Los matches se actualizan automáticamente via useRealtimeMatches
+  // useEffect(() => {
+  //   if (selectedCategoryId) {
+  //     fetchKnockoutMatches();
+  //   }
+  // }, [selectedCategoryId]);
+
+  const fetchData = async () => {
+    try {
+      setIsLoading(true);
+      const categoriesData = await getCategories(currentTournament!.id);
+      setCategories(categoriesData);
+
+      if (categoriesData.length > 0) {
+        const firstCategory = categoriesData[0];
+        setSelectedCategoryId(firstCategory.id);
+
+        const pairsData = await getPairs(firstCategory.id);
+        setAllPairs(pairsData);
+      }
+    } catch (error) {
+      console.error("Error fetching data:", error);
+      toast.error("Error al cargar datos");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Ya no necesitamos fetchKnockoutMatches - se actualiza automáticamente via hooks de tiempo real
+
+  const handleGenerateKnockout = async () => {
+    if (!selectedCategoryId || !currentTournament) return;
+
+    try {
+      toast.loading("Generando fase eliminatoria...", {
+        id: "generate-knockout",
+      });
+
+      const matches = await generateKnockoutPhase(
+        selectedCategoryId,
+        currentTournament.id
+      );
+      await createKnockoutMatches(matches);
+
+      // Crear semifinales automáticamente
+      await createNextRoundMatches(selectedCategoryId, currentTournament.id);
+
+      // Los matches se actualizarán automáticamente via tiempo real
+
+      toast.success("¡Fase eliminatoria generada!", {
+        id: "generate-knockout",
+      });
+    } catch (error) {
+      console.error("Error generating knockout:", error);
+      toast.error("Error al generar eliminatorias", {
+        id: "generate-knockout",
+      });
+    }
+  };
+
+  const handleAddScore = (match: Match) => {
+    setSelectedMatch(match);
+    setScoreForm({
+      pairA_set1: "",
+      pairA_set2: "",
+      pairA_set3: "",
+      pairB_set1: "",
+      pairB_set2: "",
+      pairB_set3: "",
+      hasSuperDeath: false,
+      pairA_superDeath: "",
+      pairB_superDeath: "",
+    });
+    setShowScoreDialog(true);
+  };
+
+  const handleSubmitScore = async () => {
+    if (!selectedMatch) return;
+
+    try {
+      toast.loading("Guardando resultado...", { id: "save-score" });
+
+      // Parsear scores
+      const pairA_set1 = parseInt(scoreForm.pairA_set1) || 0;
+      const pairA_set2 = parseInt(scoreForm.pairA_set2) || 0;
+      const pairA_set3 = scoreForm.pairA_set3
+        ? parseInt(scoreForm.pairA_set3)
+        : undefined;
+      const pairB_set1 = parseInt(scoreForm.pairB_set1) || 0;
+      const pairB_set2 = parseInt(scoreForm.pairB_set2) || 0;
+      const pairB_set3 = scoreForm.pairB_set3
+        ? parseInt(scoreForm.pairB_set3)
+        : undefined;
+
+      // Super Muerte
+      const pairA_superDeath = scoreForm.hasSuperDeath
+        ? parseInt(scoreForm.pairA_superDeath) || 0
+        : undefined;
+      const pairB_superDeath = scoreForm.hasSuperDeath
+        ? parseInt(scoreForm.pairB_superDeath) || 0
+        : undefined;
+
+      // Validaciones básicas
+      if (
+        pairA_set1 < 0 ||
+        pairA_set2 < 0 ||
+        pairB_set1 < 0 ||
+        pairB_set2 < 0
+      ) {
+        toast.error("Los sets no pueden ser negativos", { id: "save-score" });
+        return;
+      }
+
+      if (scoreForm.hasSuperDeath) {
+        if (pairA_superDeath === undefined || pairB_superDeath === undefined) {
+          toast.error("Ingresa los puntos de Super Muerte", {
+            id: "save-score",
+          });
+          return;
+        }
+
+        if (
+          pairA_superDeath < 0 ||
+          pairB_superDeath < 0 ||
+          pairA_superDeath > 20 ||
+          pairB_superDeath > 20
+        ) {
+          toast.error("Los puntos de Super Muerte deben estar entre 0 y 20", {
+            id: "save-score",
+          });
+          return;
+        }
+
+        if (pairA_superDeath < 10 && pairB_superDeath < 10) {
+          toast.error(
+            "Al menos una pareja debe llegar a 10 puntos para ganar",
+            { id: "save-score" }
+          );
+          return;
+        }
+      }
+
+      // Calcular ganador
+      let setsA = 0,
+        setsB = 0;
+
+      if (pairA_set1 > pairB_set1) setsA++;
+      else setsB++;
+      if (pairA_set2 > pairB_set2) setsA++;
+      else setsB++;
+      if (pairA_set3 !== undefined && pairB_set3 !== undefined) {
+        if (pairA_set3 > pairB_set3) setsA++;
+        else setsB++;
+      }
+
+      let winnerId = "";
+      if (setsA > setsB) {
+        winnerId = selectedMatch.pairAId;
+      } else if (setsB > setsA) {
+        winnerId = selectedMatch.pairBId;
+      } else if (
+        scoreForm.hasSuperDeath &&
+        pairA_superDeath !== undefined &&
+        pairB_superDeath !== undefined
+      ) {
+        winnerId =
+          pairA_superDeath > pairB_superDeath
+            ? selectedMatch.pairAId
+            : selectedMatch.pairBId;
+      }
+
+      if (!winnerId) {
+        toast.error("No se puede determinar el ganador", { id: "save-score" });
+        return;
+      }
+
+      // Preparar scores
+      const scorePairA = {
+        set1: pairA_set1,
+        set2: pairA_set2,
+        set3: pairA_set3,
+        superDeath: pairA_superDeath,
+      };
+
+      const scorePairB = {
+        set1: pairB_set1,
+        set2: pairB_set2,
+        set3: pairB_set3,
+        superDeath: pairB_superDeath,
+      };
+
+      // Guardar resultado
+      await updateMatchResult(
+        selectedMatch.id,
+        scorePairA,
+        scorePairB,
+        winnerId
+      );
+
+      // Avanzar ganador a la siguiente ronda solo si existe
+      try {
+        await advanceWinnerToNextRound(selectedMatch.id, winnerId);
+        console.log("✅ Ganador avanzado a la siguiente ronda");
+      } catch (advanceError) {
+        // Si no puede avanzar (ej: no existe siguiente ronda), no es un error crítico
+        console.log(
+          "ℹ️ No se pudo avanzar automáticamente - probablemente no existe la siguiente ronda"
+        );
+      }
+
+      // Recargar datos
+      // Los matches se actualizarán automáticamente via tiempo real
+
+      toast.success("¡Resultado guardado correctamente!", {
+        id: "save-score",
+      });
+      setShowScoreDialog(false);
+    } catch (error) {
+      console.error("Error saving score:", error);
+      toast.error("Error al guardar resultado", { id: "save-score" });
+    }
+  };
+
+  const getPairById = (pairId: string): Pair | undefined => {
+    return allPairs.find((p) => p.id === pairId);
+  };
+
+  const formatPairName = (pair?: Pair): string => {
+    if (!pair) return "TBD";
+    return `${pair.player1?.name || "Jugador 1"} / ${
+      pair.player2?.name || "Jugador 2"
+    }`;
+  };
+
+  const formatScore = (match: Match): string => {
+    if (!match.scorePairA || !match.scorePairB) return "";
+
+    const scoreA = match.scorePairA;
+    const scoreB = match.scorePairB;
+
+    let result = `${scoreA.set1}-${scoreB.set1}, ${scoreA.set2}-${scoreB.set2}`;
+
+    if (scoreA.set3 !== undefined && scoreB.set3 !== undefined) {
+      result += `, ${scoreA.set3}-${scoreB.set3}`;
+    }
+
+    if (scoreA.superDeath !== undefined && scoreB.superDeath !== undefined) {
+      result += ` (SM: ${scoreA.superDeath}-${scoreB.superDeath})`;
+    }
+
+    return result;
+  };
+
+  const getMatchesByStage = (stage: string) => {
+    return knockoutMatches
+      .filter((m) => m.stage === stage)
+      .sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+  };
+
+  // Función para determinar la ronda actual basada en el número de parejas
+  const getTournamentStructure = (totalPairs: number) => {
+    if (totalPairs <= 2) {
+      return {
+        currentStage: "final",
+        stageName: "Final",
+        nextStage: null,
+        nextStageName: null,
+        roundNumber: 1,
+      };
+    } else if (totalPairs <= 4) {
+      return {
+        currentStage: "quarterfinal", // En BD seguimos usando quarterfinal
+        stageName: "Semifinales", // Pero mostramos como Semifinales
+        nextStage: "final",
+        nextStageName: "Final",
+        roundNumber: 1,
+      };
+    } else if (totalPairs <= 8) {
+      return {
+        currentStage: "quarterfinal",
+        stageName: "Cuartos de Final",
+        nextStage: "semifinal",
+        nextStageName: "Semifinales",
+        roundNumber: 1,
+      };
+    } else if (totalPairs <= 16) {
+      return {
+        currentStage: "round_of_16",
+        stageName: "Octavos de Final",
+        nextStage: "quarterfinal",
+        nextStageName: "Cuartos de Final",
+        roundNumber: 1,
+      };
+    }
+    // Para más de 16 parejas, podríamos agregar más rondas
+    return {
+      currentStage: "round_of_32",
+      stageName: "Dieciseisavos de Final",
+      nextStage: "round_of_16",
+      nextStageName: "Octavos de Final",
+      roundNumber: 1,
+    };
+  };
+
+  // Función dinámica para generar la siguiente ronda
+  const handleGenerateNextRound = async () => {
+    if (!selectedCategoryId || !currentTournament) return;
+
+    try {
+      const currentMatches = getMatchesByStage(
+        structure.currentStage as string
+      );
+      const finishedMatches = currentMatches.filter(
+        (m) => m.status === "finished"
+      );
+
+      // Usar la estructura definida - no sobreescribir
+      const nextStage = structure.nextStage;
+      const nextStageName = structure.nextStageName;
+      const nextRoundNumber = 2;
+
+      if (!nextStage) return;
+
+      toast.loading(`Generando ${nextStageName?.toLowerCase()}...`, {
+        id: "generate-next",
+      });
+
+      const nextRoundMatches: Match[] = [];
+
+      // Generar partidos de la siguiente ronda basados en los ganadores
+      for (let i = 0; i < finishedMatches.length; i += 2) {
+        const match1 = finishedMatches[i];
+        const match2 = finishedMatches[i + 1];
+
+        if (match1?.winnerPairId && match2?.winnerPairId) {
+          nextRoundMatches.push({
+            id: "",
+            tournamentId: currentTournament.id,
+            categoryId: selectedCategoryId,
+            stage: nextStage as "quarterfinal" | "semifinal" | "final",
+            pairAId: match1.winnerPairId,
+            pairBId: match2.winnerPairId,
+            status: "pending",
+            roundNumber: nextRoundNumber,
+            matchNumber: Math.floor(i / 2) + 1,
+            bracketPosition: `${nextStage.toUpperCase().substring(0, 2)}${
+              Math.floor(i / 2) + 1
+            }`,
+          });
+        }
+      }
+
+      // Para la final, también crear el partido de 3er lugar
+      if (nextStage === "final" && finishedMatches.length >= 2) {
+        const match1 = finishedMatches[0];
+        const match2 = finishedMatches[1];
+
+        const loser1 =
+          match1.pairAId === match1.winnerPairId
+            ? match1.pairBId
+            : match1.pairAId;
+        const loser2 =
+          match2.pairAId === match2.winnerPairId
+            ? match2.pairBId
+            : match2.pairAId;
+
+        nextRoundMatches.push({
+          id: "",
+          tournamentId: currentTournament.id,
+          categoryId: selectedCategoryId,
+          stage: "third_place",
+          pairAId: loser1,
+          pairBId: loser2,
+          status: "pending",
+          roundNumber: nextRoundNumber,
+          matchNumber: 2,
+          bracketPosition: "TP1",
+        });
+      }
+
+      if (nextRoundMatches.length > 0) {
+        await createKnockoutMatches(nextRoundMatches);
+        // Los matches se actualizarán automáticamente via tiempo real
+        toast.success(
+          `¡${nextStageName} generada${
+            nextStageName?.includes("Final") ? "" : "s"
+          }!`,
+          { id: "generate-next" }
+        );
+      } else {
+        toast.error(
+          `No hay suficientes partidos completados para generar ${nextStageName?.toLowerCase()}`,
+          { id: "generate-next" }
+        );
+      }
+    } catch (error) {
+      console.error("Error generating next round:", error);
+      toast.error("Error al generar la siguiente ronda", {
+        id: "generate-next",
+      });
+    }
+  };
+
+  // Función legacy para mantener compatibilidad (ahora usa la función dinámica)
+  const handleGenerateFinals = handleGenerateNextRound;
+
+  // Función simplificada - ahora las estadísticas vienen del hook de tiempo real
+  const generateTournamentSummary = () => {
+    // Retornar las estadísticas calculadas por el hook de tiempo real
+    return standings;
+  };
+
+  // Estados para mostrar tabla de resumen
+
+
+    console.log(
+      "🔍 THIRD PLACE MATCHES:",
+      thirdPlaceMatches.map((m) => ({
+        id: m.id,
+        stage: m.stage,
+        pairAId: m.pairAId,
+        pairBId: m.pairBId,
+        winnerPairId: m.winnerPairId,
+        hasScoreA: !!m.scorePairA,
+        hasScoreB: !!m.scorePairB,
+      }))
+    );
+
+    const pairStats = new Map<
+      string,
+      {
+        pair: Pair;
+        matchesPlayed: number;
+        matchesWon: number;
+        matchesLost: number;
+        setsWon: number;
+        setsLost: number;
+        gamesWon: number;
+        gamesLost: number;
+        winRate: number;
+        position: number;
+        trophy: string;
+      }
+    >();
+
+    // 🔄 CAMBIO: Inicializar estadísticas para TODAS las parejas del torneo
+    allPairs.forEach((pair) => {
+      pairStats.set(pair.id, {
+        pair,
+        matchesPlayed: 0,
+        matchesWon: 0,
+        matchesLost: 0,
+        setsWon: 0,
+        setsLost: 0,
+        gamesWon: 0,
+        gamesLost: 0,
+        winRate: 0,
+        position: 0,
+        trophy: "",
+      });
+    });
+
+    console.log("🔍 pairStats initialized:", pairStats.size, "pairs");
+
+    // Calcular estadísticas de partidos
+    console.log("🔍 Processing", finishedMatches.length, "finished matches...");
+
+    // 🔍 Debug: Verificar conteo de partidos por stage
+    const groupFinished = finishedMatches.filter((m) => m.stage === "group");
+    const knockoutFinished = finishedMatches.filter(
+      (m) => m.stage !== "group"
+    );
+    console.log("🔍 FINISHED MATCHES BY STAGE:", {
+      groups: groupFinished.length,
+      knockout: knockoutFinished.length,
+      total: finishedMatches.length,
+      groupStages: [...new Set(groupFinished.map((m) => m.stage))],
+      knockoutStages: [...new Set(knockoutFinished.map((m) => m.stage))],
+    });
+
+    finishedMatches.forEach((match, index) => {
+      const pairAStats = pairStats.get(match.pairAId);
+      const pairBStats = pairStats.get(match.pairBId);
+
+      console.log(`🔍 Match ${index + 1}:`, {
+        stage: match.stage,
+        pairAId: match.pairAId,
+        pairBId: match.pairBId,
+        hasScoreA: !!match.scorePairA,
+        hasScoreB: !!match.scorePairB,
+        hasPairAStats: !!pairAStats,
+        hasPairBStats: !!pairBStats,
+        winnerPairId: match.winnerPairId,
+        status: match.status,
+      });
+
+      // 🔍 Debug específico para Match 8 (final)
+      if (index === 7) {
+        // Match 8 (index 7)
+        console.log("🔍 MATCH 8 DETAILED DEBUG:", {
+          match: match,
+          pairAStats: pairAStats
+            ? {
+                matchesPlayed: pairAStats.matchesPlayed,
+                matchesWon: pairAStats.matchesWon,
+              }
+            : null,
+          pairBStats: pairBStats
+            ? {
+                matchesPlayed: pairBStats.matchesPlayed,
+                matchesWon: pairBStats.matchesWon,
+              }
+            : null,
+        });
+      }
+
+      // ✅ Procesar TODOS los partidos terminados, incluso si no tienen scores detallados
+      if (pairAStats && pairBStats && match.status === "finished") {
+        // Contar partidos jugados
+        pairAStats.matchesPlayed++;
+        pairBStats.matchesPlayed++;
+
+        // Contar ganadores y perdedores (usar winnerPairId si existe)
+        if (match.winnerPairId) {
+          if (match.winnerPairId === match.pairAId) {
+            pairAStats.matchesWon++;
+            pairBStats.matchesLost++;
+          } else if (match.winnerPairId === match.pairBId) {
+            pairBStats.matchesWon++;
+            pairAStats.matchesLost++;
+          }
+        }
+
+        // Contar sets y games (solo si hay scores detallados)
+        if (match.scorePairA && match.scorePairB) {
+          const scoreA = match.scorePairA;
+          const scoreB = match.scorePairB;
+
+          let setsA = 0,
+            setsB = 0;
+          const gamesA =
+            scoreA.set1 +
+            scoreA.set2 +
+            (scoreA.set3 || 0) +
+            (scoreA.superDeath || 0);
+          const gamesB =
+            scoreB.set1 +
+            scoreB.set2 +
+            (scoreB.set3 || 0) +
+            (scoreB.superDeath || 0);
+
+          // Contar sets ganados
+          if (scoreA.set1 > scoreB.set1) setsA++;
+          else setsB++;
+          if (scoreA.set2 > scoreB.set2) setsA++;
+          else setsB++;
+          if (scoreA.set3 !== undefined && scoreB.set3 !== undefined) {
+            if (scoreA.set3 > scoreB.set3) setsA++;
+            else setsB++;
+          }
+
+          pairAStats.setsWon += setsA;
+          pairAStats.setsLost += setsB;
+          pairAStats.gamesWon += gamesA;
+          pairAStats.gamesLost += gamesB;
+
+          pairBStats.setsWon += setsB;
+          pairBStats.setsLost += setsA;
+          pairBStats.gamesWon += gamesB;
+          pairBStats.gamesLost += gamesA;
+        }
+      }
+    });
+
+    // Verificar estadísticas finales
+    console.log("✅ Final Statistics Summary:", {
+      totalProcessed: finishedMatches.length,
+      topPairs: Array.from(pairStats.values())
+        .sort((a, b) => b.matchesPlayed - a.matchesPlayed)
+        .slice(0, 4)
+        .map((stats) => ({
+          pair: `${stats.pair.player1.name}/${stats.pair.player2.name}`,
+          played: stats.matchesPlayed,
+          won: stats.matchesWon,
+          lost: stats.matchesLost,
+        })),
+    });
+
+    // Calcular winRate para todas las parejas
+    pairStats.forEach((stats) => {
+      stats.winRate =
+        stats.matchesPlayed > 0
+          ? (stats.matchesWon / stats.matchesPlayed) * 100
+          : 0;
+    });
+
+    // 🔄 CAMBIO: Determinar posiciones basadas en estadísticas generales
+    // Usar los partidos ya procesados en lugar de arrays separados
+    const finalMatch = finishedMatches.find((m) => m.stage === "final");
+    const thirdPlaceMatch = finishedMatches.find(
+      (m) => m.stage === "third_place"
+    );
+
+    // Si hay partidos de bracket finalizados, usar esas posiciones
+    if (finalMatch) {
+      const champion = pairStats.get(finalMatch.winnerPairId!);
+      if (champion) {
+        champion.position = 1;
+        champion.trophy = "🥇";
+      }
+
+      const runnerUp = pairStats.get(
+        finalMatch.pairAId === finalMatch.winnerPairId
+          ? finalMatch.pairBId
+          : finalMatch.pairAId
+      );
+      if (runnerUp) {
+        runnerUp.position = 2;
+        runnerUp.trophy = "🥈";
+      }
+    }
+
+    if (thirdPlaceMatch) {
+      const thirdPlace = pairStats.get(thirdPlaceMatch.winnerPairId!);
+      if (thirdPlace) {
+        thirdPlace.position = 3;
+        thirdPlace.trophy = "🥉";
+      }
+
+      const fourthPlace = pairStats.get(
+        thirdPlaceMatch.pairAId === thirdPlaceMatch.winnerPairId
+          ? thirdPlaceMatch.pairBId
+          : thirdPlaceMatch.pairAId
+      );
+      if (fourthPlace) {
+        fourthPlace.position = 4;
+        fourthPlace.trophy = "4️⃣";
+      }
+    }
+
+    // Para las parejas sin posición definida por bracket, usar estadísticas
+    const unrankedPairs = Array.from(pairStats.values()).filter(
+      (p) => p.position === 0
+    );
+    unrankedPairs.sort((a, b) => {
+      // Ordenar por: partidos ganados, luego por win rate, luego por sets ganados
+      if (b.matchesWon !== a.matchesWon) return b.matchesWon - a.matchesWon;
+      if (b.winRate !== a.winRate) return b.winRate - a.winRate;
+      return b.setsWon - a.setsWon;
+    });
+
+    // Asignar posiciones a las parejas sin posición definida
+    let nextPosition = 5; // Empezar después de las 4 posiciones del bracket
+    const rankedPositions = Array.from(pairStats.values())
+      .map((p) => p.position)
+      .filter((p) => p > 0);
+    if (rankedPositions.length > 0) {
+      nextPosition = Math.max(...rankedPositions) + 1;
+    }
+
+    unrankedPairs.forEach((pair) => {
+      pair.position = nextPosition++;
+    });
+
+    const result = Array.from(pairStats.values()).sort((a, b) => {
+      if (a.position === 0 && b.position === 0) return 0;
+      if (a.position === 0) return 1;
+      if (b.position === 0) return -1;
+      return a.position - b.position;
+    });
+
+    // Log final results for verification
+    console.log(
+      "🏆 Tournament Final Results:",
+      result.slice(0, 4).map((r) => ({
+        position: r.position,
+        pair: `${r.pair.player1.name}/${r.pair.player2.name}`,
+        played: r.matchesPlayed,
+        won: r.matchesWon,
+        winRate: `${r.winRate.toFixed(1)}%`,
+        trophy: r.trophy,
+      }))
+    );
+
+    return result;
+  };
+
+  // Estados para mostrar tabla de resumen
+  const [showSummaryTable, setShowSummaryTable] = useState(false);
+  const [summaryManuallyClosed, setSummaryManuallyClosed] = useState(false);
+
+  const handleCloseSummary = () => {
+    setShowSummaryTable(false);
+    setSummaryManuallyClosed(true);
+  };
+
+  const handleShowSummary = () => {
+    setShowSummaryTable(true);
+  };
+
+  // Auto-mostrar tabla si hay partidos finalizados (solo si no se ha cerrado manualmente)
+  const hasFinishedMatches = knockoutMatches.some(
+    (m) => m.status === "finished"
+  );
+  const shouldShowSummary =
+    showSummaryTable || (hasFinishedMatches && !summaryManuallyClosed);
+
+  if (!currentTournament) {
+    return (
+      <div className="bracket-no-tournament p-6 max-w-7xl mx-auto">
+        <Card className="text-center py-12">
+          <CardContent>
+            <Trophy className="h-16 w-16 mx-auto mb-4 text-gray-300" />
+            <h2 className="text-2xl font-bold text-gray-600 mb-2">
+              No hay torneo seleccionado
+            </h2>
+            <p className="text-gray-500">
+              Selecciona un torneo para ver el bracket eliminatorio
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <div className="bracket-loading flex items-center justify-center min-h-64">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Cargando bracket...</p>
+        </div>
+      </div>
+    );
+  }
+
+  const quarterfinals = getMatchesByStage("quarterfinal");
+  const semifinals = getMatchesByStage("semifinal");
+  const finals = getMatchesByStage("final");
+  const thirdPlace = getMatchesByStage("third_place");
+
+  // Obtener estructura del torneo actual basada en las parejas que están en el bracket
+  const getPairsInBracket = () => {
+    const pairsSet = new Set<string>();
+    quarterfinals.forEach((match) => {
+      pairsSet.add(match.pairAId);
+      pairsSet.add(match.pairBId);
+    });
+    return pairsSet;
+  };
+
+  const totalPairsInBracket = getPairsInBracket().size;
+  const structure = getTournamentStructure(totalPairsInBracket);
+
+  // Debug para verificar la estructura
+  console.log("🔍 Debug Tournament Structure:", {
+    allPairsTotal: allPairs.length,
+    totalPairsInBracket,
+    quarterfinals: quarterfinals.length,
+    pairsInBracketIds: Array.from(getPairsInBracket()),
+    currentStage: structure.currentStage,
+    stageName: structure.stageName,
+    nextStage: structure.nextStage,
+    nextStageName: structure.nextStageName,
+  });
+
+  // Determinar qué botones mostrar - DINÁMICO basado en número de parejas
+  const canGenerateNextRound = () => {
+    const currentMatches = getMatchesByStage(structure.currentStage as string);
+    const finishedMatches = currentMatches.filter(
+      (m) => m.status === "finished"
+    );
+    const requiredFinished = Math.ceil(currentMatches.length / 2) * 2; // Pares de partidos
+
+    // Verificar si ya existe la siguiente ronda
+    const nextStageMatches = structure.nextStage
+      ? getMatchesByStage(structure.nextStage as string)
+      : [];
+    const finalMatches = getMatchesByStage("final");
+
+    return (
+      finishedMatches.length >= 2 && // Al menos 2 partidos terminados
+      finishedMatches.length % 2 === 0 && // Número par de partidos terminados
+      nextStageMatches.length === 0 && // No existe la siguiente ronda
+      finalMatches.length === 0 // No existe la final
+    );
+  };
+
+  // Función legacy para compatibilidad
+  const canGenerateFinals = canGenerateNextRound;
+
+  return (
+    <div className="bracket-page p-6 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="bracket-header">
+        <Card>
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="text-3xl font-bold text-blue-900 flex items-center gap-3">
+                  <Trophy className="h-8 w-8" />
+                  Bracket Eliminatorio
+                </CardTitle>
+                <div className="flex items-center gap-4 mt-2">
+                  <p className="text-gray-600">
+                    Torneo: {currentTournament.name}
+                  </p>
+                  <RealtimeIndicator 
+                    isConnected={isMatchesConnected} 
+                    lastUpdate={standingsLastUpdate}
+                    showLastUpdate={false}
+                    className="ml-auto"
+                  />
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Button
+                  onClick={handleGenerateKnockout}
+                  className="bg-gradient-to-r from-blue-600 to-blue-700"
+                >
+                  <Users className="h-4 w-4 mr-2" />
+                  Generar Eliminatorias
+                </Button>
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+      </div>
+
+      {/* Bracket Visual */}
+      {knockoutMatches.length > 0 ? (
+        <div className="bracket-visual space-y-8">
+          {/* Ronda actual - dinámico */}
+          {quarterfinals.length > 0 && (
+            <div className="bracket-round">
+              <h3 className="text-xl font-bold text-center mb-6 text-blue-900 flex items-center justify-center gap-2">
+                <Play className="h-5 w-5" />
+                {(() => {
+                  console.log("🔍 Rendering title with:", {
+                    totalPairsInBracket,
+                    stageName: structure.stageName,
+                  });
+                  if (totalPairsInBracket === 0) return "Cargando...";
+                  if (totalPairsInBracket <= 4) return "Semifinales";
+                  return structure.stageName;
+                })()}
+                <span className="text-xs text-gray-500 ml-2">
+                  ({totalPairsInBracket} parejas)
+                </span>
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                {quarterfinals.map((match) => (
+                  <BracketMatchCard
+                    key={match.id}
+                    match={match}
+                    pairA={getPairById(match.pairAId)}
+                    pairB={getPairById(match.pairBId)}
+                    onAddScore={() => handleAddScore(match)}
+                    formatScore={formatScore}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Botón para generar siguiente ronda - dinámico */}
+          {canGenerateNextRound() && structure.nextStage && (
+            <div className="text-center py-6">
+              <Button
+                onClick={handleGenerateNextRound}
+                className="bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700"
+                size="lg"
+              >
+                <Crown className="h-5 w-5 mr-2" />
+                Generar {structure.nextStageName}
+              </Button>
+              <p className="text-sm text-gray-600 mt-2">
+                {
+                  getMatchesByStage(structure.currentStage as string).filter(
+                    (q) => q.status === "finished"
+                  ).length
+                }{" "}
+                {structure.stageName.toLowerCase()} completada
+                {structure.stageName.includes("Final") ? "" : "s"}
+              </p>
+            </div>
+          )}
+
+          {/* Final y 3er Lugar */}
+          {(finals.length > 0 || thirdPlace.length > 0) && (
+            <div className="bracket-finals space-y-6">
+              <div className="flex items-center justify-between mb-6">
+                <h3 className="text-2xl font-bold text-yellow-600 flex items-center gap-2">
+                  <Crown className="h-6 w-6" />
+                  Finales
+                </h3>
+
+                {/* Botón para ver tabla de resumen */}
+                <Button
+                  onClick={handleShowSummary}
+                  className="bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white shadow-lg"
+                  size="lg"
+                >
+                  <Trophy className="h-5 w-5 mr-2" />
+                  Ver Tabla de Resultados
+                </Button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                {/* Tercer Lugar */}
+                {thirdPlace.map((match) => (
+                  <div key={match.id} className="text-center">
+                    <h4 className="text-lg font-semibold text-orange-600 mb-3 flex items-center justify-center gap-2">
+                      <Award className="h-4 w-4" />
+                      Tercer Lugar
+                    </h4>
+                    <BracketMatchCard
+                      match={match}
+                      pairA={getPairById(match.pairAId)}
+                      pairB={getPairById(match.pairBId)}
+                      onAddScore={() => handleAddScore(match)}
+                      formatScore={formatScore}
+                      isImportant
+                    />
+                  </div>
+                ))}
+
+                {/* Final */}
+                {finals.map((match) => (
+                  <div key={match.id} className="text-center">
+                    <h4 className="text-lg font-semibold text-yellow-600 mb-3 flex items-center justify-center gap-2">
+                      <Crown className="h-4 w-4" />
+                      Gran Final
+                    </h4>
+                    <BracketMatchCard
+                      match={match}
+                      pairA={getPairById(match.pairAId)}
+                      pairB={getPairById(match.pairBId)}
+                      onAddScore={() => handleAddScore(match)}
+                      formatScore={formatScore}
+                      isFinal
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div className="bracket-empty text-center py-16">
+          <Trophy className="h-20 w-20 mx-auto mb-6 text-gray-300" />
+          <h3 className="text-2xl font-bold text-gray-600 mb-4">
+            No hay eliminatorias generadas
+          </h3>
+          <p className="text-gray-500 mb-6">
+            Genera la fase eliminatoria para ver el bracket del torneo
+          </p>
+          <Button
+            onClick={handleGenerateKnockout}
+            size="lg"
+            className="bg-gradient-to-r from-blue-600 to-blue-700"
+          >
+            <Users className="h-5 w-5 mr-2" />
+            Generar Eliminatorias
+          </Button>
+        </div>
+      )}
+
+      {/* Tabla de Resumen de Resultados */}
+      {shouldShowSummary && knockoutMatches.length > 0 && (
+        <Card className="mt-8">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-2xl font-bold text-center text-purple-800 flex items-center gap-3">
+                🏆 Tabla de Resultados Finales
+              </CardTitle>
+              <Button onClick={handleCloseSummary} variant="ghost" size="sm">
+                ✕
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse">
+                <thead>
+                  <tr className="bg-gradient-to-r from-purple-100 to-pink-100">
+                    <th className="border border-purple-200 px-4 py-3 text-left font-bold">
+                      Posición
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-left font-bold">
+                      Pareja
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      PJ
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      PG
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      PP
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      Sets G
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      Sets P
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      Games G
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      Games P
+                    </th>
+                    <th className="border border-purple-200 px-4 py-3 text-center font-bold">
+                      Efectividad
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(() => {
+                    const summary = generateTournamentSummary();
+                    console.log("🔍 Summary data:", summary);
+                    return summary;
+                  })().map((stat, index) => {
+                    const winRate =
+                      stat.matchesPlayed > 0
+                        ? (
+                            (stat.matchesWon / stat.matchesPlayed) *
+                            100
+                          ).toFixed(1)
+                        : "0";
+                    const bgColor =
+                      stat.position === 1
+                        ? "bg-yellow-50"
+                        : stat.position === 2
+                        ? "bg-gray-50"
+                        : stat.position === 3
+                        ? "bg-orange-50"
+                        : "bg-white";
+
+                    return (
+                      <tr
+                        key={stat.pair.id}
+                        className={`${bgColor} hover:bg-purple-50`}
+                      >
+                        <td className="border border-purple-200 px-4 py-3 font-bold text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            <span className="text-2xl">{stat.trophy}</span>
+                            <span>
+                              {stat.position > 0 ? `${stat.position}°` : "-"}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 font-semibold">
+                          {stat.pair.player1.name} / {stat.pair.player2.name}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center">
+                          {stat.matchesPlayed}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center font-semibold text-green-600">
+                          {stat.matchesWon}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center font-semibold text-red-600">
+                          {stat.matchesLost}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center text-green-600">
+                          {stat.setsWon}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center text-red-600">
+                          {stat.setsLost}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center text-green-600">
+                          {stat.gamesWon}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center text-red-600">
+                          {stat.gamesLost}
+                        </td>
+                        <td className="border border-purple-200 px-4 py-3 text-center font-bold text-blue-600">
+                          {winRate}%
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Leyenda */}
+            <div className="mt-4 text-sm text-gray-600">
+              <p>
+                <strong>PJ:</strong> Partidos Jugados | <strong>PG:</strong>{" "}
+                Partidos Ganados | <strong>PP:</strong> Partidos Perdidos
+              </p>
+            </div>
+
+            {/* Botón para vista pública */}
+            <div className="mt-6 text-center">
+              <Button
+                onClick={() =>
+                  window.open(`/public/${currentTournament?.slug}`, "_blank")
+                }
+                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
+                size="lg"
+              >
+                <Users className="h-5 w-5 mr-2" />
+                Ver Vista Pública del Torneo
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Dialog para capturar resultados */}
+      <Dialog open={showScoreDialog} onOpenChange={setShowScoreDialog}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Capturar Resultado</DialogTitle>
+          </DialogHeader>
+
+          {selectedMatch && (
+            <div className="space-y-6">
+              {/* Información del partido */}
+              <div className="text-center p-4 bg-gray-50 rounded-lg">
+                <p className="font-medium text-gray-900 mb-2">
+                  {formatPairName(getPairById(selectedMatch.pairAId))}
+                </p>
+                <p className="text-sm text-gray-500 mb-2">VS</p>
+                <p className="font-medium text-gray-900">
+                  {formatPairName(getPairById(selectedMatch.pairBId))}
+                </p>
+              </div>
+
+              {/* Sets */}
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Pareja A</Label>
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Set 1"
+                      value={scoreForm.pairA_set1}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairA_set1: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Set 2"
+                      value={scoreForm.pairA_set2}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairA_set2: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Set 3 (opcional)"
+                      value={scoreForm.pairA_set3}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairA_set3: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Pareja B</Label>
+                  <div className="space-y-2">
+                    <Input
+                      type="number"
+                      placeholder="Set 1"
+                      value={scoreForm.pairB_set1}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairB_set1: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Set 2"
+                      value={scoreForm.pairB_set2}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairB_set2: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="Set 3 (opcional)"
+                      value={scoreForm.pairB_set3}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairB_set3: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* Super Muerte */}
+              <div className="space-y-3">
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="superDeath"
+                    checked={scoreForm.hasSuperDeath}
+                    onCheckedChange={(checked) =>
+                      setScoreForm((prev) => ({
+                        ...prev,
+                        hasSuperDeath: checked as boolean,
+                      }))
+                    }
+                  />
+                  <Label htmlFor="superDeath" className="text-sm font-medium">
+                    ¿Hubo Super Muerte? (desempate - primer equipo en llegar a
+                    10 gana)
+                  </Label>
+                </div>
+
+                {scoreForm.hasSuperDeath && (
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      type="number"
+                      placeholder="10"
+                      value={scoreForm.pairA_superDeath}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairA_superDeath: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                    <Input
+                      type="number"
+                      placeholder="6"
+                      value={scoreForm.pairB_superDeath}
+                      onChange={(e) =>
+                        setScoreForm((prev) => ({
+                          ...prev,
+                          pairB_superDeath: e.target.value,
+                        }))
+                      }
+                      min="0"
+                      max="20"
+                    />
+                  </div>
+                )}
+
+                {scoreForm.hasSuperDeath && (
+                  <p className="text-sm text-gray-500 mt-2">
+                    * El primer equipo en llegar a 10 puntos gana
+                  </p>
+                )}
+              </div>
+
+              {/* Botones */}
+              <div className="flex gap-3 pt-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setShowScoreDialog(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleSubmitScore} className="flex-1">
+                  Guardar Resultado
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+// Componente para cada partido del bracket
+interface BracketMatchCardProps {
+  match: Match;
+  pairA?: Pair;
+  pairB?: Pair;
+  onAddScore: () => void;
+  formatScore: (match: Match) => string;
+  isImportant?: boolean;
+  isFinal?: boolean;
+}
+
+function BracketMatchCard({
+  match,
+  pairA,
+  pairB,
+  onAddScore,
+  formatScore,
+  isImportant = false,
+  isFinal = false,
+}: BracketMatchCardProps) {
+  const formatPairName = (pair?: Pair): string => {
+    if (!pair) return "TBD";
+    return `${pair.player1?.name || "Jugador 1"} / ${
+      pair.player2?.name || "Jugador 2"
+    }`;
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case "finished":
+        return (
+          <Badge className="bg-green-100 text-green-800">Finalizado</Badge>
+        );
+      case "playing":
+        return <Badge className="bg-blue-100 text-blue-800">Jugando</Badge>;
+      case "scheduled":
+        return (
+          <Badge className="bg-yellow-100 text-yellow-800">Programado</Badge>
+        );
+      default:
+        return <Badge variant="outline">Pendiente</Badge>;
+    }
+  };
+
+  const cardClass = `bracket-match-card transition-all hover:shadow-lg ${
+    isFinal
+      ? "border-2 border-yellow-400 bg-gradient-to-br from-yellow-50 to-yellow-100"
+      : isImportant
+      ? "border-2 border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100"
+      : ""
+  }`;
+
+  return (
+    <Card className={cardClass}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <h4 className="font-semibold text-sm text-gray-700">
+            {match.bracketPosition}
+          </h4>
+          {getStatusBadge(match.status)}
+        </div>
+      </CardHeader>
+
+      <CardContent className="space-y-4">
+        {/* Parejas */}
+        <div className="space-y-3">
+          <div
+            className={`p-3 rounded-lg border-l-4 ${
+              match.winnerPairId === pairA?.id
+                ? "border-green-500 bg-green-50"
+                : "border-gray-200 bg-gray-50"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                match.winnerPairId === pairA?.id
+                  ? "text-green-800"
+                  : "text-gray-800"
+              }`}
+            >
+              {formatPairName(pairA)}
+              {match.winnerPairId === pairA?.id && (
+                <Crown className="inline h-4 w-4 ml-2 text-green-600" />
+              )}
+            </p>
+          </div>
+
+          <div
+            className={`p-3 rounded-lg border-l-4 ${
+              match.winnerPairId === pairB?.id
+                ? "border-green-500 bg-green-50"
+                : "border-gray-200 bg-gray-50"
+            }`}
+          >
+            <p
+              className={`text-sm font-medium ${
+                match.winnerPairId === pairB?.id
+                  ? "text-green-800"
+                  : "text-gray-800"
+              }`}
+            >
+              {formatPairName(pairB)}
+              {match.winnerPairId === pairB?.id && (
+                <Crown className="inline h-4 w-4 ml-2 text-green-600" />
+              )}
+            </p>
+          </div>
+        </div>
+
+        {/* Resultado */}
+        {match.status === "finished" && (
+          <div className="text-center p-2 bg-blue-50 rounded-lg">
+            <p className="text-sm font-mono text-blue-800">
+              {formatScore(match)}
+            </p>
+          </div>
+        )}
+
+        {/* Botón de acción */}
+        {match.status === "pending" && pairA && pairB && (
+          <Button
+            size="sm"
+            onClick={onAddScore}
+            className="w-full"
+            variant="outline"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Resultado
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+}

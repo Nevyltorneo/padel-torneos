@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#1a73e8"/>
+  <rect x="0" y="0" width="1200" height="630" fill="url(#bg)" rx="20"/>
+
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a73e8;stop-opacity:1" />
+      <stop offset="100%" style="stop-color:#4285f4;stop-opacity:1" />
+    </linearGradient>
+  </defs>
+
+  <!-- Logo simple -->
+  <circle cx="300" cy="315" r="120" fill="white" opacity="0.9"/>
+  <rect x="240" y="255" width="120" height="120" fill="#1a73e8" rx="10"/>
+  <rect x="270" y="345" width="60" height="30" fill="#1a73e8" rx="5"/>
+
+  <!-- Text principal -->
+  <text x="500" y="280" font-family="Arial, sans-serif" font-size="72" font-weight="bold" fill="white">MiTorneo</text>
+  <text x="500" y="340" font-family="Arial, sans-serif" font-size="36" fill="white" opacity="0.95">Sistema de Torneos</text>
+  <text x="500" y="380" font-family="Arial, sans-serif" font-size="28" fill="white" opacity="0.9">de Pádel</text>
+
+  <!-- Features -->
+  <text x="500" y="450" font-family="Arial, sans-serif" font-size="24" fill="white" opacity="0.9">• Grupos automáticos</text>
+  <text x="500" y="485" font-family="Arial, sans-serif" font-size="24" fill="white" opacity="0.9">• Calendarios inteligentes</text>
+  <text x="500" y="520" font-family="Arial, sans-serif" font-size="24" fill="white" opacity="0.9">• Seguimiento en vivo</text>
+
+  <!-- URL -->
+  <text x="600" y="590" text-anchor="middle" font-family="Arial, sans-serif" font-size="20" fill="white" opacity="0.8">padel-torneos.vercel.app</text>
+</svg>

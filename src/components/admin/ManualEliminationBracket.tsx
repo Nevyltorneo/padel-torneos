@@ -82,13 +82,6 @@ export function ManualEliminationBracket({
       description: "16 parejas → 8 octavos → cuartos → semifinales → final",
       minPairs: 16,
       maxPairs: 16
-    },
-    {
-      value: "custom",
-      label: "Personalizado",
-      description: "Configura libremente los enfrentamientos",
-      minPairs: 2,
-      maxPairs: 999
     }
   ];
 
@@ -119,9 +112,6 @@ export function ManualEliminationBracket({
           break;
         case "octavos":
           newMatches = generateOctavos();
-          break;
-        case "custom":
-          newMatches = generateCustom();
           break;
         default:
           throw new Error("Tipo de eliminatoria no válido");
@@ -215,22 +205,6 @@ export function ManualEliminationBracket({
     return octavosMatches;
   };
 
-  const generateCustom = (): Match[] => {
-    // Para personalizado, generar enfrentamientos 1 vs último, 2 vs penúltimo, etc.
-    const customMatches: Match[] = [];
-    const half = Math.floor(selectedPairs.length / 2);
-    
-    for (let i = 0; i < half; i++) {
-      customMatches.push({
-        id: `custom-${i + 1}`,
-        pairA: selectedPairs[i],
-        pairB: selectedPairs[selectedPairs.length - 1 - i],
-        round: "Primera Ronda",
-        matchNumber: i + 1
-      });
-    }
-    return customMatches;
-  };
 
   const swapPair = (matchId: string, isPairA: boolean, newPairId: string) => {
     const newPair = selectedPairs.find(p => p.pairId === newPairId);
@@ -333,7 +307,7 @@ export function ManualEliminationBracket({
             <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
               <p className="text-yellow-800">
                 No hay tipos de eliminatoria disponibles para {selectedPairs.length} parejas.
-                Usa "Personalizado" para configurar libremente los enfrentamientos.
+                Selecciona un número de parejas válido para las eliminatorias disponibles.
               </p>
             </div>
           )}

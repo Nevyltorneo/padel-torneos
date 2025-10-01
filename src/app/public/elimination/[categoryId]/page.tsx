@@ -163,84 +163,84 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
         <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-yellow-500/10 rounded-full filter blur-3xl animate-pulse delay-500"></div>
       </div>
       
-      <div className="relative container mx-auto px-4 py-8">
+      <div className="relative container mx-auto px-4 py-6">
         {/* Header */}
-        <div className="text-center mb-12">
+        <div className="text-center mb-8">
           
-          <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 shadow-2xl">
-            <div className="flex items-center justify-center mb-4">
-              {currentPhase.icon === "trophy" && (
-                <>
-                  <Sparkles className="h-8 w-8 text-yellow-400 animate-pulse mr-3" />
-                  <Trophy className="h-12 w-12 text-yellow-400 drop-shadow-lg" />
-                  <Sparkles className="h-8 w-8 text-yellow-400 animate-pulse ml-3" />
-                </>
-              )}
-              {currentPhase.icon === "crown" && (
-                <>
-                  <Crown className="h-10 w-10 text-yellow-400 drop-shadow-lg" />
-                  <Trophy className="h-12 w-12 text-yellow-400 drop-shadow-lg" />
-                  <Crown className="h-10 w-10 text-yellow-400 drop-shadow-lg" />
-                </>
-              )}
-              {currentPhase.icon === "medal" && (
-                <>
-                  <Medal className="h-8 w-8 text-yellow-400 drop-shadow-lg" />
-                  <Trophy className="h-12 w-12 text-yellow-400 drop-shadow-lg" />
-                  <Medal className="h-8 w-8 text-yellow-400 drop-shadow-lg" />
-                </>
-              )}
-            </div>
-            <h1 className="text-5xl font-black text-white mb-4 tracking-tight">
-              {currentPhase.title}
-            </h1>
-            <h2 className="text-2xl font-bold text-blue-200 mb-2">{category?.name || 'Categoría'}</h2>
-            <p className="text-lg text-blue-100">{currentPhase.subtitle}</p>
+        <div className="bg-white/10 backdrop-blur-md rounded-2xl p-6 border border-white/20 shadow-xl">
+          <div className="flex items-center justify-center mb-3">
+            {currentPhase.icon === "trophy" && (
+              <>
+                <Sparkles className="h-6 w-6 text-yellow-400 animate-pulse mr-2" />
+                <Trophy className="h-8 w-8 text-yellow-400 drop-shadow-lg" />
+                <Sparkles className="h-6 w-6 text-yellow-400 animate-pulse ml-2" />
+              </>
+            )}
+            {currentPhase.icon === "crown" && (
+              <>
+                <Crown className="h-7 w-7 text-yellow-400 drop-shadow-lg" />
+                <Trophy className="h-8 w-8 text-yellow-400 drop-shadow-lg" />
+                <Crown className="h-7 w-7 text-yellow-400 drop-shadow-lg" />
+              </>
+            )}
+            {currentPhase.icon === "medal" && (
+              <>
+                <Medal className="h-6 w-6 text-yellow-400 drop-shadow-lg" />
+                <Trophy className="h-8 w-8 text-yellow-400 drop-shadow-lg" />
+                <Medal className="h-6 w-6 text-yellow-400 drop-shadow-lg" />
+              </>
+            )}
           </div>
+          <h1 className="text-3xl font-black text-white mb-3 tracking-tight">
+            {currentPhase.title}
+          </h1>
+          <h2 className="text-xl font-bold text-blue-200 mb-2">{category?.name || 'Categoría'}</h2>
+          <p className="text-base text-blue-100">{currentPhase.subtitle}</p>
+        </div>
         </div>
 
         {/* Primer y Segundo Lugar - Solo si el torneo está completo */}
         {isTournamentComplete && champion && (
-          <div className="max-w-5xl mx-auto mb-12">
+          <div className="max-w-4xl mx-auto mb-8">
             <Card className="border-4 border-yellow-400 bg-gradient-to-br from-yellow-400 via-yellow-500 to-amber-500 shadow-2xl transform hover:scale-105 transition-transform duration-300">
-              <CardHeader className="text-center pb-6">
-                <div className="flex items-center justify-center gap-4 mb-6">
-                  <Crown className="h-16 w-16 text-white drop-shadow-lg animate-bounce" />
-                  <Trophy className="h-20 w-20 text-white drop-shadow-lg animate-bounce delay-300" />
-                  <Crown className="h-16 w-16 text-white drop-shadow-lg animate-bounce delay-600" />
+              <CardHeader className="text-center pb-4">
+                <div className="flex items-center justify-center gap-3 mb-4">
+                  <Crown className="h-8 w-8 text-white drop-shadow-lg" />
+                  <Trophy className="h-10 w-10 text-white drop-shadow-lg" />
+                  <Crown className="h-8 w-8 text-white drop-shadow-lg" />
                 </div>
-                <CardTitle className="text-4xl font-black text-white drop-shadow-lg">
+                <CardTitle className="text-2xl font-black text-white drop-shadow-lg">
                   ¡GANADORES(AS) DEL TORNEO!
                 </CardTitle>
               </CardHeader>
               <CardContent className="text-center space-y-6">
                 {/* Primer Lugar */}
-                <div className="bg-white/95 rounded-2xl p-8 shadow-xl">
-                  <h3 className="text-2xl font-bold text-gray-600 mb-4 flex items-center justify-center gap-2">
-                    <Crown className="h-6 w-6 text-yellow-500" />
+                <div className="bg-white/95 rounded-xl p-4 shadow-lg">
+                  <h3 className="text-lg font-bold text-gray-600 mb-3 flex items-center justify-center gap-2">
+                    <Crown className="h-5 w-5 text-yellow-500" />
                     PRIMER LUGAR
                   </h3>
-                  <h2 className="text-5xl font-black text-gray-800 mb-4">
+                  <h2 className="text-2xl font-black text-gray-800 mb-3">
                     {formatPairName(champion)}
                   </h2>
-                  <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-xl px-6 py-3 rounded-full shadow-lg">
-                    <Trophy className="h-6 w-6 mr-2" />
+                  <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white text-sm px-4 py-2 rounded-full shadow-lg">
+                    <Trophy className="h-4 w-4 mr-1" />
                     Ganadores(as) del Torneo
                   </Badge>
                 </div>
 
                 {/* Segundo Lugar */}
                 {runnerUp && (
-                  <div className="bg-white/95 rounded-2xl p-8 shadow-xl">
-                    <h3 className="text-2xl font-bold text-gray-600 mb-4 flex items-center justify-center gap-2">
-                      <Medal className="h-6 w-6 text-gray-500" />
+                  <div className="bg-white/95 rounded-xl p-4 shadow-lg">
+                    <h3 className="text-lg font-bold text-gray-600 mb-3 flex items-center justify-center gap-2">
+                      <Medal className="h-5 w-5 text-gray-500" />
                       SEGUNDO LUGAR
                     </h3>
-                    <h2 className="text-4xl font-bold text-gray-800 mb-4">
+                    <h2 className="text-xl font-bold text-gray-800 mb-3">
                       {formatPairName(runnerUp)}
                     </h2>
-                    <Badge className="bg-gradient-to-r from-gray-500 to-gray-600 text-white text-lg px-6 py-3 rounded-full shadow-lg">
-                      <Medal className="h-5 w-5 mr-2" />
+                    <Badge className="bg-gradient-to-r from-gray-500 to-gray-600 text-white text-sm px-4 py-2 rounded-full shadow-lg">
+                      <Medal className="h-4 w-4 mr-1" />
                       Segundo Lugar
                     </Badge>
                   </div>
@@ -529,23 +529,23 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
         )}
 
         {/* Agradecimiento */}
-        <div className="max-w-5xl mx-auto mt-16">
-          <Card className="bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-indigo-500/20 backdrop-blur-md border border-white/20 shadow-2xl">
+        <div className="max-w-4xl mx-auto mt-8">
+          <Card className="bg-gradient-to-r from-pink-500/20 via-purple-500/20 to-indigo-500/20 backdrop-blur-md border border-white/20 shadow-xl">
             <CardHeader className="text-center">
-              <Heart className="h-16 w-16 text-pink-400 mx-auto mb-4 animate-pulse" />
-              <CardTitle className="text-4xl font-black text-white">
+              <Heart className="h-8 w-8 text-pink-400 mx-auto mb-3" />
+              <CardTitle className="text-2xl font-black text-white">
                 ¡Gracias por Participar!
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-center text-lg text-blue-100 space-y-4">
-              <p className="text-xl font-semibold text-white mb-4">
+            <CardContent className="text-center text-base text-blue-100 space-y-3">
+              <p className="text-lg font-semibold text-white mb-3">
                 ¡Gracias por hacer de este torneo una experiencia inolvidable!
               </p>
               <p>Cada partido fue una muestra de dedicación, esfuerzo y pasión por el pádel.</p>
-              <p className="text-lg font-medium text-yellow-200 mt-4">
+              <p className="text-base font-medium text-yellow-200 mt-3">
                 Su espíritu deportivo y determinación nos inspiran a seguir organizando eventos como este.
               </p>
-              <p className="text-base text-blue-200 mt-3">
+              <p className="text-sm text-blue-200 mt-2">
                 ¡Esperamos verlas en la próxima edición!
               </p>
             </CardContent>

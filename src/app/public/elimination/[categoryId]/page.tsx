@@ -382,16 +382,10 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
                               ? 'bg-green-200 border-green-600 shadow-xl' 
                               : 'bg-white border-gray-300'
                           }`}>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-center">
                               <span className="text-2xl font-black text-gray-800">
                                 {formatPairName(pairA)}
                               </span>
-                              {isCompleted && winnerId === match.pairAId && (
-                                <Badge className="bg-green-600 text-white text-lg px-4 py-2 animate-pulse">
-                                  <Crown className="h-5 w-5 mr-2" />
-                                  CAMPEONAS
-                                </Badge>
-                              )}
                             </div>
                             {match.score && (match.score as any).sets && (
                               <div className="mt-3 text-lg text-gray-700">
@@ -412,16 +406,10 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
                               ? 'bg-green-200 border-green-600 shadow-xl' 
                               : 'bg-white border-gray-300'
                           }`}>
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-center">
                               <span className="text-2xl font-black text-gray-800">
                                 {formatPairName(pairB)}
                               </span>
-                              {isCompleted && winnerId === match.pairBId && (
-                                <Badge className="bg-green-600 text-white text-lg px-4 py-2 animate-pulse">
-                                  <Crown className="h-5 w-5 mr-2" />
-                                  CAMPEONAS
-                                </Badge>
-                              )}
                             </div>
                             {match.score && (match.score as any).sets && (
                               <div className="mt-3 text-lg text-gray-700">

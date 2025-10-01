@@ -80,8 +80,10 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
 
   const getMatchesByStage = (stage: string): MatchType[] => {
     if (stage === "quarterfinal") {
-      // Para quarterfinal, mostrar todos los matches que no sean de grupos
-      return eliminationMatches.filter(match => match.stage !== "groups");
+      // Para quarterfinal, mostrar solo matches de quarterfinal
+      return eliminationMatches.filter(match => 
+        match.stage === "quarterfinal"
+      );
     }
     
     return eliminationMatches.filter(match => match.stage === stage);
@@ -362,6 +364,99 @@ export default function PublicEliminationPage({ params }: { params: Promise<{ ca
                               </div>
                               <div className="flex items-center justify-between text-sm">
                                 <span className="text-blue-700 font-medium">🏟️ Cancha:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.courtId || "Por asignar"}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Semifinales */}
+            {getMatchesByStage("semifinal").length > 0 && (
+              <div className="bg-white/10 backdrop-blur-md rounded-3xl p-8 border border-white/20 shadow-2xl">
+                <h3 className="text-3xl font-black text-center mb-8 text-white flex items-center justify-center gap-3">
+                  <Medal className="h-8 w-8 text-purple-400" />
+                  {getStageName("semifinal", getMatchesByStage("semifinal").length)}
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 max-w-6xl mx-auto">
+                  {getMatchesByStage("semifinal").map((match, index) => {
+                    const pairA = getPairById(match.pairAId);
+                    const pairB = getPairById(match.pairBId);
+                    const isCompleted = match.status === "completed";
+                    const winnerId = match.winnerPairId;
+                    
+                    return (
+                      <Card key={match.id} className="bg-white/95 border-2 border-purple-500 shadow-xl hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                        <CardHeader className="text-center pb-4">
+                          <Badge className={`text-lg px-4 py-2 rounded-full ${
+                            isCompleted ? 'bg-green-500 text-white' : 'bg-blue-500 text-white'
+                          }`}>
+                            {isCompleted ? 'Completado' : 'Pendiente'}
+                          </Badge>
+                        </CardHeader>
+                        <CardContent className="space-y-4">
+                          {/* Pareja A */}
+                          <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                            isCompleted && winnerId === match.pairAId 
+                              ? 'bg-green-100 border-green-500 shadow-lg' 
+                              : 'bg-gray-50 border-gray-200'
+                          }`}>
+                            <p className="text-xl font-bold text-center text-gray-800">
+                              {pairA ? formatPairName(pairA) : "TBD"}
+                            </p>
+                          </div>
+
+                          {/* VS */}
+                          <div className="text-center">
+                            <p className="text-2xl font-black text-gray-600">VS</p>
+                          </div>
+
+                          {/* Pareja B */}
+                          <div className={`p-4 rounded-xl border-2 transition-all duration-300 ${
+                            isCompleted && winnerId === match.pairBId 
+                              ? 'bg-green-100 border-green-500 shadow-lg' 
+                              : 'bg-gray-50 border-gray-200'
+                          }`}>
+                            <p className="text-xl font-bold text-center text-gray-800">
+                              {pairB ? formatPairName(pairB) : "TBD"}
+                            </p>
+                          </div>
+
+                          {/* Marcador si está completado */}
+                          {isCompleted && match.score && (match.score as any).sets && (
+                            <div className="bg-gray-100 p-3 rounded-lg">
+                              <div className="text-lg font-semibold text-center text-gray-700">
+                                {(match.score as any).sets.map((set: any, i: number) => (
+                                  <span key={i} className="mr-3 font-bold text-xl">{set.a}-{set.b}</span>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Información de horario y cancha */}
+                          <div className="bg-purple-50 p-3 rounded-lg border border-purple-200 mt-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-purple-700 font-medium">📅 Día:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.day ? new Date(match.day).toLocaleDateString('es-ES') : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-purple-700 font-medium">🕐 Hora:</span>
+                                <span className="font-semibold text-gray-800">
+                                  {match.startTime ? match.startTime : "Por asignar"}
+                                </span>
+                              </div>
+                              <div className="flex items-center justify-between text-sm">
+                                <span className="text-purple-700 font-medium">🏟️ Cancha:</span>
                                 <span className="font-semibold text-gray-800">
                                   {match.courtId || "Por asignar"}
                                 </span>

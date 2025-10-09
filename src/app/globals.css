@@ -2,6 +2,20 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Fix for SelectContent z-index issues in modals */
+@layer utilities {
+  [data-slot="select-content"] {
+    z-index: 9999 !important;
+    max-height: 20rem !important;
+    overflow-y: auto !important;
+  }
+  
+  [data-slot="select-content"] [data-slot="select-viewport"] {
+    max-height: 18rem !important;
+    overflow-y: auto !important;
+  }
+}
+
 @layer base {
   :root {
     --background: 0 0% 100%;

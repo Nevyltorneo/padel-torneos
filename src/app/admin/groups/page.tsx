@@ -98,6 +98,7 @@ export default function GroupsPage() {
     hasSuperDeath: false,
     pairA_superDeath: "",
     pairB_superDeath: "",
+    isTimeLimit: false,
   });
 
   const { currentTournament } = useTournamentStore();
@@ -289,6 +290,7 @@ export default function GroupsPage() {
       hasSuperDeath: false,
       pairA_superDeath: "",
       pairB_superDeath: "",
+      isTimeLimit: false,
     });
     setShowScoreDialog(true);
   };
@@ -310,6 +312,7 @@ export default function GroupsPage() {
       hasSuperDeath: !!(scoreA?.superDeath || scoreB?.superDeath),
       pairA_superDeath: scoreA?.superDeath?.toString() || "",
       pairB_superDeath: scoreB?.superDeath?.toString() || "",
+      isTimeLimit: false, // No se guarda en BD por ahora, solo para UI
     });
     setShowScoreDialog(true);
   };
@@ -320,26 +323,26 @@ export default function GroupsPage() {
     try {
       toast.loading("Guardando resultado...", { id: "save-score" });
 
-      // Validar que al menos 2 sets estén completos
-      const pairA_set1 = parseInt(scoreForm.pairA_set1);
-      const pairA_set2 = parseInt(scoreForm.pairA_set2);
+      // Validar que al menos 1 set esté completo
+      const pairA_set1 = scoreForm.pairA_set1 ? parseInt(scoreForm.pairA_set1) : undefined;
+      const pairA_set2 = scoreForm.pairA_set2 ? parseInt(scoreForm.pairA_set2) : undefined;
       const pairA_set3 = scoreForm.pairA_set3
         ? parseInt(scoreForm.pairA_set3)
         : undefined;
 
-      const pairB_set1 = parseInt(scoreForm.pairB_set1);
-      const pairB_set2 = parseInt(scoreForm.pairB_set2);
+      const pairB_set1 = scoreForm.pairB_set1 ? parseInt(scoreForm.pairB_set1) : undefined;
+      const pairB_set2 = scoreForm.pairB_set2 ? parseInt(scoreForm.pairB_set2) : undefined;
       const pairB_set3 = scoreForm.pairB_set3
         ? parseInt(scoreForm.pairB_set3)
         : undefined;
 
+      // Verificar que al menos un set esté completo
       if (
-        isNaN(pairA_set1) ||
-        isNaN(pairA_set2) ||
-        isNaN(pairB_set1) ||
-        isNaN(pairB_set2)
+        (pairA_set1 === undefined || pairB_set1 === undefined) &&
+        (pairA_set2 === undefined || pairB_set2 === undefined) &&
+        (pairA_set3 === undefined || pairB_set3 === undefined)
       ) {
-        toast.error("Debes completar al menos los primeros 2 sets", {
+        toast.error("Debes completar al menos 1 set para determinar el ganador", {
           id: "save-score",
         });
         return;
@@ -400,14 +403,23 @@ export default function GroupsPage() {
       // Determinar ganador
       let pairA_sets = 0;
       let pairB_sets = 0;
+      let hasEmpate = false;
 
-      if (pairA_set1 > pairB_set1) pairA_sets++;
-      else pairB_sets++;
-      if (pairA_set2 > pairB_set2) pairA_sets++;
-      else pairB_sets++;
+      // Solo contar sets que estén completos
+      if (pairA_set1 !== undefined && pairB_set1 !== undefined) {
+        if (pairA_set1 > pairB_set1) pairA_sets++;
+        else if (pairB_set1 > pairA_set1) pairB_sets++;
+        else hasEmpate = true; // Empate en games (4-4, 5-5, etc.)
+      }
+      if (pairA_set2 !== undefined && pairB_set2 !== undefined) {
+        if (pairA_set2 > pairB_set2) pairA_sets++;
+        else if (pairB_set2 > pairA_set2) pairB_sets++;
+        else hasEmpate = true; // Empate en games
+      }
       if (pairA_set3 !== undefined && pairB_set3 !== undefined) {
         if (pairA_set3 > pairB_set3) pairA_sets++;
-        else pairB_sets++;
+        else if (pairB_set3 > pairA_set3) pairB_sets++;
+        else hasEmpate = true; // Empate en games
       }
 
       let winnerPairId;
@@ -418,6 +430,42 @@ export default function GroupsPage() {
           pairA_superDeath! > pairB_superDeath!
             ? selectedMatch.pairAId
             : selectedMatch.pairBId;
+      } 
+      // Si hay empate en games (4-4, 5-5, etc.) y Super Muerte está activada
+      else if (hasEmpate && scoreForm.hasSuperDeath) {
+        winnerPairId =
+          pairA_superDeath! > pairB_superDeath!
+            ? selectedMatch.pairAId
+            : selectedMatch.pairBId;
+      }
+      // Si hay empate en sets o games sin Super Muerte, determinar por diferencia de games
+      else if (pairA_sets === pairB_sets || hasEmpate) {
+        // Calcular diferencia total de games
+        let pairA_totalGames = 0;
+        let pairB_totalGames = 0;
+        
+        if (pairA_set1 !== undefined && pairB_set1 !== undefined) {
+          pairA_totalGames += pairA_set1;
+          pairB_totalGames += pairB_set1;
+        }
+        if (pairA_set2 !== undefined && pairB_set2 !== undefined) {
+          pairA_totalGames += pairA_set2;
+          pairB_totalGames += pairB_set2;
+        }
+        if (pairA_set3 !== undefined && pairB_set3 !== undefined) {
+          pairA_totalGames += pairA_set3;
+          pairB_totalGames += pairB_set3;
+        }
+        
+        if (pairA_totalGames > pairB_totalGames) {
+          winnerPairId = selectedMatch.pairAId;
+        } else if (pairB_totalGames > pairA_totalGames) {
+          winnerPairId = selectedMatch.pairBId;
+        } else {
+          // Empate total - asignar ganador por sorteo o ranking
+          // En torneos relámpago es normal tener empates por tiempo
+          winnerPairId = selectedMatch.pairAId; // Por defecto, se puede cambiar por sorteo
+        }
       } else {
         winnerPairId =
           pairA_sets > pairB_sets
@@ -789,6 +837,14 @@ export default function GroupsPage() {
                 {selectedGroupMatches.map((match, index) => {
                   const pairA = allPairs.find((p) => p.id === match.pairAId);
                   const pairB = allPairs.find((p) => p.id === match.pairBId);
+                  
+                  // Detectar si hay empate
+                  const isTie = match.status === "completed" && 
+                    match.scorePairA && match.scorePairB && (
+                      (match.scorePairA.set1 === match.scorePairB.set1 && match.scorePairA.set1 !== undefined) ||
+                      (match.scorePairA.set2 === match.scorePairB.set2 && match.scorePairA.set2 !== undefined) ||
+                      (match.scorePairA.set3 === match.scorePairB.set3 && match.scorePairA.set3 !== undefined)
+                    );
 
                   return (
                     <div
@@ -828,15 +884,18 @@ export default function GroupsPage() {
                           {/* Pareja A */}
                           <div
                             className={`rounded-lg p-4 border-2 transition-all relative overflow-hidden ${
-                              match.status === "completed" &&
-                              match.winnerPairId === pairA?.id
+                              isTie
+                                ? "bg-gradient-to-r from-blue-100 to-blue-200 border-blue-400 shadow-md"
+                                : match.status === "completed" &&
+                                  match.winnerPairId === pairA?.id
                                 ? "bg-gradient-to-r from-green-100 to-green-200 border-green-400 shadow-md"
                                 : "bg-gradient-to-r from-blue-50 to-blue-100 border border-blue-200"
                             }`}
                           >
-                            {/* Corona de fondo para ganador */}
+                            {/* Corona de fondo para ganador (solo si no hay empate) */}
                             {match.status === "completed" &&
-                              match.winnerPairId === pairA?.id && (
+                              match.winnerPairId === pairA?.id && 
+                              !isTie && (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20">
                                   <span className="text-8xl text-yellow-500">
                                     👑
@@ -846,8 +905,10 @@ export default function GroupsPage() {
                             <div className="text-center relative z-10">
                               <div
                                 className={`font-semibold mb-2 ${
-                                  match.status === "completed" &&
-                                  match.winnerPairId === pairA?.id
+                                  isTie
+                                    ? "text-blue-900"
+                                    : match.status === "completed" &&
+                                      match.winnerPairId === pairA?.id
                                     ? "text-green-900"
                                     : "text-blue-900"
                                 }`}
@@ -867,13 +928,13 @@ export default function GroupsPage() {
                           {/* VS y Resultado */}
                           <div className="text-center">
                             <div className="text-2xl font-bold text-gray-400 mb-2">
-                              VS
+                              {isTie ? "🤝" : "VS"}
                             </div>
                             {match.status === "completed" &&
                             match.scorePairA &&
                             match.scorePairB ? (
-                              <div className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                <div className="text-lg font-mono font-bold text-green-800">
+                              <div className={`${isTie ? 'bg-blue-50 border border-blue-200' : 'bg-green-50 border border-green-200'} rounded-lg p-3`}>
+                                <div className={`text-lg font-mono font-bold ${isTie ? 'text-blue-800' : 'text-green-800'}`}>
                                   {match.scorePairA.set1}-
                                   {match.scorePairB.set1} |{" "}
                                   {match.scorePairA.set2}-
@@ -905,15 +966,18 @@ export default function GroupsPage() {
                           {/* Pareja B */}
                           <div
                             className={`rounded-lg p-4 border-2 transition-all relative overflow-hidden ${
-                              match.status === "completed" &&
-                              match.winnerPairId === pairB?.id
+                              isTie
+                                ? "bg-gradient-to-r from-blue-100 to-blue-200 border-blue-400 shadow-md"
+                                : match.status === "completed" &&
+                                  match.winnerPairId === pairB?.id
                                 ? "bg-gradient-to-r from-green-100 to-green-200 border-green-400 shadow-md"
                                 : "bg-gradient-to-r from-red-50 to-red-100 border border-red-200"
                             }`}
                           >
-                            {/* Corona de fondo para ganador */}
+                            {/* Corona de fondo para ganador (solo si no hay empate) */}
                             {match.status === "completed" &&
-                              match.winnerPairId === pairB?.id && (
+                              match.winnerPairId === pairB?.id && 
+                              !isTie && (
                                 <div className="absolute inset-0 flex items-center justify-center opacity-20">
                                   <span className="text-8xl text-yellow-500">
                                     👑
@@ -923,8 +987,10 @@ export default function GroupsPage() {
                             <div className="text-center relative z-10">
                               <div
                                 className={`font-semibold mb-2 ${
-                                  match.status === "completed" &&
-                                  match.winnerPairId === pairB?.id
+                                  isTie
+                                    ? "text-blue-900"
+                                    : match.status === "completed" &&
+                                      match.winnerPairId === pairB?.id
                                     ? "text-green-900"
                                     : "text-red-900"
                                 }`}
@@ -1017,6 +1083,18 @@ export default function GroupsPage() {
                 </div>
               </div>
 
+              {/* Nota sobre sets */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                <p className="text-sm text-blue-800">
+                  💡 <strong>Flexible:</strong> Puedes usar solo 1 set (torneos relámpago), 2 sets (estándar) o 3 sets (completo). 
+                  El sistema determinará automáticamente al ganador según los sets completados.
+                </p>
+                <p className="text-sm text-blue-700 mt-2">
+                  🎯 <strong>Empates:</strong> Si hay empate en games (4-4, 5-5) por tiempo, el sistema usa diferencia total de games 
+                  o Super Muerte para determinar al ganador.
+                </p>
+              </div>
+
               {/* Formulario de sets */}
               <div className="grid grid-cols-2 gap-6">
                 {/* Pareja A */}
@@ -1034,7 +1112,7 @@ export default function GroupsPage() {
                   </h4>
                   <div className="space-y-3">
                     <div>
-                      <Label>Set 1 *</Label>
+                      <Label>Set 1</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1050,7 +1128,7 @@ export default function GroupsPage() {
                       />
                     </div>
                     <div>
-                      <Label>Set 2 *</Label>
+                      <Label>Set 2</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1099,7 +1177,7 @@ export default function GroupsPage() {
                   </h4>
                   <div className="space-y-3">
                     <div>
-                      <Label>Set 1 *</Label>
+                      <Label>Set 1</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1115,7 +1193,7 @@ export default function GroupsPage() {
                       />
                     </div>
                     <div>
-                      <Label>Set 2 *</Label>
+                      <Label>Set 2</Label>
                       <Input
                         type="number"
                         min="0"
@@ -1150,20 +1228,35 @@ export default function GroupsPage() {
                 </div>
               </div>
 
-              {/* Super Muerte */}
+              {/* Opciones especiales */}
               <div className="border-t pt-6">
-                <div className="flex items-center space-x-2 mb-4">
-                  <Checkbox
-                    id="superDeath"
-                    checked={scoreForm.hasSuperDeath}
-                    onCheckedChange={(checked) =>
-                      setScoreForm({ ...scoreForm, hasSuperDeath: !!checked })
-                    }
-                  />
-                  <Label htmlFor="superDeath" className="text-sm font-medium">
-                    ¿Hubo Super Muerte? (desempate - primer equipo en llegar a
-                    10 gana)
-                  </Label>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="superDeath"
+                      checked={scoreForm.hasSuperDeath}
+                      onCheckedChange={(checked) =>
+                        setScoreForm({ ...scoreForm, hasSuperDeath: !!checked })
+                      }
+                    />
+                    <Label htmlFor="superDeath" className="text-sm font-medium">
+                      ¿Hubo Super Muerte? (desempate - primer equipo en llegar a
+                      10 gana)
+                    </Label>
+                  </div>
+                  
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="timeLimit"
+                      checked={scoreForm.isTimeLimit}
+                      onCheckedChange={(checked) =>
+                        setScoreForm({ ...scoreForm, isTimeLimit: !!checked })
+                      }
+                    />
+                    <Label htmlFor="timeLimit" className="text-sm font-medium">
+                      ¿Terminó por límite de tiempo? (empate en games)
+                    </Label>
+                  </div>
                 </div>
 
                 {scoreForm.hasSuperDeath && (
@@ -1230,6 +1323,16 @@ export default function GroupsPage() {
                     * El primer equipo en llegar a 10 puntos gana
                   </p>
                 )}
+
+                {scoreForm.isTimeLimit && (
+                  <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mt-4">
+                    <p className="text-sm text-orange-800">
+                      ⏰ <strong>Partido por tiempo:</strong> Cuando el partido termina por límite de tiempo con empate 
+                      (ej: 4-4, 5-5), el sistema usará la diferencia total de games o Super Muerte para determinar al ganador.
+                    </p>
+                  </div>
+                )}
+
               </div>
 
               {/* Botones */}

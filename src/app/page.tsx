@@ -84,13 +84,13 @@ export default function HomePage() {
           <Card className="home-feature-card">
             <CardHeader>
               <CardTitle className="home-feature-title flex items-center gap-2">
-                🎯 Vista Pública
+                📈 Estadísticas
               </CardTitle>
             </CardHeader>
             <CardContent>
               <CardDescription className="home-feature-description">
-                Scoreboard público responsive para que jugadores y espectadores
-                sigan el torneo en vivo.
+                Estadísticas detalladas de rendimiento, tablas de posiciones y
+                análisis de resultados en tiempo real.
               </CardDescription>
             </CardContent>
           </Card>
@@ -121,14 +121,6 @@ export default function HomePage() {
               <Link href="/login">Administrar Torneo</Link>
             </Button>
 
-            <Button
-              asChild
-              variant="outline"
-              size="lg"
-              className="home-cta-public"
-            >
-              <Link href="/public">Ver Torneos Públicos</Link>
-            </Button>
           </div>
         </div>
 

@@ -44,6 +44,7 @@ export default function HorariosBySlug() {
   const [loading, setLoading] = useState(true);
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
+
   const loadCategoryData = async () => {
     try {
       console.log("🔄 Loading category data for slug:", categorySlug);
@@ -85,26 +86,34 @@ export default function HorariosBySlug() {
       console.log("🔄 Loading parallel data...");
 
       try {
-        const [matchesData, courtsData, pairsData] = await Promise.all([
+        console.log("🔄 Loading data for category:", currentCategory.id);
+        console.log("🔄 Tournament ID:", currentCategory.tournamentId);
+        
+        // Cargar matches y pairs primero
+        const [matchesData, pairsData] = await Promise.all([
           getAllMatchesByCategory(currentCategory.id),
-          getCourts(currentCategory.tournamentId),
           getPairs(currentCategory.id),
         ]);
 
-        setMatches(matchesData);
-        setCourts(courtsData || []);
-        setPairs(pairsData);
-
-        console.log("✅ Data loaded:", {
-          matches: matchesData.length,
-          courts: (courtsData || []).length,
-          pairs: pairsData.length,
+        console.log("📊 Matches and pairs loaded:", {
+          matches: matchesData?.length || 0,
+          pairs: pairsData?.length || 0,
         });
+
+        setMatches(matchesData || []);
+        setPairs(pairsData || []);
+
+        // Cargar canchas
+        console.log("🔄 Loading courts...");
+        const courtsData = await getCourts(currentCategory.tournamentId);
+        console.log("✅ Courts loaded:", courtsData?.length || 0);
+        setCourts(courtsData || []);
 
         setLastUpdated(new Date());
         console.log("🎉 Data loading completed successfully");
       } catch (parallelError) {
         console.error("❌ Error in parallel data loading:", parallelError);
+        console.error("❌ Error details:", parallelError);
         toast.error("Error cargando datos del torneo");
       }
     } catch (error) {
@@ -135,8 +144,25 @@ export default function HorariosBySlug() {
   };
 
   const getCourtName = (courtId: string) => {
+    if (!courtId) {
+      console.log("⚠️ No courtId provided");
+      return "Sin cancha asignada";
+    }
+    
+    if (!courts || courts.length === 0) {
+      console.log("⚠️ No courts loaded:", { courts, courtId });
+      return "Canchas no cargadas";
+    }
+    
     const court = courts.find((c) => c.id === courtId);
-    return court ? court.name : "Cancha no encontrada";
+    
+    if (!court) {
+      console.log("⚠️ Court not found:", { courtId, availableCourts: courts.map(c => ({ id: c.id, name: c.name })) });
+      return "Cancha no encontrada";
+    }
+    
+    console.log("✅ Court found:", { courtId, courtName: court.name });
+    return court.name;
   };
 
   const getStatusBadge = (status: string) => {
@@ -244,14 +270,39 @@ export default function HorariosBySlug() {
             </div>
           </div>
 
-          <Button
-            onClick={loadCategoryData}
-            className="mt-4 flex items-center gap-2"
-            variant="outline"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Actualizar
-          </Button>
+          <div className="flex flex-col sm:flex-row gap-3 mt-4">
+            <Button
+              onClick={loadCategoryData}
+              className="flex items-center gap-2"
+              variant="outline"
+            >
+              <RefreshCw className="h-4 w-4" />
+              Actualizar Todo
+            </Button>
+            
+            <Button
+              onClick={async () => {
+                try {
+                  console.log("🔄 Loading courts directly...");
+                  toast.loading("Cargando canchas...", { id: "load-courts" });
+                  
+                  const courtsData = await getCourts(category?.tournamentId || "");
+                  console.log("✅ Courts loaded:", courtsData);
+                  
+                  setCourts(courtsData);
+                  toast.success(`Canchas cargadas: ${courtsData.length}`, { id: "load-courts" });
+                } catch (error) {
+                  console.error("❌ Error loading courts:", error);
+                  toast.error("Error cargando canchas", { id: "load-courts" });
+                }
+              }}
+              className="flex items-center gap-2"
+              variant="outline"
+            >
+              <MapPin className="h-4 w-4" />
+              Cargar Canchas
+            </Button>
+          </div>
         </div>
 
         {/* Información de la categoría */}
@@ -292,7 +343,18 @@ export default function HorariosBySlug() {
                   </div>
                   <div>
                     <p className="text-sm text-gray-600">Canchas</p>
-                    <p className="text-lg font-semibold">{courts.length}</p>
+                    <p className="text-lg font-semibold">
+                      {courts.length === 0 ? (
+                        <span className="text-red-600">Sin cargar</span>
+                      ) : (
+                        courts.length
+                      )}
+                    </p>
+                    {courts.length === 0 && (
+                      <p className="text-xs text-red-500">
+                        Problema de carga de canchas
+                      </p>
+                    )}
                   </div>
                 </div>
               </div>
@@ -337,7 +399,7 @@ export default function HorariosBySlug() {
                                   variant="outline"
                                   className="text-sm font-semibold"
                                 >
-                                  {match.stage === "group" && "Fase de Grupos"}
+                                  {match.stage === "groups" && "Fase de Grupos"}
                                   {match.stage === "quarterfinals" &&
                                     "Cuartos de Final"}
                                   {match.stage === "semifinals" && "Semifinal"}
@@ -376,24 +438,24 @@ export default function HorariosBySlug() {
                                           Resultado:
                                         </span>
                                         <span className="font-bold text-green-700">
-                                          {match.score.pairA?.set1 || 0}-
-                                          {match.score.pairB?.set1 || 0}
-                                          {match.score.pairA?.set2 !==
+                                          {match.scorePairA?.set1 || 0}-
+                                          {match.scorePairB?.set1 || 0}
+                                          {match.scorePairA?.set2 !==
                                             undefined &&
-                                            match.score.pairB?.set2 !==
+                                            match.scorePairB?.set2 !==
                                               undefined && (
                                               <>
-                                                , {match.score.pairA.set2}-
-                                                {match.score.pairB.set2}
+                                                , {match.scorePairA.set2}-
+                                                {match.scorePairB.set2}
                                               </>
                                             )}
-                                          {match.score.pairA?.set3 !==
+                                          {match.scorePairA?.set3 !==
                                             undefined &&
-                                            match.score.pairB?.set3 !==
+                                            match.scorePairB?.set3 !==
                                               undefined && (
                                               <>
-                                                , {match.score.pairA.set3}-
-                                                {match.score.pairB.set3}
+                                                , {match.scorePairA.set3}-
+                                                {match.scorePairB.set3}
                                               </>
                                             )}
                                         </span>
@@ -413,14 +475,17 @@ export default function HorariosBySlug() {
                                   </span>
                                 </div>
                               )}
-                              {match.courtId && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <MapPin className="h-4 w-4" />
-                                  <span className="font-medium">
-                                    {getCourtName(match.courtId)}
-                                  </span>
-                                </div>
-                              )}
+                              <div className="flex items-center gap-2 text-sm">
+                                <MapPin className="h-4 w-4" />
+                                <span className={`font-medium ${
+                                  match.courtId ? 
+                                    (getCourtName(match.courtId).includes("no encontrada") || getCourtName(match.courtId).includes("no cargadas") ? 
+                                      "text-red-600" : "text-green-600") : 
+                                    "text-gray-600"
+                                }`}>
+                                  {match.courtId ? getCourtName(match.courtId) : "Sin cancha asignada"}
+                                </span>
+                              </div>
                             </div>
                           </div>
                         </CardContent>

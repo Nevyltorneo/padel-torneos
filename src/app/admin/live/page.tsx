@@ -104,7 +104,7 @@ export default function ProgresoGeneral() {
       ).length;
 
       const pendingEliminations = matchesData.filter(
-        (m: Match) => m.stage !== "group" && m.status === "pending"
+        (m: Match) => m.stage !== "groups" && m.status === "pending"
       ).length;
 
       const newStats = {

@@ -55,7 +55,7 @@ export function generateRoundRobinMatches(
         id: uuidv4(),
         tournamentId,
         categoryId,
-        stage: "group",
+        stage: "groups",
         groupId: group.id,
         pairAId: pairA.id,
         pairBId: pairB.id,

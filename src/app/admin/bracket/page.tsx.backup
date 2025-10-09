@@ -557,9 +557,9 @@ export default function BracketPage() {
     console.log("🔍 Processing", finishedMatches.length, "finished matches...");
 
     // 🔍 Debug: Verificar conteo de partidos por stage
-    const groupFinished = finishedMatches.filter((m) => m.stage === "group");
+    const groupFinished = finishedMatches.filter((m) => m.stage === "groups");
     const knockoutFinished = finishedMatches.filter(
-      (m) => m.stage !== "group"
+      (m) => m.stage !== "groups"
     );
     console.log("🔍 FINISHED MATCHES BY STAGE:", {
       groups: groupFinished.length,
@@ -1184,19 +1184,6 @@ export default function BracketPage() {
               </p>
             </div>
 
-            {/* Botón para vista pública */}
-            <div className="mt-6 text-center">
-              <Button
-                onClick={() =>
-                  window.open(`/public/${currentTournament?.slug}`, "_blank")
-                }
-                className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800"
-                size="lg"
-              >
-                <Users className="h-5 w-5 mr-2" />
-                Ver Vista Pública del Torneo
-              </Button>
-            </div>
           </CardContent>
         </Card>
       )}

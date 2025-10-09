@@ -244,10 +244,10 @@ export default function CalendarPage() {
 
       // Separar por tipo para mejor análisis
       const groupMatches = allMatchesPending.filter(
-        (match) => match.stage === "group"
+        (match) => match.stage === "groups"
       );
       const eliminationMatches = allMatchesPending.filter(
-        (match) => match.stage !== "group"
+        (match) => match.stage !== "groups"
       );
 
       console.log("🔍 DEBUG: Análisis de TODOS los partidos:");
@@ -1376,7 +1376,7 @@ export default function CalendarPage() {
                                 {getCategoryName(match.categoryId)}
                               </Badge>
                               <span className="text-sm text-gray-500">
-                                {match.stage === "group"
+                                {match.stage === "groups"
                                   ? "Fase de Grupos"
                                   : match.stage === "quarterfinals"
                                   ? "Cuartos de Final"

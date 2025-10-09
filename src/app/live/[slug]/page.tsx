@@ -114,7 +114,7 @@ export default function LiveCategoryViewBySlug() {
         setGroups(groupsData);
 
         // Separar partidos por etapa
-        const groupMatchesData = matchesData.filter((m) => m.stage === "group");
+        const groupMatchesData = matchesData.filter((m) => m.stage === "groups");
 
         setGroupMatches(groupMatchesData);
         setGroupStandings(standingsData);

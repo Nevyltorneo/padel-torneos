@@ -182,18 +182,6 @@ export default function AdminBracketPage() {
     }
   };
 
-  const handleViewLive = () => {
-    if (!selectedCategoryId) {
-      toast.error("Selecciona una categoría primero");
-      return;
-    }
-    
-    // Abrir la vista pública en una nueva pestaña
-    const liveUrl = `/public/elimination/${selectedCategoryId}`;
-    window.open(liveUrl, '_blank');
-    
-    toast.success("Vista en vivo abierta en nueva pestaña");
-  };
 
   const handleGenerateNextPhase = async () => {
     if (!selectedCategoryId || !currentTournament) {
@@ -564,16 +552,6 @@ export default function AdminBracketPage() {
               >
                 <RotateCcw className="h-4 w-4" />
                 Regenerar Fase
-              </Button>
-              <Button 
-                variant="default" 
-                size="sm"
-                onClick={handleViewLive}
-                disabled={!selectedCategoryId}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                <ExternalLink className="h-4 w-4" />
-                En Vivo
               </Button>
             </div>
           </div>

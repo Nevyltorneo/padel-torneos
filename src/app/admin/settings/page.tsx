@@ -354,21 +354,22 @@ export default function SettingsPage() {
               <Label htmlFor="slotMinutes">
                 Duración por Partido (minutos)
               </Label>
-              <Select
-                value={config.slotMinutes.toString()}
-                onValueChange={(value) =>
-                  handleDirectChange("slotMinutes", parseInt(value))
+              <Input
+                id="slotMinutes"
+                type="number"
+                min="15"
+                max="180"
+                step="5"
+                value={config.slotMinutes}
+                onChange={(e) =>
+                  handleDirectChange("slotMinutes", parseInt(e.target.value) || 30)
                 }
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="60">60 minutos</SelectItem>
-                  <SelectItem value="90">90 minutos</SelectItem>
-                  <SelectItem value="120">120 minutos</SelectItem>
-                </SelectContent>
-              </Select>
+                placeholder="30"
+                className="w-full"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Ejemplos: 30, 35, 45, 60, 90, 120 minutos
+              </p>
             </div>
           </CardContent>
         </Card>

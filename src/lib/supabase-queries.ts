@@ -946,14 +946,14 @@ export function generateBalancedGroups(
 export async function updateMatchResult(
   matchId: string,
   scorePairA: {
-    set1: number;
-    set2: number;
+    set1?: number;
+    set2?: number;
     set3?: number;
     superDeath?: number;
   },
   scorePairB: {
-    set1: number;
-    set2: number;
+    set1?: number;
+    set2?: number;
     set3?: number;
     superDeath?: number;
   },
@@ -962,16 +962,23 @@ export async function updateMatchResult(
   // Calcular sets ganados por cada pareja
   let pairASets = 0;
   let pairBSets = 0;
+  let hasEmpate = false;
 
-  if (scorePairA.set1 > scorePairB.set1) pairASets++;
-  else pairBSets++;
-
-  if (scorePairA.set2 > scorePairB.set2) pairASets++;
-  else pairBSets++;
-
+  // Solo contar sets que estén completos
+  if (scorePairA.set1 !== undefined && scorePairB.set1 !== undefined) {
+    if (scorePairA.set1 > scorePairB.set1) pairASets++;
+    else if (scorePairB.set1 > scorePairA.set1) pairBSets++;
+    else hasEmpate = true; // Empate en games (4-4, 5-5, etc.)
+  }
+  if (scorePairA.set2 !== undefined && scorePairB.set2 !== undefined) {
+    if (scorePairA.set2 > scorePairB.set2) pairASets++;
+    else if (scorePairB.set2 > scorePairA.set2) pairBSets++;
+    else hasEmpate = true; // Empate en games
+  }
   if (scorePairA.set3 !== undefined && scorePairB.set3 !== undefined) {
     if (scorePairA.set3 > scorePairB.set3) pairASets++;
-    else pairBSets++;
+    else if (scorePairB.set3 > scorePairA.set3) pairBSets++;
+    else hasEmpate = true; // Empate en games
   }
 
   console.log("🔍 Actualizando partido con ID:", matchId);
@@ -979,6 +986,8 @@ export async function updateMatchResult(
   console.log("🔍 Score PairB:", scorePairB);
   console.log("🔍 Winner Pair ID:", winnerPairId);
   console.log("🔍 Sets calculados - PairA:", pairASets, "PairB:", pairBSets);
+
+  // Los empates son válidos en torneos relámpago por límite de tiempo
 
   // Limpiar objetos para eliminar valores undefined que causan constraint violations
   const cleanObject = (obj: any) => {
@@ -996,18 +1005,25 @@ export async function updateMatchResult(
 
   // Crear el objeto score en el formato correcto para la base de datos
   const scoreObject: any = {
-    sets: [
-      {
-        a: cleanedScorePairA.set1 || 0,
-        b: cleanedScorePairB.set1 || 0
-      },
-      {
-        a: cleanedScorePairA.set2 || 0,
-        b: cleanedScorePairB.set2 || 0
-      }
-    ],
-    winnerPairId: winnerPairId
+    pairA: cleanedScorePairA,
+    pairB: cleanedScorePairB,
+    winner: winnerPairId,
+    sets: []
   };
+
+  // Agregar solo los sets que fueron jugados
+  if (cleanedScorePairA.set1 !== undefined && cleanedScorePairB.set1 !== undefined) {
+    scoreObject.sets.push({
+      a: cleanedScorePairA.set1,
+      b: cleanedScorePairB.set1
+    });
+  }
+  if (cleanedScorePairA.set2 !== undefined && cleanedScorePairB.set2 !== undefined) {
+    scoreObject.sets.push({
+      a: cleanedScorePairA.set2,
+      b: cleanedScorePairB.set2
+    });
+  }
 
   // Agregar set3 si existe
   if (cleanedScorePairA.set3 !== undefined && cleanedScorePairB.set3 !== undefined) {
@@ -1136,9 +1152,9 @@ export async function getMatches(groupId: string): Promise<Match[]> {
     startTime: match.start_time,
     courtId: match.court_id,
     status: match.status,
-    // ✅ ARREGLADO: Usar los datos detallados del campo score
-    scorePairA: match.score?.pairA || match.score_pair_a || null,
-    scorePairB: match.score?.pairB || match.score_pair_b || null,
+    // ✅ ARREGLADO: Usar los datos del campo score JSON
+    scorePairA: match.score?.pairA || null,
+    scorePairB: match.score?.pairB || null,
     winnerPairId: match.score?.winner || match.winner_id || null,
     // 🆕 NUEVO: Pasar también el campo score completo
     score: match.score || null,
@@ -1175,9 +1191,9 @@ export async function getAllMatchesByCategory(
     startTime: match.start_time,
     courtId: match.court_id,
     status: match.status,
-    // ✅ ARREGLADO: Usar los datos detallados del campo score
-    scorePairA: match.score?.pairA || match.score_pair_a || null,
-    scorePairB: match.score?.pairB || match.score_pair_b || null,
+    // ✅ ARREGLADO: Usar los datos del campo score JSON
+    scorePairA: match.score?.pairA || null,
+    scorePairB: match.score?.pairB || null,
     winnerPairId: match.score?.winner || match.winner_pair_id || null,
     // 🆕 NUEVO: Pasar también el campo score completo para debugging
     score: match.score || null,
@@ -1358,7 +1374,7 @@ export async function deleteAllGroupMatches(categoryId: string): Promise<void> {
     .from("matches")
     .delete()
     .eq("category_id", categoryId)
-    .eq("stage", "group");
+    .eq("stage", "groups");
 
   if (error) {
     console.error("Error deleting all group matches:", error);
@@ -2356,28 +2372,101 @@ export async function notifyMatchResult(
 // COURTS MANAGEMENT
 // ============================================================================
 
-// Función para obtener todas las canchas de un torneo
+// Función para obtener todas las canchas de un torneo - COMPATIBLE CON TODOS LOS NAVEGADORES
 export async function getCourts(tournamentId: string): Promise<Court[]> {
   try {
-    const { data, error } = await supabase
-      .from("courts")
-      .select("*")
-      .eq("tournament_id", tournamentId)
-      .order("name");
+    console.log("🔄 getCourts called with tournamentId:", tournamentId);
+    
+    // Detectar si es móvil
+    const isMobile = typeof window !== 'undefined' && 
+      /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    console.log("📱 Is mobile:", isMobile);
+    
+    if (isMobile) {
+      // Para móviles: usar fetch directo
+      console.log("📱 Using direct fetch for mobile compatibility...");
+      return await getCourtsDirectFetch(tournamentId);
+    } else {
+      // Para desktop: usar cliente Supabase
+      console.log("🖥️ Using Supabase client for desktop...");
+      const { data, error } = await supabase
+        .from("courts")
+        .select("*")
+        .eq("tournament_id", tournamentId)
+        .order("name");
 
-    if (error) {
-      console.error("Error fetching courts:", error);
-      throw new Error(`Error fetching courts: ${error.message}`);
+      if (error) {
+        console.error("❌ Error fetching courts:", error);
+        throw new Error(`Error fetching courts: ${error.message}`);
+      }
+
+      console.log("✅ Courts fetched successfully:", data?.length || 0);
+      return (data || []).map((row) => ({
+        id: row.id,
+        name: row.name,
+        tournamentId: row.tournament_id,
+      }));
     }
-
-    return (data || []).map((row) => ({
-      id: row.id,
-      name: row.name,
-      tournamentId: row.tournament_id,
-    }));
   } catch (error) {
-    console.error("Unexpected error in getCourts:", error);
+    console.error("❌ Unexpected error in getCourts:", error);
     return [];
+  }
+}
+
+// Función de fetch directo para móviles
+async function getCourtsDirectFetch(tournamentId: string): Promise<Court[]> {
+  try {
+    console.log("📱 Starting direct fetch for courts...");
+    
+    const supabaseUrl = "https://cbsfgbucnpujogxwvpim.supabase.co";
+    const supabaseKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNic2ZnYnVjbnB1am9neHd2cGltIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTY3NjA2ODMsImV4cCI6MjA3MjMzNjY4M30.OKpeyasfs7qRdesqeMyq82zLewZXBfzupJEcYAg6Hdc";
+    
+    const url = `${supabaseUrl}/rest/v1/courts?tournament_id=eq.${tournamentId}&select=*&order=name`;
+    console.log("📱 Fetching from URL:", url);
+    
+    const response = await fetch(url, {
+      method: 'GET',
+      headers: {
+        'apikey': supabaseKey,
+        'Authorization': `Bearer ${supabaseKey}`,
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      cache: 'no-store',
+      credentials: 'omit',
+      mode: 'cors'
+    });
+    
+    console.log("📱 Response status:", response.status);
+    console.log("📱 Response ok:", response.ok);
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("📱 Response error:", errorText);
+      throw new Error(`HTTP ${response.status}: ${errorText}`);
+    }
+    
+    const data = await response.json();
+    console.log("📱 Raw response data:", data);
+    
+    if (!Array.isArray(data)) {
+      console.error("📱 Response is not an array:", typeof data, data);
+      throw new Error("Response is not an array");
+    }
+    
+    const courts = data.map((court: any) => ({
+      id: court.id,
+      name: court.name,
+      tournamentId: court.tournament_id
+    }));
+    
+    console.log("📱 Processed courts:", courts);
+    return courts;
+    
+  } catch (error) {
+    console.error("❌ Direct fetch failed:", error);
+    throw error;
   }
 }
 
@@ -2451,7 +2540,7 @@ export function generateRoundRobinMatches(
         tournamentId,
         categoryId,
         groupId: group.id,
-        stage: "group",
+        stage: "groups",
         pairAId: pairIds[i],
         pairBId: pairIds[j],
         day: undefined,
@@ -2551,22 +2640,29 @@ export async function calculateStandings(
     let gamesA = 0,
       gamesB = 0;
 
-    // Set 1
-    if (scoreA.set1 > scoreB.set1) setsA++;
-    else setsB++;
-    gamesA += scoreA.set1;
-    gamesB += scoreB.set1;
+    // Set 1 (solo si ambos están definidos)
+    if (scoreA.set1 !== undefined && scoreB.set1 !== undefined) {
+      if (scoreA.set1 > scoreB.set1) setsA++;
+      else if (scoreB.set1 > scoreA.set1) setsB++;
+      // Si hay empate (4-4, 5-5), no se cuenta como set ganado para ninguno
+      gamesA += scoreA.set1;
+      gamesB += scoreB.set1;
+    }
 
-    // Set 2
-    if (scoreA.set2 > scoreB.set2) setsA++;
-    else setsB++;
-    gamesA += scoreA.set2;
-    gamesB += scoreB.set2;
+    // Set 2 (solo si ambos están definidos)
+    if (scoreA.set2 !== undefined && scoreB.set2 !== undefined) {
+      if (scoreA.set2 > scoreB.set2) setsA++;
+      else if (scoreB.set2 > scoreA.set2) setsB++;
+      // Si hay empate, no se cuenta como set ganado para ninguno
+      gamesA += scoreA.set2;
+      gamesB += scoreB.set2;
+    }
 
-    // Set 3 (si existe)
+    // Set 3 (solo si ambos están definidos)
     if (scoreA.set3 !== undefined && scoreB.set3 !== undefined) {
       if (scoreA.set3 > scoreB.set3) setsA++;
-      else setsB++;
+      else if (scoreB.set3 > scoreA.set3) setsB++;
+      // Si hay empate, no se cuenta como set ganado para ninguno
       gamesA += scoreA.set3;
       gamesB += scoreB.set3;
     }

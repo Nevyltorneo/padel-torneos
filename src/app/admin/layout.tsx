@@ -188,14 +188,6 @@ export default function AdminLayout({
             <div className="space-y-3">
               <UserInfo />
               <Button
-                variant="outline"
-                size="sm"
-                className="admin-public-view w-full"
-                asChild
-              >
-                <Link href="/public">Ver Vista Pública</Link>
-              </Button>
-              <Button
                 variant="ghost"
                 size="sm"
                 className="admin-home w-full"

@@ -334,9 +334,6 @@ function TournamentCard({
 
   const daysCount = tournament.config.days?.length || 0;
 
-  const handleViewPublic = () => {
-    window.open(`/public/tournament/${tournament.slug}`, "_blank");
-  };
 
   const handleSettings = () => {
     router.push(`/admin/settings?tournament=${tournament.id}`);
@@ -416,14 +413,6 @@ function TournamentCard({
             )}
           </Button>
 
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={handleViewPublic}
-            title="Ver vista pública"
-          >
-            <Eye className="h-4 w-4" />
-          </Button>
 
           <Button
             size="sm"
@@ -551,7 +540,7 @@ function CreateTournamentDialog({
               placeholder="abierto-padel-septiembre-2025"
             />
             <p className="text-xs text-gray-500 mt-1">
-              Esta será la URL pública: /public/t/{slug}
+              Identificador único del torneo
             </p>
           </div>
 

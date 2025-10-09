@@ -136,12 +136,6 @@ export default function AdminDashboard() {
                 Configuración
               </Link>
             </Button>
-            <Button asChild>
-              <Link href={`/public/t/${currentTournament.slug}`}>
-                Ver Público
-                <ArrowRight className="h-4 w-4 ml-2" />
-              </Link>
-            </Button>
           </div>
         </div>
       </div>

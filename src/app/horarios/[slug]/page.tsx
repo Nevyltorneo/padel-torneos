@@ -270,38 +270,32 @@ export default function HorariosBySlug() {
             </div>
           </div>
 
-          <div className="flex flex-col sm:flex-row gap-3 mt-4">
-            <Button
-              onClick={loadCategoryData}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <RefreshCw className="h-4 w-4" />
-              Actualizar Todo
-            </Button>
-            
-            <Button
-              onClick={async () => {
-                try {
-                  console.log("🔄 Loading courts directly...");
-                  toast.loading("Cargando canchas...", { id: "load-courts" });
-                  
-                  const courtsData = await getCourts(category?.tournamentId || "");
-                  console.log("✅ Courts loaded:", courtsData);
-                  
-                  setCourts(courtsData);
-                  toast.success(`Canchas cargadas: ${courtsData.length}`, { id: "load-courts" });
-                } catch (error) {
-                  console.error("❌ Error loading courts:", error);
-                  toast.error("Error cargando canchas", { id: "load-courts" });
-                }
-              }}
-              className="flex items-center gap-2"
-              variant="outline"
-            >
-              <MapPin className="h-4 w-4" />
-              Cargar Canchas
-            </Button>
+          {/* Mensaje motivacional */}
+          <div className="mt-6 p-6 bg-gradient-to-r from-blue-600 to-purple-600 rounded-2xl text-white shadow-xl">
+            <div className="text-center">
+              <div className="flex items-center justify-center gap-3 mb-4">
+                <Trophy className="h-8 w-8 text-yellow-300 animate-pulse" />
+                <h3 className="text-2xl font-bold">¡La Pasión del Pádel en Acción!</h3>
+                <Trophy className="h-8 w-8 text-yellow-300 animate-pulse" />
+              </div>
+              <p className="text-lg mb-4 text-blue-100">
+                Cada partido es una historia de dedicación, esfuerzo y amor por el deporte.
+              </p>
+              <div className="flex flex-wrap justify-center gap-4 text-sm">
+                <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                  <Play className="h-4 w-4" />
+                  <span>Emoción garantizada</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                  <Users className="h-4 w-4" />
+                  <span>Competencia de élite</span>
+                </div>
+                <div className="flex items-center gap-2 bg-white/20 px-3 py-1 rounded-full">
+                  <Clock className="h-4 w-4" />
+                  <span>Actualización en vivo</span>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -384,60 +378,78 @@ export default function HorariosBySlug() {
                     {formatDate(day)}
                   </h2>
 
-                  <div className="grid gap-4">
-                    {dayMatches.map((match) => (
+                  <div className="grid gap-6">
+                    {dayMatches.map((match, index) => (
                       <Card
                         key={match.id}
-                        className="hover:shadow-md transition-shadow"
+                        className={`hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1 ${
+                          match.status === "completed" 
+                            ? "bg-gradient-to-r from-green-50 to-emerald-50 border-green-200" 
+                            : match.status === "playing"
+                            ? "bg-gradient-to-r from-red-50 to-pink-50 border-red-200"
+                            : "bg-gradient-to-r from-blue-50 to-indigo-50 border-blue-200"
+                        }`}
                       >
                         <CardContent className="p-6">
-                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
                             {/* Información del partido */}
                             <div className="flex-1">
-                              <div className="flex items-center gap-3 mb-2">
+                              <div className="flex items-center gap-3 mb-4">
                                 <Badge
-                                  variant="outline"
-                                  className="text-sm font-semibold"
+                                  className={`text-sm font-semibold ${
+                                    match.stage === "groups" 
+                                      ? "bg-blue-100 text-blue-800 border-blue-200" 
+                                      : match.stage === "quarterfinals"
+                                      ? "bg-purple-100 text-purple-800 border-purple-200"
+                                      : match.stage === "semifinals"
+                                      ? "bg-orange-100 text-orange-800 border-orange-200"
+                                      : match.stage === "final"
+                                      ? "bg-yellow-100 text-yellow-800 border-yellow-200"
+                                      : "bg-gray-100 text-gray-800 border-gray-200"
+                                  }`}
                                 >
-                                  {match.stage === "groups" && "Fase de Grupos"}
-                                  {match.stage === "quarterfinals" &&
-                                    "Cuartos de Final"}
-                                  {match.stage === "semifinals" && "Semifinal"}
-                                  {match.stage === "final" && "Final"}
-                                  {match.stage === "third_place" &&
-                                    "Tercer Lugar"}
+                                  {match.stage === "groups" && "🏆 Fase de Grupos"}
+                                  {match.stage === "quarterfinals" && "🥉 Cuartos de Final"}
+                                  {match.stage === "semifinals" && "🥈 Semifinal"}
+                                  {match.stage === "final" && "🥇 Final"}
+                                  {match.stage === "third_place" && "🏅 Tercer Lugar"}
                                 </Badge>
                                 {getStatusBadge(match.status)}
                               </div>
 
-                              <div className="space-y-2">
-                                <div className="flex items-center justify-center gap-4">
-                                  <div className="text-center">
-                                    <p className="font-semibold text-lg">
-                                      {getPairName(match.pairAId)}
-                                    </p>
+                              <div className="space-y-4">
+                                <div className="flex items-center justify-center gap-6">
+                                  <div className="text-center flex-1">
+                                    <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-gray-100">
+                                      <p className="font-bold text-lg text-gray-800">
+                                        {getPairName(match.pairAId)}
+                                      </p>
+                                    </div>
                                   </div>
                                   <div className="text-center">
-                                    <span className="text-2xl font-bold text-gray-500">
+                                    <div className="bg-gradient-to-r from-blue-500 to-purple-500 text-white rounded-full w-12 h-12 flex items-center justify-center font-bold text-lg shadow-lg">
                                       VS
-                                    </span>
+                                    </div>
                                   </div>
-                                  <div className="text-center">
-                                    <p className="font-semibold text-lg">
-                                      {getPairName(match.pairBId)}
-                                    </p>
+                                  <div className="text-center flex-1">
+                                    <div className="bg-white rounded-xl p-4 shadow-sm border-2 border-gray-100">
+                                      <p className="font-bold text-lg text-gray-800">
+                                        {getPairName(match.pairBId)}
+                                      </p>
+                                    </div>
                                   </div>
                                 </div>
 
                                 {/* Mostrar resultado si está completado */}
                                 {match.status === "completed" &&
                                   match.score && (
-                                    <div className="text-center mt-3">
-                                      <div className="inline-flex items-center gap-2 bg-green-50 px-4 py-2 rounded-lg">
-                                        <span className="text-sm text-gray-600">
-                                          Resultado:
+                                    <div className="text-center">
+                                      <div className="inline-flex items-center gap-3 bg-gradient-to-r from-green-100 to-emerald-100 px-6 py-3 rounded-xl border-2 border-green-200 shadow-sm">
+                                        <Trophy className="h-5 w-5 text-green-600" />
+                                        <span className="text-sm font-medium text-green-800">
+                                          Resultado Final:
                                         </span>
-                                        <span className="font-bold text-green-700">
+                                        <span className="font-bold text-green-700 text-lg">
                                           {match.scorePairA?.set1 || 0}-
                                           {match.scorePairB?.set1 || 0}
                                           {match.scorePairA?.set2 !==
@@ -459,6 +471,7 @@ export default function HorariosBySlug() {
                                               </>
                                             )}
                                         </span>
+                                        <Crown className="h-5 w-5 text-yellow-500" />
                                       </div>
                                     </div>
                                   )}
@@ -466,25 +479,45 @@ export default function HorariosBySlug() {
                             </div>
 
                             {/* Información de horario y cancha */}
-                            <div className="flex flex-col sm:flex-row lg:flex-col gap-3">
+                            <div className="flex flex-col sm:flex-row lg:flex-col gap-4">
                               {match.startTime && (
-                                <div className="flex items-center gap-2 text-sm text-gray-600">
-                                  <Clock className="h-4 w-4" />
-                                  <span className="font-medium">
-                                    {formatTime(match.startTime)}
-                                  </span>
+                                <div className="flex items-center gap-3 text-sm bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-100">
+                                  <div className="bg-blue-100 p-2 rounded-lg">
+                                    <Clock className="h-4 w-4 text-blue-600" />
+                                  </div>
+                                  <div>
+                                    <p className="text-gray-600 text-xs">Hora</p>
+                                    <p className="font-bold text-gray-800">
+                                      {formatTime(match.startTime)}
+                                    </p>
+                                  </div>
                                 </div>
                               )}
-                              <div className="flex items-center gap-2 text-sm">
-                                <MapPin className="h-4 w-4" />
-                                <span className={`font-medium ${
+                              <div className="flex items-center gap-3 text-sm bg-white rounded-lg px-4 py-3 shadow-sm border border-gray-100">
+                                <div className={`p-2 rounded-lg ${
                                   match.courtId ? 
                                     (getCourtName(match.courtId).includes("no encontrada") || getCourtName(match.courtId).includes("no cargadas") ? 
-                                      "text-red-600" : "text-green-600") : 
-                                    "text-gray-600"
+                                      "bg-red-100" : "bg-green-100") : 
+                                    "bg-gray-100"
                                 }`}>
-                                  {match.courtId ? getCourtName(match.courtId) : "Sin cancha asignada"}
-                                </span>
+                                  <MapPin className={`h-4 w-4 ${
+                                    match.courtId ? 
+                                      (getCourtName(match.courtId).includes("no encontrada") || getCourtName(match.courtId).includes("no cargadas") ? 
+                                        "text-red-600" : "text-green-600") : 
+                                      "text-gray-600"
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className="text-gray-600 text-xs">Cancha</p>
+                                  <p className={`font-bold ${
+                                    match.courtId ? 
+                                      (getCourtName(match.courtId).includes("no encontrada") || getCourtName(match.courtId).includes("no cargadas") ? 
+                                        "text-red-600" : "text-green-600") : 
+                                      "text-gray-600"
+                                  }`}>
+                                    {match.courtId ? getCourtName(match.courtId) : "Sin asignar"}
+                                  </p>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -497,29 +530,71 @@ export default function HorariosBySlug() {
           )}
         </div>
 
-        {/* Footer */}
-        <footer className="mt-16 bg-gradient-to-r from-gray-800 to-gray-900 text-white rounded-2xl overflow-hidden">
+        {/* Footer motivacional */}
+        <footer className="mt-16 bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 text-white rounded-2xl overflow-hidden shadow-2xl">
           <div className="p-8">
             <div className="text-center">
-              <h4 className="text-xl font-bold mb-3 flex items-center justify-center gap-2">
-                <Trophy className="h-6 w-6 text-yellow-400" />
-                {category?.name || "Torneo Profesional"}
-              </h4>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                Sistema profesional de gestión de torneos con tecnología
-                avanzada para una experiencia única.
-              </p>
-              <p className="text-gray-400 text-xs mt-3">
-                Actualización en tiempo real cada 60 segundos
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <Trophy className="h-8 w-8 text-yellow-300 animate-bounce" />
+                <h4 className="text-2xl font-bold">
+                  ¡Cada Partido Cuenta!
+                </h4>
+                <Trophy className="h-8 w-8 text-yellow-300 animate-bounce" />
+              </div>
+              
+              <div className="grid md:grid-cols-3 gap-6 mb-8">
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Play className="h-6 w-6 text-yellow-300" />
+                    <h5 className="font-bold text-lg">Pasión Deportiva</h5>
+                  </div>
+                  <p className="text-blue-100 text-sm">
+                    Cada jugador da lo mejor de sí en la cancha
+                  </p>
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Users className="h-6 w-6 text-green-300" />
+                    <h5 className="font-bold text-lg">Espíritu Competitivo</h5>
+                  </div>
+                  <p className="text-blue-100 text-sm">
+                    La competencia sana nos hace mejores
+                  </p>
+                </div>
+                
+                <div className="bg-white/10 backdrop-blur-sm rounded-xl p-4">
+                  <div className="flex items-center gap-3 mb-2">
+                    <Clock className="h-6 w-6 text-pink-300" />
+                    <h5 className="font-bold text-lg">Tiempo Real</h5>
+                  </div>
+                  <p className="text-blue-100 text-sm">
+                    Sigue cada momento de la acción
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white/20 backdrop-blur-sm rounded-xl p-6 mb-6">
+                <h5 className="text-xl font-bold mb-3 text-yellow-300">
+                  🏆 ¡Disfruta del Mejor Pádel! 🏆
+                </h5>
+                <p className="text-blue-100 text-lg leading-relaxed">
+                  "En cada partido se escribe una nueva historia de dedicación, 
+                  esfuerzo y amor por este hermoso deporte. ¡Que gane el mejor!"
+                </p>
+              </div>
+
+              <p className="text-blue-200 text-sm mb-4">
+                ⚡ Actualización automática cada 60 segundos
               </p>
             </div>
 
-            {/* Copyright */}
-            <div className="border-t border-gray-700 mt-8 pt-6 text-center">
-              <p className="text-gray-400 text-sm">
+            {/* Copyright mejorado */}
+            <div className="border-t border-white/20 mt-8 pt-6 text-center">
+              <p className="text-blue-200 text-sm">
                 © 2025 Sistema de Torneos Profesional •
-                <span className="text-blue-400 ml-1">by NevylDev</span> • Todos
-                los derechos reservados
+                <span className="text-yellow-300 ml-1 font-bold">by NevylDev</span> • 
+                <span className="text-pink-300 ml-1">Hecho con ❤️ para el pádel</span>
               </p>
             </div>
           </div>

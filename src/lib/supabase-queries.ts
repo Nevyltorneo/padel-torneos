@@ -917,27 +917,47 @@ export function generateBalancedGroups(
     });
   }
 
-  // Distribuir parejas de forma balanceada (serpiente)
-  let currentGroup = 0;
-  let direction = 1; // 1 = forward, -1 = backward
-
-  for (const pair of sortedPairs) {
-    groups[currentGroup].pairIds.push(pair.id);
-    console.log(
-      `Pareja ${pair.id} (Ranking ${pair.seed}) → ${groups[currentGroup].name}`
-    );
-
-    currentGroup += direction;
-
-    // Cambiar dirección al llegar a los extremos
-    if (currentGroup >= numGroups) {
-      currentGroup = numGroups - 1;
-      direction = -1;
-    } else if (currentGroup < 0) {
-      currentGroup = 0;
-      direction = 1;
+  // Distribuir parejas de forma balanceada usando algoritmo de seeding equilibrado
+  console.log("🎯 Distribución balanceada por ranking:");
+  
+  for (let i = 0; i < sortedPairs.length; i++) {
+    const pair = sortedPairs[i];
+    
+    // Calcular grupo de destino usando algoritmo de seeding equilibrado
+    let targetGroup;
+    
+    if (i < numGroups) {
+      // Primera vuelta: distribuir los mejores rankings
+      targetGroup = i;
+    } else {
+      // Vueltas siguientes: distribuir de forma alternada para balancear
+      const round = Math.floor(i / numGroups);
+      const positionInRound = i % numGroups;
+      
+      if (round % 2 === 0) {
+        // Vueltas pares: 0, 1, 2, 3...
+        targetGroup = positionInRound;
+      } else {
+        // Vueltas impares: 3, 2, 1, 0... (invertido)
+        targetGroup = numGroups - 1 - positionInRound;
+      }
     }
+    
+    groups[targetGroup].pairIds.push(pair.id);
+    console.log(
+      `Pareja ${pair.id} (Ranking ${pair.seed}) → ${groups[targetGroup].name}`
+    );
   }
+
+  // Mostrar distribución final para verificar balance
+  console.log("📊 Distribución final de grupos:");
+  groups.forEach((group, index) => {
+    const groupPairs = sortedPairs.filter(pair => group.pairIds.includes(pair.id));
+    const rankings = groupPairs.map(pair => pair.seed || 0).sort((a, b) => a - b);
+    const avgRanking = rankings.reduce((sum, rank) => sum + rank, 0) / rankings.length;
+    
+    console.log(`${group.name}: Rankings ${rankings.join(', ')} (Promedio: ${avgRanking.toFixed(1)})`);
+  });
 
   return groups;
 }

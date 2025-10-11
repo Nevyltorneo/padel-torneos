@@ -55,8 +55,7 @@ export default function SettingsPage() {
     slotMinutes: 90,
     courts: [],
     groupStage: {
-      minPairs: 3,
-      maxPairs: 6,
+      pairsPerGroup: 4,
       roundRobin: true,
     },
     knockout: {
@@ -552,51 +551,34 @@ export default function SettingsPage() {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4">
               <div>
-                <Label htmlFor="minPairs">Mín. Parejas por Grupo</Label>
+                <Label htmlFor="pairsPerGroup">Parejas por Grupo</Label>
                 <Select
-                  value={config.groupStage.minPairs.toString()}
-                  onValueChange={(value) =>
-                    handleConfigChange(
-                      "groupStage",
-                      "minPairs",
-                      parseInt(value)
-                    )
-                  }
+                  value={config.groupStage.pairsPerGroup?.toString() || "4"}
+                  onValueChange={(value) => {
+                    const pairsPerGroup = parseInt(value);
+                    handleConfigChange("groupStage", "pairsPerGroup", pairsPerGroup);
+                  }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value="2">2 parejas</SelectItem>
                     <SelectItem value="3">3 parejas</SelectItem>
                     <SelectItem value="4">4 parejas</SelectItem>
                     <SelectItem value="5">5 parejas</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="maxPairs">Máx. Parejas por Grupo</Label>
-                <Select
-                  value={config.groupStage.maxPairs.toString()}
-                  onValueChange={(value) =>
-                    handleConfigChange(
-                      "groupStage",
-                      "maxPairs",
-                      parseInt(value)
-                    )
-                  }
-                >
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="4">4 parejas</SelectItem>
-                    <SelectItem value="5">5 parejas</SelectItem>
                     <SelectItem value="6">6 parejas</SelectItem>
+                    <SelectItem value="7">7 parejas</SelectItem>
                     <SelectItem value="8">8 parejas</SelectItem>
+                    <SelectItem value="9">9 parejas</SelectItem>
+                    <SelectItem value="10">10 parejas</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Número de parejas que tendrá cada grupo
+                </p>
               </div>
             </div>
 
@@ -738,8 +720,7 @@ export default function SettingsPage() {
               <h4 className="font-medium text-gray-900">Grupos</h4>
               <div className="text-sm text-gray-600 space-y-1">
                 <p>
-                  Min/Max: {config.groupStage.minPairs}-
-                  {config.groupStage.maxPairs} parejas
+                  Parejas por grupo: {config.groupStage.pairsPerGroup}
                 </p>
                 <p>Round Robin: {config.groupStage.roundRobin ? "Sí" : "No"}</p>
               </div>

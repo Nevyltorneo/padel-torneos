@@ -10,7 +10,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   Trophy,
   Users,
@@ -18,7 +17,6 @@ import {
   Clock,
   Crown,
   Medal,
-  RefreshCw,
   Eye,
   Star,
   Target,
@@ -33,6 +31,8 @@ import {
   getAllGroupStandings,
   getCourts,
 } from "@/lib/supabase-queries";
+import { TournamentErrorHandler } from "@/lib/validators/TournamentErrorHandler";
+import { DataIntegrityValidator } from "@/lib/validators/DataIntegrityValidator";
 
 export default function LiveCategoryViewBySlug() {
   const params = useParams();
@@ -47,16 +47,29 @@ export default function LiveCategoryViewBySlug() {
   }>({});
   const [courts, setCourts] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingStatus, setLoadingStatus] = useState("Cargando categoría...");
   const [lastUpdated, setLastUpdated] = useState(new Date());
 
   const loadCategoryData = async () => {
     try {
       console.log("🔄 Loading category data for slug:", categorySlug);
       setLoading(true);
+      setLoadingStatus("Cargando categoría...");
 
       // Cargar todas las categorías y buscar por slug
       console.log("📋 Fetching categories...");
-      const categories = await getAllCategories();
+      setLoadingStatus("Buscando categoría...");
+      
+      const categories = await TournamentErrorHandler.safeQuery(
+        () => getAllCategories(),
+        {
+          fallback: [],
+          errorMessage: "Error al cargar las categorías",
+          showToast: true,
+          logError: true
+        }
+      );
+
       console.log("✅ Categories loaded:", categories.length);
 
       // Buscar por slug primero, luego por ID como fallback
@@ -83,53 +96,99 @@ export default function LiveCategoryViewBySlug() {
       if (!currentCategory) {
         console.error("❌ Category not found for slug:", categorySlug);
         toast.error("Categoría no encontrada");
+        setLoading(false);
         return;
       }
 
-      // Cargar datos en paralelo
-      console.log("🔄 Loading parallel data...");
+      // Cargar datos básicos usando el sistema de consultas paralelas seguras
+      console.log("🔄 Loading basic data for tournament:", currentCategory.name);
+      console.log("🔄 Category ID:", currentCategory.id);
+      console.log("🔄 Tournament ID:", currentCategory.tournamentId);
+      setLoadingStatus("Cargando datos del torneo...");
+      
+      const basicData = await TournamentErrorHandler.safeParallelQuery(
+        {
+          pairs: () => getPairs(currentCategory!.id),
+          groups: () => getGroups(currentCategory!.id),
+          matches: () => getAllMatchesByCategory(currentCategory!.id),
+          courts: () => getCourts(currentCategory!.tournamentId),
+        },
+        {
+          errorMessage: `Error cargando datos básicos para ${currentCategory.name}`,
+          fallbacks: {
+            pairs: [],
+            groups: [],
+            matches: [],
+            courts: [],
+          },
+          showToast: true,
+          logError: true
+        }
+      );
 
-      try {
-        const [pairsData, groupsData, matchesData, standingsData, courtsData] =
-          await Promise.all([
-            getPairs(currentCategory.id),
-            getGroups(currentCategory.id),
-            getAllMatchesByCategory(currentCategory.id),
-            getAllGroupStandings(currentCategory.id),
-            getCourts(currentCategory.tournamentId),
-          ]);
+      // Establecer datos básicos inmediatamente
+      setPairs(basicData.pairs);
+      setGroups(basicData.groups);
+      setCourts(basicData.courts || []);
 
-        // Establecer todos los datos de una vez
-        setCourts(courtsData || []);
+      // Separar partidos por etapa
+      const groupMatchesData = basicData.matches.filter((m) => m.stage === "groups");
+      setGroupMatches(groupMatchesData);
 
-        console.log("✅ Data loaded:", {
-          pairs: pairsData.length,
-          groups: groupsData.length,
-          matches: matchesData.length,
-          standings: Object.keys(standingsData).length,
-          courts: (courtsData || []).length,
-        });
+      console.log("✅ Basic data loaded for", currentCategory.name, ":", {
+        pairs: basicData.pairs.length,
+        groups: basicData.groups.length,
+        matches: groupMatchesData.length,
+        courts: (basicData.courts || []).length,
+      });
 
-        setPairs(pairsData);
-        setGroups(groupsData);
-
-        // Separar partidos por etapa
-        const groupMatchesData = matchesData.filter((m) => m.stage === "groups");
-
-        setGroupMatches(groupMatchesData);
-        setGroupStandings(standingsData);
-
-        console.log("📊 Matches de grupos cargados:", groupMatchesData.length);
-
-        // 🏆 CARGAR CLASIFICADOS SOLO SI HAY ELIMINATORIAS O GRUPOS COMPLETOS
-        console.log("✅ Datos de grupos cargados correctamente");
-
-        setLastUpdated(new Date());
-        console.log("🎉 Data loading completed successfully");
-      } catch (parallelError) {
-        console.error("❌ Error in parallel data loading:", parallelError);
-        toast.error("Error cargando datos del torneo");
+      // Validar integridad de datos si hay datos cargados
+      if (basicData.pairs.length > 0 || basicData.groups.length > 0) {
+        setLoadingStatus("Verificando integridad de datos...");
+        
+        try {
+          const integrityReport = await DataIntegrityValidator.validateCategory(currentCategory.id);
+          
+          if (!integrityReport.isValid) {
+            console.warn("⚠️ Data integrity issues found:", integrityReport.summary);
+            
+            // Solo mostrar toast si hay problemas críticos o altos
+            if (integrityReport.summary.criticalIssues > 0 || integrityReport.summary.highIssues > 0) {
+              toast.warning(
+                `Se encontraron ${integrityReport.summary.criticalIssues + integrityReport.summary.highIssues} problemas de integridad de datos`,
+                {
+                  description: "Algunos datos pueden no mostrarse correctamente"
+                }
+              );
+            }
+          } else {
+            console.log("✅ Data integrity check passed");
+          }
+        } catch (integrityError) {
+          console.warn("⚠️ Error during integrity check:", integrityError);
+          // No mostrar toast para errores de integridad, solo logear
+        }
       }
+
+      // Ahora cargar standings usando los datos ya cargados (evita llamadas duplicadas)
+      console.log("🔄 Loading standings for", currentCategory.name, "...");
+      setLoadingStatus("Calculando posiciones...");
+      
+      const standingsData = await TournamentErrorHandler.safeQuery(
+        () => getAllGroupStandings(currentCategory!.id, basicData.pairs, basicData.groups),
+        {
+          fallback: {},
+          errorMessage: `Error calculando posiciones para ${currentCategory.name}`,
+          showToast: false, // No mostrar toast para standings, son opcionales
+          logError: true
+        }
+      );
+
+      setGroupStandings(standingsData);
+      console.log("✅ Standings loaded for", currentCategory.name, "-", Object.keys(standingsData).length, "groups");
+
+      setLastUpdated(new Date());
+      console.log("🎉 Data loading completed successfully");
     } catch (error) {
       console.error("❌ Error in loadCategoryData:", error);
       toast.error("Error cargando categoría");
@@ -143,12 +202,19 @@ export default function LiveCategoryViewBySlug() {
   }, [categorySlug]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      loadCategoryData();
-    }, 60000); // 60 segundos
+    // Solo establecer el intervalo si ya tenemos datos cargados
+    if (!loading && category) {
+      const interval = setInterval(() => {
+        // Solo recargar si no estamos ya cargando
+        if (!loading) {
+          console.log("🔄 Auto-refresh: Recargando datos...");
+          loadCategoryData();
+        }
+      }, 60000); // 60 segundos
 
-    return () => clearInterval(interval);
-  }, [categorySlug]);
+      return () => clearInterval(interval);
+    }
+  }, [categorySlug, loading, category]);
 
   const getPairName = (pairId: string) => {
     const pair = pairs.find((p) => p.id === pairId);
@@ -163,8 +229,11 @@ export default function LiveCategoryViewBySlug() {
         <div className="text-center space-y-4">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
           <h2 className="text-xl font-semibold text-gray-700">
-            Cargando datos del torneo...
+            {loadingStatus}
           </h2>
+          <p className="text-sm text-gray-500">
+            Por favor espera mientras cargamos toda la información...
+          </p>
         </div>
       </div>
     );
@@ -213,14 +282,6 @@ export default function LiveCategoryViewBySlug() {
             </div>
           </div>
 
-          <Button
-            onClick={loadCategoryData}
-            className="mt-4 flex items-center gap-2"
-            variant="outline"
-          >
-            <RefreshCw className="h-4 w-4" />
-            Actualizar
-          </Button>
         </div>
 
         <div className="space-y-6 sm:space-y-8 lg:space-y-12">

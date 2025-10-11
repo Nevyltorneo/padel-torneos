@@ -50,6 +50,7 @@ import {
   getCourts,
 } from "@/lib/supabase-queries";
 import { toast } from "sonner";
+import { TournamentConfigValidator, TournamentErrorHandler } from "@/lib/validators";
 
 export default function TournamentsPage() {
   const router = useRouter();
@@ -466,32 +467,61 @@ function CreateTournamentDialog({
     try {
       setIsCreating(true);
 
-      const newTournament = await createTournament({
+      // Crear configuración por defecto
+      const defaultConfig = {
         name: name.trim(),
-        slug: slug.trim(),
-        createdBy: "", // Se asigna automáticamente en la función
-        config: {
-          name: name.trim(),
-          days: [],
-          slotMinutes: 50,
-          courts: [],
-          groupStage: {
-            minPairs: 3,
-            maxPairs: 6,
-            roundRobin: true,
-          },
-          knockout: {
-            bracketSize: 8,
-            thirdPlace: true,
-          },
-          rules: {
-            bestOf: 3,
-            setsTo: 6,
-            tieBreak: true,
-          },
+        days: [],
+        slotMinutes: 50,
+        courts: [],
+        groupStage: {
+          pairsPerGroup: 4,
+          roundRobin: true,
         },
-        status: "active",
-      });
+        knockout: {
+          bracketSize: 8,
+          thirdPlace: true,
+        },
+        rules: {
+          bestOf: 3,
+          setsTo: 6,
+          tieBreak: true,
+        },
+      };
+
+      // Validar configuración inicial (más permisivo para torneos nuevos)
+      const validationResult = TournamentConfigValidator.validateInitialConfig(defaultConfig);
+      
+      if (!validationResult.isValid) {
+        console.error("❌ Invalid tournament configuration:", validationResult.errors);
+        toast.error("Configuración de torneo inválida", {
+          description: validationResult.errors.join(", ")
+        });
+        return;
+      }
+
+      // Mostrar advertencias si las hay
+      if (validationResult.warnings && validationResult.warnings.length > 0) {
+        console.warn("⚠️ Tournament configuration warnings:", validationResult.warnings);
+        toast.warning("Configuración con advertencias", {
+          description: validationResult.warnings.join(", ")
+        });
+      }
+
+      // Crear torneo usando el sistema de manejo de errores
+      const newTournament = await TournamentErrorHandler.safeWrite(
+        () => createTournament({
+          name: name.trim(),
+          slug: slug.trim(),
+          createdBy: "", // Se asigna automáticamente en la función
+          config: defaultConfig,
+          status: "active",
+        }),
+        {
+          errorMessage: "Error al crear el torneo",
+          showToast: true,
+          logError: true
+        }
+      );
 
       toast.success("Torneo creado exitosamente");
       onTournamentCreated();
@@ -500,7 +530,7 @@ function CreateTournamentDialog({
       setSlug("");
     } catch (error) {
       console.error("Error creating tournament:", error);
-      toast.error("Error al crear el torneo");
+      // El error ya fue manejado por TournamentErrorHandler
     } finally {
       setIsCreating(false);
     }

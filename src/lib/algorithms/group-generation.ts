@@ -38,26 +38,41 @@ export function generateGroups(
   const groups: Group[] = [];
   let remainingPairs = [...sortedPairs];
 
-  // Paso 3: Distribución inicial
-  while (remainingPairs.length > 0) {
-    // Buscar grupo que pueda aceptar más parejas
-    let targetGroup = groups.find((g) => g.pairIds.length < maxGroupSize);
+  // Paso 3: Calcular número óptimo de grupos
+  const optimalGroups = Math.ceil(pairs.length / maxGroupSize);
+  const actualGroups = Math.max(optimalGroups, Math.ceil(pairs.length / maxGroupSize));
+  
+  console.log(`🎯 Calculando distribución óptima:`, {
+    totalPairs: pairs.length,
+    minGroupSize,
+    maxGroupSize,
+    optimalGroups,
+    actualGroups
+  });
 
-    // Si no hay grupo disponible, crear uno nuevo
-    if (!targetGroup) {
-      targetGroup = {
-        id: uuidv4(),
-        categoryId,
-        name: `Grupo ${String.fromCharCode(65 + groups.length)}`, // A, B, C...
-        pairIds: [],
-      };
-      groups.push(targetGroup);
-    }
-
-    // Agregar pareja al grupo
-    const pair = remainingPairs.shift()!;
-    targetGroup.pairIds.push(pair.id);
+  // Crear grupos iniciales
+  for (let i = 0; i < actualGroups; i++) {
+    groups.push({
+      id: uuidv4(),
+      categoryId,
+      name: `Grupo ${String.fromCharCode(65 + i)}`, // A, B, C...
+      pairIds: [],
+    });
   }
+
+  // Paso 4: Distribución equilibrada
+  let pairIndex = 0;
+  for (const pair of sortedPairs) {
+    // Distribuir parejas de forma round-robin para equilibrio
+    const targetGroupIndex = pairIndex % groups.length;
+    groups[targetGroupIndex].pairIds.push(pair.id);
+    pairIndex++;
+  }
+
+  console.log(`✅ Distribución inicial completada:`, {
+    totalGroups: groups.length,
+    pairsPerGroup: groups.map(g => g.pairIds.length)
+  });
 
   // Paso 4: Redistribuir si algún grupo quedó muy pequeño
   redistributeSmallGroups(groups, minGroupSize, maxGroupSize);
@@ -73,40 +88,61 @@ function redistributeSmallGroups(
   minGroupSize: number,
   maxGroupSize: number
 ): void {
-  for (let i = groups.length - 1; i >= 0; i--) {
-    const group = groups[i];
+  console.log(`🔄 Optimizando distribución de grupos:`, {
+    minGroupSize,
+    maxGroupSize,
+    currentDistribution: groups.map(g => g.pairIds.length)
+  });
 
-    if (group.pairIds.length < minGroupSize) {
-      // Redistribuir parejas de este grupo
-      const pairsToRedistribute = [...group.pairIds];
+  // Verificar si necesitamos redistribución
+  const needsRedistribution = groups.some(g => g.pairIds.length < minGroupSize);
+  
+  if (!needsRedistribution) {
+    console.log(`✅ Distribución ya es óptima`);
+    return;
+  }
 
-      // Remover el grupo pequeño
-      groups.splice(i, 1);
+  // Recopilar todas las parejas
+  const allPairs: string[] = [];
+  groups.forEach(group => {
+    allPairs.push(...group.pairIds);
+  });
 
-      // Redistribuir las parejas
-      for (const pairId of pairsToRedistribute) {
-        // Buscar grupo con espacio disponible
-        const targetGroup = groups.find((g) => g.pairIds.length < maxGroupSize);
+  // Limpiar grupos existentes
+  groups.forEach(group => {
+    group.pairIds = [];
+  });
 
-        if (targetGroup) {
-          targetGroup.pairIds.push(pairId);
-        } else {
-          // Si no hay espacio, crear nuevo grupo (esto debería ser raro)
-          const newGroup: Group = {
-            id: uuidv4(),
-            categoryId: group.categoryId,
-            name: `Grupo ${String.fromCharCode(65 + groups.length)}`,
-            pairIds: [pairId],
-          };
-          groups.push(newGroup);
-        }
-      }
-    }
+  // Redistribuir de forma equilibrada respetando minGroupSize
+  const totalPairs = allPairs.length;
+  const optimalGroups = Math.ceil(totalPairs / maxGroupSize);
+  
+  // Asegurar que tenemos suficientes grupos para respetar minGroupSize
+  const minRequiredGroups = Math.ceil(totalPairs / maxGroupSize);
+  const actualGroups = Math.max(optimalGroups, minRequiredGroups);
+
+  console.log(`🎯 Redistribuyendo:`, {
+    totalPairs,
+    optimalGroups,
+    actualGroups,
+    groupsAvailable: groups.length
+  });
+
+  // Redistribuir parejas de forma round-robin
+  let pairIndex = 0;
+  for (const pairId of allPairs) {
+    const targetGroupIndex = pairIndex % Math.min(groups.length, actualGroups);
+    groups[targetGroupIndex].pairIds.push(pairId);
+    pairIndex++;
   }
 
   // Reajustar nombres de grupos
   groups.forEach((group, index) => {
     group.name = `Grupo ${String.fromCharCode(65 + index)}`;
+  });
+
+  console.log(`✅ Redistribución completada:`, {
+    finalDistribution: groups.map(g => g.pairIds.length)
   });
 }
 

@@ -891,7 +891,7 @@ export async function deleteGroups(categoryId: string): Promise<void> {
 // Algoritmo para generar grupos balanceados
 export function generateBalancedGroups(
   pairs: Pair[],
-  maxGroupSize: number = 3
+  maxGroupSize: number // ✅ Sin valor por defecto - debe venir de la configuración del torneo
 ): Omit<Group, "id" | "createdAt" | "updatedAt">[] {
   // Filtrar parejas únicas por ID para evitar duplicados
   const uniquePairs = pairs.filter(
@@ -3974,7 +3974,11 @@ export async function getEliminationMatches(
 }
 
 // Función para obtener standings de todos los grupos de una categoría
-export async function getAllGroupStandings(categoryId: string): Promise<{
+export async function getAllGroupStandings(
+  categoryId: string,
+  providedPairs?: Pair[],
+  providedGroups?: any[]
+): Promise<{
   [groupId: string]: {
     groupName: string;
     standings: any[];
@@ -3986,8 +3990,10 @@ export async function getAllGroupStandings(categoryId: string): Promise<{
       categoryId
     );
 
-    const groups = await getGroups(categoryId);
-    const allPairs = await getPairs(categoryId);
+    // Usar datos proporcionados si están disponibles, sino cargarlos
+    const groups = providedGroups || await getGroups(categoryId);
+    const allPairs = providedPairs || await getPairs(categoryId);
+    
     const standings: {
       [groupId: string]: { groupName: string; standings: any[] };
     } = {};

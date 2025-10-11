@@ -43,13 +43,32 @@ export function useGenerateGroups() {
         return { success: false };
       }
 
-      // Configuración por defecto
+      // Usar configuración del torneo actual
+      const tournamentConfig = currentTournament.config;
       const defaultOptions: GroupGenerationOptions = {
-        minGroupSize: 3,
-        maxGroupSize: 6,
+        minGroupSize: tournamentConfig.groupStage.minPairs,
+        maxGroupSize: tournamentConfig.groupStage.maxPairs,
         balanceBySeeds: true,
         ...options,
       };
+
+      console.log("🎯 Usando configuración del torneo:", {
+        tournamentName: currentTournament.name,
+        minPairs: tournamentConfig.groupStage.minPairs,
+        maxPairs: tournamentConfig.groupStage.maxPairs,
+        pairsAvailable: pairs.length
+      });
+
+      console.log("🔍 Configuración completa del torneo:", {
+        config: tournamentConfig,
+        groupStage: tournamentConfig.groupStage
+      });
+
+      console.log("🎯 Opciones finales para generación:", {
+        minGroupSize: defaultOptions.minGroupSize,
+        maxGroupSize: defaultOptions.maxGroupSize,
+        balanceBySeeds: defaultOptions.balanceBySeeds
+      });
 
       // Validar configuración
       const validation = validateGroupConfiguration(
@@ -127,9 +146,18 @@ export function useGenerateGroups() {
   ) => {
     const pairs = getPairsByCategory(categoryId);
 
+    // Usar configuración del torneo actual
+    const tournamentConfig = currentTournament?.config;
+    if (!tournamentConfig) {
+      return {
+        isValid: false,
+        message: "No hay torneo seleccionado"
+      };
+    }
+
     const defaultOptions: GroupGenerationOptions = {
-      minGroupSize: 3,
-      maxGroupSize: 6,
+      minGroupSize: tournamentConfig.groupStage.minPairs,
+      maxGroupSize: tournamentConfig.groupStage.maxPairs,
       balanceBySeeds: true,
       ...options,
     };

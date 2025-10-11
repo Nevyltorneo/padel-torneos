@@ -24,8 +24,7 @@ export interface TournamentConfig {
   slotMinutes: number;
   courts: Court[];
   groupStage: {
-    minPairs: number;
-    maxPairs: number;
+    pairsPerGroup: number; // Número de parejas por grupo
     roundRobin: boolean;
   };
   knockout: {
@@ -218,8 +217,7 @@ export const DEFAULT_TOURNAMENT_CONFIG: Partial<TournamentConfig> = {
   slotMinutes: 90,
   days: [],
   groupStage: {
-    minPairs: 3,
-    maxPairs: 6,
+    pairsPerGroup: 4,
     roundRobin: true,
   },
   knockout: {

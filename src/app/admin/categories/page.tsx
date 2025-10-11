@@ -53,6 +53,7 @@ import {
   generateBalancedGroups,
   deleteGroups,
   testSupabaseConnection,
+  getTournament,
 } from "@/lib/supabase-queries";
 
 export default function CategoriesPage() {
@@ -113,17 +114,58 @@ export default function CategoriesPage() {
       // 2. Obtener todas las parejas de la categoría
       const pairs = await getPairs(categoryId);
 
-      if (pairs.length < 3) {
-        toast.error("Se necesitan al menos 3 parejas para generar grupos", {
+      if (pairs.length < 2) {
+        toast.error("Se necesitan al menos 2 parejas para generar grupos", {
           id: "generate-groups",
         });
         return;
       }
 
-      // 3. Generar grupos balanceados
-      const groupsToCreate = generateBalancedGroups(pairs, 3);
+      // 3. Obtener la categoría completa para acceder al tournamentId
+      const category = realCategories.find(c => c.id === categoryId);
+      if (!category) {
+        toast.error("Error: Categoría no encontrada", { id: "generate-groups" });
+        return;
+      }
 
-      // 4. Crear grupos en la base de datos
+      // 4. Obtener la configuración del torneo
+      const tournament = await getTournament(category.tournamentId);
+      
+      if (!tournament?.config?.groupStage) {
+        toast.error("Error: Configuración de grupos no encontrada en el torneo", {
+          id: "generate-groups"
+        });
+        return;
+      }
+      
+      // Usar pairsPerGroup directamente
+      const pairsPerGroup = tournament.config.groupStage.pairsPerGroup;
+      
+      if (!pairsPerGroup) {
+        toast.error("Error: No se ha configurado el número de parejas por grupo en el torneo", {
+          id: "generate-groups"
+        });
+        return;
+      }
+      
+      // 🔍 DEBUG: Mostrar configuración del torneo
+      console.log("🔍 Configuración del torneo:", {
+        tournamentName: tournament.name,
+        pairsPerGroup,
+        totalPairs: pairs.length,
+        expectedGroups: Math.ceil(pairs.length / pairsPerGroup)
+      });
+      
+      const groupsToCreate = generateBalancedGroups(pairs, pairsPerGroup);
+      
+      console.log("🎯 Generando grupos:", {
+        tournamentName: tournament.name,
+        pairsPerGroup,
+        totalPairs: pairs.length,
+        expectedGroups: Math.ceil(pairs.length / pairsPerGroup)
+      });
+
+      // 5. Crear grupos en la base de datos
       const createdGroups = await createGroups(groupsToCreate);
 
       toast.success(

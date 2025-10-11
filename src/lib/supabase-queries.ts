@@ -917,31 +917,14 @@ export function generateBalancedGroups(
     });
   }
 
-  // Distribuir parejas de forma balanceada usando algoritmo de seeding equilibrado
-  console.log("🎯 Distribución balanceada por ranking:");
+  // Distribuir parejas de forma progresiva y balanceada
+  console.log("🎯 Distribución progresiva por ranking:");
   
   for (let i = 0; i < sortedPairs.length; i++) {
     const pair = sortedPairs[i];
     
-    // Calcular grupo de destino usando algoritmo de seeding equilibrado
-    let targetGroup;
-    
-    if (i < numGroups) {
-      // Primera vuelta: distribuir los mejores rankings
-      targetGroup = i;
-    } else {
-      // Vueltas siguientes: distribuir de forma alternada para balancear
-      const round = Math.floor(i / numGroups);
-      const positionInRound = i % numGroups;
-      
-      if (round % 2 === 0) {
-        // Vueltas pares: 0, 1, 2, 3...
-        targetGroup = positionInRound;
-      } else {
-        // Vueltas impares: 3, 2, 1, 0... (invertido)
-        targetGroup = numGroups - 1 - positionInRound;
-      }
-    }
+    // Algoritmo de distribución progresiva: A, B, C, A, B, C...
+    const targetGroup = i % numGroups;
     
     groups[targetGroup].pairIds.push(pair.id);
     console.log(
